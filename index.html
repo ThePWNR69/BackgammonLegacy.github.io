@@ -6054,7 +6054,7 @@ const Net = (() => {
   /* ---------- direct peer-to-peer (WebRTC): works outside Claude, the creator is the host ----------
      No server is involved. The host's browser makes a connection offer, shown as a code; the guest pastes it,
      gets a reply code, and the host pastes that back. After that the two browsers talk directly. */
-  const ICE = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun.cloudflare.com:3478' }];
+  const ICE = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun.cloudflare.com:3478' }, { urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478'], username: 'peerjs', credential: 'peerjsp' }];
   const b64 = (u8) => { let s = ''; for (let i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
   const unb64 = (t) => { t = t.replace(/-/g, '+').replace(/_/g, '/'); while (t.length % 4) t += '='; const s = atob(t), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; };
   const pipe = async (u8, stream) => new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(stream)).arrayBuffer());
@@ -6144,24 +6144,48 @@ const Net = (() => {
       ws.onclose = () => { if (!opened) { clearTimeout(timer); reject(new Error('Could not reach the matchmaking service. Try the manual codes instead.')); } else handlers.forEach(f => f({ type: 'CLOSED' })); };
     });
   }
+  function softReset() {                                 // forget a half-finished handshake so a new guest can start clean
+    S.peer = null; S.seq = 0; S.log = []; S.peerAck = 0; S.recv = 0; S.buf = new Map(); S.inbox = [];
+    S.seedA = 0; S.seedB = 0; S.peerCommit = null; S.myReveal = false; S.peerReveal = null; S.peerProfile = null; S.left = false;
+  }
+  const NOT_THERE = 'No game found with that code. Check it, and that your friend has created the game and is still on the waiting screen.';
   async function hostBroker(code, cfg, profile, cb) {
     code = cleanCode(code) || newCode(); if (code.length < MIN_CODE) throw new Error('Use at least 5 letters or numbers.');
-    const sig = await openSignal(idFor(code)), room = dcRoom();
+    let sig = await openSignal(idFor(code));              // must succeed once: it tells us the code is free and the service is reachable
+    const room = dcRoom();
     attach('host', code, room, cfg, profile, cb);
-    const mine = S; let taken = false;
-    sig.on(async (m) => {
-      if (m.type === 'CLOSED') { if (S === mine && !mine.ready && !taken && mine.cb.fail) mine.cb.fail(new Error('Lost the matchmaking connection. Create the game again.')); return; }
-      if (m.type !== 'OFFER' || taken || S !== mine) return;
-      taken = true;
+    const mine = S; mine.sig = sig; let pc = null, linked = false, registering = false, attempt = 0;
+    const note = (t, bad) => { if (S === mine && mine.cb.note) mine.cb.note(t, bad); };
+    try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(l => { mine.wl = l; }).catch(() => { }); } catch (e) { }
+    const onSig = async (m) => {
+      if (S !== mine || mine.ready) return;
+      if (m.type === 'CLOSED') { if (!linked) reRegister(); return; }
+      if (m.type !== 'OFFER') return;
+      const my = ++attempt; linked = false;               // a fresh offer replaces any attempt that did not finish
       try {
-        const pc = new RTCPeerConnection({ iceServers: ICE }); room.bind(pc);
-        pc.ondatachannel = (ev) => { room.attach(ev.channel); ev.channel.addEventListener('open', () => sig.close()); };
-        pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed' && S === mine && !mine.ready && mine.cb.fail) mine.cb.fail(new Error('Could not connect. Different networks can block direct connections: try both devices on the same Wi-Fi.')); };
+        if (pc) { try { pc.close(); } catch (e) { } }
+        softReset(); note('A friend is connecting…');
+        pc = new RTCPeerConnection({ iceServers: ICE }); room.bind(pc); const here = pc;
+        pc.ondatachannel = (ev) => { room.attach(ev.channel); ev.channel.addEventListener('open', () => { linked = true; try { mine.sig.close(); } catch (e) { } }); };
+        pc.onconnectionstatechange = () => { if (here === pc && here.connectionState === 'failed' && S === mine && !mine.ready) { linked = false; note('That connection failed. Different networks can block direct connections, so try the same Wi-Fi. The game is still open if they try again.', true); reRegister(); } };
         await pc.setRemoteDescription({ type: 'offer', sdp: m.payload.sdp }); await pc.setLocalDescription(await pc.createAnswer()); await gather(pc);
-        sig.send({ type: 'ANSWER', dst: m.src, payload: { sdp: pc.localDescription.sdp } });
-      } catch (e) { if (mine.cb.fail) mine.cb.fail(new Error('Could not connect to that player.')); }
-    });
-    mine.sig = sig;
+        mine.sig.send({ type: 'ANSWER', dst: m.src, payload: { sdp: pc.localDescription.sdp } });
+        setTimeout(() => { if (S === mine && !mine.ready && !linked && my === attempt) { note('A friend tried to join but the connection did not open. Try again, ideally on the same Wi-Fi.', true); } }, 30000);
+      } catch (e) { note('Could not connect to that player. The game is still open.', true); }
+    };
+    sig.on(onSig);
+    // keep the code registered while we wait: reconnect if the socket drops (phones sleep, networks blip)
+    const reRegister = async () => {
+      if (registering || S !== mine || mine.ready) return;
+      registering = true; note('Reconnecting to matchmaking…');
+      for (let i = 0; i < 60 && S === mine && !mine.ready; i++) {
+        try { const n = await openSignal(idFor(code)); if (S !== mine) { n.close(); break; } mine.sig = n; n.on(onSig); note('Waiting for a friend to join…'); registering = false; return; }
+        catch (e) { await new Promise(r => setTimeout(r, 1500 + Math.min(i, 8) * 400)); }
+      }
+      registering = false; if (S === mine && !mine.ready) note('Lost the matchmaking connection. Cancel and create the game again.', true);
+    };
+    const vis = () => { if (document.visibilityState === 'visible' && S === mine && !mine.ready && mine.sig && mine.sig.ws.readyState > 1) reRegister(); };
+    document.addEventListener('visibilitychange', vis); mine.vis = vis;
     return code;
   }
   async function joinBroker(code, profile, cb) {
@@ -6169,17 +6193,22 @@ const Net = (() => {
     const sig = await openSignal('bgg-' + rid()), room = dcRoom(), pc = new RTCPeerConnection({ iceServers: ICE }), ch = pc.createDataChannel('bg', { ordered: true });
     room.bind(pc); room.attach(ch); ch.addEventListener('open', () => sig.close());
     attach('guest', code, room, null, profile, cb);
-    const mine = S; mine.sig = sig;
-    pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed' && S === mine && !mine.ready && mine.cb.fail) mine.cb.fail(new Error('Could not connect. Different networks can block direct connections: try both devices on the same Wi-Fi.')); };
+    const mine = S; mine.sig = sig; let answered = false;
+    const note = (t) => { if (S === mine && mine.cb.note) mine.cb.note(t); };
+    pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed' && S === mine && !mine.ready && mine.cb.fail) { mine.cb.fail(new Error('Could not connect. Different networks can block direct connections: try both devices on the same Wi-Fi, or use the manual codes.')); close(true); } };
     sig.on(async (m) => {
       if (S !== mine) return;
-      if (m.type === 'EXPIRE') { if (mine.cb.fail) mine.cb.fail(new Error('No game found with that code. Check it, and that your friend has created the game.')); close(true); return; }
-      if (m.type === 'ANSWER') { try { await pc.setRemoteDescription({ type: 'answer', sdp: m.payload.sdp }); } catch (e) { if (mine.cb.fail) mine.cb.fail(new Error('Could not connect to that player.')); } }
+      if (m.type === 'EXPIRE') { if (mine.cb.fail) mine.cb.fail(new Error(NOT_THERE)); close(true); return; }
+      if (m.type === 'ANSWER') {
+        answered = true; note('Found the game, connecting…');
+        try { await pc.setRemoteDescription({ type: 'answer', sdp: m.payload.sdp }); } catch (e) { if (mine.cb.fail) mine.cb.fail(new Error('Could not connect to that player.')); close(true); return; }
+        setTimeout(() => { if (S === mine && !mine.ready && !mine.peer && mine.cb.fail) { mine.cb.fail(new Error('Found the game but the connection did not open. Different networks can block direct connections: try the same Wi-Fi, or use the manual codes.')); close(true); } }, 30000);
+      }
     });
     await pc.setLocalDescription(await pc.createOffer()); await gather(pc);
     sig.send({ type: 'OFFER', dst: idFor(code), payload: { sdp: pc.localDescription.sdp } });
     send('hello', { name: profile.name, av: profile.av });
-    setTimeout(() => { if (S === mine && !mine.ready && !mine.peer && mine.cb.fail) { mine.cb.fail(new Error('No game found with that code. Check it, and that your friend has created the game.')); close(true); } }, 20000);
+    setTimeout(() => { if (S === mine && !answered && !mine.ready && mine.cb.fail) { mine.cb.fail(new Error(NOT_THERE)); close(true); } }, 20000);
     return code;
   }
   async function host(cfg, profile, cb, code) {
@@ -6197,7 +6226,7 @@ const Net = (() => {
   function close(silent) {
     if (!S) return;
     const s = S; S = null;
-    s.closed = true; s.timers.forEach(clearInterval); if (s.sig) s.sig.close();
+    s.closed = true; s.timers.forEach(clearInterval); if (s.sig) s.sig.close(); try { if (s.wl) s.wl.release(); if (s.vis) document.removeEventListener('visibilitychange', s.vis); } catch (e) { }
     for (const w of s.waiters) w.res(null);
     try { s.room.leave(); } catch (e) { }
   }
@@ -8957,7 +8986,7 @@ async function openOnline() {
           try {
             if (brokered()) {
               status('Setting up the game…');
-              await Net.hostBroker(wantCode, cfg, profile(), { ready: begin, fail: failCb, bye: () => { } });
+              await Net.hostBroker(wantCode, cfg, profile(), { ready: begin, fail: failCb, bye: () => { }, note: (t, bad) => status(t, bad) });
               waitingRoom(wantCode);
             } else if (mode === 'p2p') {
               status('Preparing your code…');
@@ -8985,7 +9014,7 @@ async function openOnline() {
             } else {
               const code = Net.cleanCode($('#on-join', api.el).value); if (code.length < Net.MIN_CODE) { status('Codes have at least 5 letters or numbers.', true); busy = false; return; }
               status('Connecting…');
-              await (brokered() ? Net.joinBroker : Net.join)(code, profile(), { ready: begin, fail: failCb, bye: () => { } });
+              await (brokered() ? Net.joinBroker : Net.join)(code, profile(), { ready: begin, fail: failCb, bye: () => { }, note: (t) => status(t) });
             }
           } catch (er) { status(er.message || 'Could not connect', true); }
           busy = false; return;
