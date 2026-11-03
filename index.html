@@ -186,7 +186,8 @@ svg.on { fill: var(--brass2); filter: drop-shadow(0 0 4px rgba(241,207,134,0.5))
 .item h4 { font-size: 18px; }
 .item p { margin: 0; color: var(--mute); font-size: 13px; flex: 1; }
 .item .row { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
-.item .row .btn { flex: 1; }
+.item .row .btn { flex: 1 1 0; white-space: nowrap; padding-left: 10px; padding-right: 10px; }
+.item .row .btn.primary { flex: 1.5 1 0; }
 .rar { font-size: 10px; letter-spacing: .12em; font-weight: 800; text-transform: uppercase; }
 .owned-mark { position: absolute; top: 8px; right: 8px; }
 
@@ -1345,6 +1346,9 @@ const DATA = (() => {
     { id: 'whirl', name: 'Whirlwind', rarity: 'epic', price: 900, lvl: 7, desc: 'Dice spiral in from the edge of the board.' },
     { id: 'burst', name: 'Star Burst', rarity: 'epic', price: 1200, lvl: 9, desc: 'Dice appear in a flash of sparks and spin to a stop.' },
   ];
+  const HITFX = [
+    { id: 'knock', name: 'Knock-Out', rarity: 'common', price: 0, lvl: 1, desc: 'The classic: the hit checker is bumped off and tumbles to the bar.' },
+  ];
 
 
   /* ---------- Boss reward sets (unlocked by beating the chapter bosses) ---------- */
@@ -1434,6 +1438,7 @@ const DATA = (() => {
     dice: { label: 'Dice', items: DICE, slot: 'dice' },
     moveFx: { label: 'Move Effects', items: MOVEFX, slot: 'moveFx' },
     throwFx: { label: 'Dice Throws', items: THROWFX, slot: 'throwFx' },
+    hitFx: { label: 'Hit Effects', items: HITFX, slot: 'hitFx' },
     trims: { label: 'Border Trims', items: TRIMS, slot: 'trim' },
     inlays: { label: 'Inlays', items: INLAYS, slot: 'inlay' },
     mats: { label: 'Roll Mats', items: MATS, slot: 'mat' },
@@ -1620,15 +1625,15 @@ const DATA = (() => {
 
   const DEFAULT_PROFILE = () => ({
     v: 1, rev: 0, xp: 0, coins: 300,
-    owned: { boards: ['club'], checkers: ['classic'], dice: ['ivory'], moveFx: ['glide'], throwFx: ['toss'], trims: ['none'], inlays: ['none'], mats: ['none'], cubes: ['ivory'] },
-    equipped: { board: 'club', checkers: 'classic', dice: 'ivory', moveFx: 'glide', throwFx: 'toss', trim: 'none', inlay: 'none', mat: 'none', cube: 'ivory' },
+    owned: { boards: ['club'], checkers: ['classic'], dice: ['ivory'], moveFx: ['glide'], throwFx: ['toss'], hitFx: ['knock'], trims: ['none'], inlays: ['none'], mats: ['none'], cubes: ['ivory'] },
+    equipped: { board: 'club', checkers: 'classic', dice: 'ivory', moveFx: 'glide', throwFx: 'toss', hitFx: 'knock', trim: 'none', inlay: 'none', mat: 'none', cube: 'ivory' },
     campaign: {}, cheats: { unlockStages: false }, career: blankCareer(),
     stats: { played: 0, won: 0, gammons: 0, hits: 0, coinsEarned: 0, bestStreak: 0, streak: 0 },
     settings: { sound: true, volume: 0.7, autoRoll: false, assist: true, legal: true, numbers: true, fast: false, pipDisplay: true, haptics: true, wakeLock: true, compact: 'auto', landscapeLock: false, quality: 'auto', board3d: true },
     quick: { level: 3, style: 'balanced', matchLen: 1, cube: false, variant: 'classic', gammons: true },
   });
 
-  return { RARITY, BOARDS, CHECKERS, DICE, MOVEFX, THROWFX, TRIMS, INLAYS, MATS, CUBES, themeFor, BOSS_SETS, CATS, find, levelInfo, xpToNext, levelBonusCoins, rankFor, MAX_LEVEL, rewardFor, gameReward, matchBase, VARIANT_REWARD, vf, CHAPTERS, STAGES, objText, objDone, DEFAULT_PROFILE, blankCareer, mergeCareer };
+  return { RARITY, BOARDS, CHECKERS, DICE, MOVEFX, THROWFX, HITFX, TRIMS, INLAYS, MATS, CUBES, themeFor, BOSS_SETS, CATS, find, levelInfo, xpToNext, levelBonusCoins, rankFor, MAX_LEVEL, rewardFor, gameReward, matchBase, VARIANT_REWARD, vf, CHAPTERS, STAGES, objText, objDone, DEFAULT_PROFILE, blankCareer, mergeCareer };
 })();
 
 /* ---------- shop expansion: more boards, checkers, dice, trims, inlays, roll mats and cube skins ---------- */
@@ -1823,7 +1828,7 @@ const DATA = (() => {
 
   /* ===== animations ===== */
   const MV = DATA.MOVEFX, TH = DATA.THROWFX, fx = (arr) => (id, name, rarity, price, lvl, desc) => arr.push({ id, name, rarity, price, lvl, desc });
-  const mv = fx(MV), th = fx(TH);
+  const mv = fx(MV), th = fx(TH), ht = fx(DATA.HITFX);
   mv('bounce', 'Rubber Bounce', 'common', 250, 1, 'Hops along in three squashy bounces.');
   mv('tumble', 'Tumble', 'common', 300, 2, 'Rolls over and over to its point.');
   mv('zigzag', 'Zigzag Dash', 'common', 300, 2, 'Darts left and right on the way in.');
@@ -1840,6 +1845,19 @@ const DATA = (() => {
   th('pinball', 'Pinball', 'rare', 700, 6, 'Dice ricochet off invisible bumpers.');
   th('catapult', 'Catapult', 'epic', 1000, 8, 'Flung high from below the board.');
   th('meteor', 'Meteor Shower', 'epic', 1200, 9, 'Dice streak in from the sky, burning.');
+  /* hit effects: what happens to a checker you land on (levels and prices are set by data_plan.js) */
+  ht('squash', 'Cartoon Squash', 'common', 220, 3, 'Flattened like a pancake, sees stars, then bounces back to the bar.');
+  ht('shatter', 'Glass Shatter', 'rare', 630, 9, 'Cracks and breaks into glittering pieces, then rebuilds on the bar.');
+  ht('popper', 'Party Popper', 'common', 300, 14, 'Pops into confetti and streamers on its way to the bar.');
+  ht('explode', 'Explosion', 'epic', 1500, 18, 'A fireball, a shock wave and the checker in flying pieces.');
+  ht('spirit', 'Spirit Release', 'rare', 920, 24, 'A ghost lifts off the checker and drifts to the bar.');
+  ht('blackhole', 'Black Hole', 'legendary', 4000, 28, 'Torn apart and sucked into a swirling void.');
+  ht('coins', 'Coin Burst', 'rare', 1100, 32, 'Bursts into a shower of gold coins.');
+  ht('burn', 'Burn to Ash', 'epic', 2100, 36, 'Scorched from the rim inwards until only ash is left.');
+  ht('fireworks', 'Fireworks', 'legendary', 4900, 40, 'Launched into the sky, then bursts into a shower of colour.');
+  ht('freeze', 'Flash Freeze', 'epic', 2400, 44, 'Frost grows over the checker, then it shatters into ice.');
+  ht('disintegrate', 'Disintegrate', 'epic', 2500, 47, 'Crumbles to dust that blows away on the wind.');
+  ht('lightning', 'Lightning Strike', 'epic', 2600, 50, 'Struck by a bolt from the sky and thrown to the bar, crackling.');
 
   die('knightcross', "Knight's Cross", 'rare', 600, 4, 'Ivory dice with the red pips of St George.', { body: '#f6f3ea', edge: '#d8c890', pip: '#c8102e', style: 'solid', glossy: true });
   die('dragonfire', 'Dragonfire', 'rare', 700, 5, 'Green dragon glass with amber pips.', { body: '#1f7a3a', edge: '#0a3a1a', pip: '#ffcf4a', style: 'glass', alpha: 0.9, sparkle: true });
@@ -1921,6 +1939,33 @@ const DATA = (() => {
   cube('goldcube', 'Solid Gold', 'epic', 1200, 9, 'Heavy gold, engraved numerals.', { body: ['#f2c84b', '#b88a1a'], edge: '#7a5a08', ink: '#2a1a02', ring: '#fff0a8', metal: 0.7, rough: 0.28 });
   cube('georgecube', "St George's Cube", 'epic', 800, 8, 'White with the red of St George.', { body: ['#f8f6f0', '#dcd8cc'], edge: '#c8102e', ink: '#c8102e', ring: '#c8102e' });
   cube('amethystcube', 'Amethyst', 'legendary', 1800, 12, 'Violet crystal, flecked with light.', { body: ['#a86bff', '#4a1c9a'], edge: '#2a0e6a', ink: '#fff1ff', ring: '#e0c8ff', glass: true });
+})();
+
+/* ---------- shop plan: level required + price per item, and the shop row order (generated by tools/apply_level_plan.py from the level plan spreadsheet) ---------- */
+(() => {
+  /* [id, level, price] in shop order; null level/price = leave as is (free starters and boss rewards) */
+  const PLAN = {
+    boards: [["club",null,null],["royal",1,720],["casino",1,720],["ebony",1,1300],["haunted",1,840],["winterlodge",1,840],["sakura",1,1300],["heritage",3,320],["zen",4,1500],["emerald",4,3250],["monochrome",5,840],["nautical",5,1550],["emeraldisle",6,860],["arctic",7,1650],["vintageleather",8,1700],["mediterranean",9,950],["dune",10,980],["marble",10,1800],["traditional",12,430],["burgundy",12,4150],["bamboo",15,1100],["library",15,2050],["blackgold",15,2050],["greekheritage",15,2050],["modernluxury",18,2200],["coastal",19,1250],["oxblood",23,2500],["knightshall",25,2600],["coral",26,1450],["magma",29,2800],["tuscan",30,1550],["neon",35,3100],["walnut",36,720],["aurora",36,6900],["rosamarble",37,3200],["imperialjade",43,7700],["rosewood",45,2000],["marbleelite",47,3750],["brushedsteel",50,2150],["midnightsilk",50,3900],["cafe",null,null],["harbour",null,null],["highroller",null,null],["palace",null,null],["tournament",null,null]],
+    checkers: [["classic",null,null],["wood",1,250],["carbon",1,600],["clover",1,600],["carbongold",1,1100],["pumpkin",1,700],["snowflake",1,700],["gold",1,1100],["starlight",2,620],["walnutbirch",3,270],["marble",3,650],["diamondsclubs",3,1200],["galaxy",4,2700],["rosaverde",5,700],["heartsspades",5,1300],["anchor",6,720],["jade",6,1300],["cherry",7,310],["seigaiha",7,1350],["dominoes",8,770],["target",9,330],["honey",9,790],["skull",9,1450],["doubloons",9,1450],["steelbrass",10,820],["pc_lioncrest",10,820],["compass",11,840],["pc_rings",12,860],["pc_crossfiligree",12,860],["pc_compassdiamond",13,890],["smokeamber",13,890],["amethystrose",13,1650],["quatrefoil",13,1650],["sunmoon",13,3550],["seaglass",14,910],["greek",14,1650],["blackice",14,1650],["crest",15,1700],["emeraldaqua",16,960],["hexnuts",16,960],["rubysapphire",16,960],["catmouse",16,1750],["copper",17,410],["topaz",19,1050],["carbonice",20,1050],["pyramids",20,1050],["clockwork",20,1950],["gem",22,1100],["yinyang",22,1100],["crystalsmoke",22,1100],["calacatta",22,2000],["signals",23,470],["hive",24,1150],["emeraldclear",24,2100],["diamondcut",24,2100],["cross",26,2200],["tudor",26,2200],["sunflowers",27,1200],["pc_georgerose",27,2250],["stgeorge",27,2250],["onyx",28,2300],["pc_sunsgeorge",28,2300],["georgedragon",28,5000],["pearl",30,1300],["cookies",31,550],["starfall",34,2550],["fleur",35,2600],["neonlime",38,2750],["dragon",38,5950],["neon",39,2750],["aurora",39,2750],["pc_helios",40,2800],["blossom",41,1550],["pc_laurelolive",41,2850],["pc_athenahoplite",41,2850],["pc_laurel",42,2900],["pc_starbull",42,2900],["pc_heraclesvine",43,2950],["pc_temple",43,2950],["pc_medusa",44,3000],["pc_athenasparta",44,3000],["pc_heraclesgreek",45,3050],["pc_owl",45,3050],["pc_poseidon",45,3050],["pc_tridentamphora",46,3100],["pc_zeus",46,6700],["pc_pegasus",47,6800],["hearts",48,720],["heraldic",48,3150],["bolt",49,1750],["rosegold",50,1800],["lion",50,3250],["brass",null,null],["champion",null,null],["chips",null,null],["espresso",null,null],["regalia",null,null]],
+    dice: [["ivory",null,null],["ebonygold",1,510],["peppermint",1,600],["pumpkin",1,600],["jadedice",1,940],["casino",2,220],["pearl",2,970],["onyxsilver",5,590],["pearlgold",5,1100],["platinum",6,2450],["pearlmint",7,1150],["boneblood",8,270],["navy",8,650],["nero",9,1250],["marble",11,710],["steel",11,1300],["blackice",15,1450],["honeyjelly",16,820],["aqua",17,840],["emerald",17,840],["sapphireglass",17,840],["amber",18,860],["smoke",18,860],["rubyglass",18,860],["gold",19,1600],["emeraldglass",20,900],["amethystglass",20,1650],["mapledice",21,380],["citrine",21,920],["rosequartz",21,920],["rosa",21,920],["crystal",21,1700],["frostedice",22,1700],["sapphire",23,960],["dragonfire",23,960],["blackchrome",24,1800],["knightcross",25,1000],["amethyst",28,4250],["lapis",30,2000],["verde",32,1150],["glowblue",35,2200],["glowpink",36,2250],["glowember",37,2300],["glowviolet",37,2300],["glowlime",38,2300],["cyber",40,2400],["walnutdice",42,560],["rosegolddice",45,2600],["copperdice",49,1500],["cosmic",50,2750],["bronze",null,null],["regal",null,null],["ruby",null,null],["silver",null,null],["sugar",null,null]],
+    moveFx: [["glide",null,null],["spin",1,480],["arc",2,210],["ghost",4,540],["warp",4,990],["bounce",7,250],["petals",7,600],["fairy",10,650],["meteor",11,1250],["comet",15,750],["tumble",20,350],["rocket",25,940],["vortex",31,1050],["slam",33,2000],["zigzag",47,570],["confetti",49,1400],["anchor",null,null],["deal",null,null],["lightning",null,null],["phoenix",null,null],["steam",null,null]],
+    throwFx: [["toss",null,null],["skid",1,480],["whirl",2,920],["rainbow",6,580],["catapult",8,1150],["cup",10,650],["drop",11,280],["puff",15,750],["burst",17,1450],["iceslide",25,940],["meteor",44,2400],["pinball",46,1350],["descent",null,null],["roulette",null,null],["swirl",null,null],["thunder",null,null],["wave",null,null]],
+    trims: [["none",null,null],["pinstripe",5,200],["rope",5,490],["marquetry",5,890],["dots",14,270],["greek",15,660],["crosses",24,1500],["corners",27,1550],["studs",29,890],["stitch",39,440]],
+    inlays: [["none",null,null],["snowflake",1,530],["anchor",1,450],["target",3,200],["cross",3,890],["compass",6,540],["clover",10,250],["fleur",10,610],["sunburst",10,1100],["crest",14,1250],["laurel",15,700],["skull",25,880],["georgeshield",26,1650],["tudorrose",27,1700],["neongeorge",28,1700],["neonsun",29,950],["neonhelm",29,950],["neontrident",29,950],["neonmeander",30,970],["neonolive",30,970],["neongrapes",30,970],["neontemple",30,970],["neonlaurel",31,990],["neonbull",31,1800],["star5",32,420],["neonstar",32,1000],["neonlion",32,1850],["neonathena",33,1900],["neonmedusa",33,1900],["neonzeus",34,1900],["neonpegasus",34,1900],["lion",35,1950],["yinyang",48,1300]],
+    mats: [["none",null,null],["walnuttray",2,470],["marbleslab",4,920],["burgundyleather",8,580],["frost",10,1100],["baize",13,280],["goldplate",14,2750],["carbonpad",18,760],["banner",25,1600],["tealwater",40,1150],["quilted",40,2100],["neonring",40,2100]],
+    cubes: [["ivory",null,null],["marblecube",5,960],["blackgoldcube",11,630],["walnutcube",12,270],["amethystcube",12,2600],["emeraldcube",19,770],["sapphirecube",19,770],["rubycube",20,790],["crystalcube",23,1550],["georgecube",25,1600],["goldcube",26,1650],["neoncube",35,1950]],
+    hitFx: [["knock",null,null],["squash",3,220],["shatter",9,630],["popper",14,300],["explode",18,1500],["spirit",24,920],["blackhole",28,4000],["coins",32,1100],["burn",36,2100],["fireworks",40,4900],["freeze",44,2400],["disintegrate",47,2500],["lightning",50,2600]],
+  };
+  for (const cat in PLAN) {
+    const items = DATA.CATS[cat].items, byId = {};
+    for (const it of items) byId[it.id] = it;
+    PLAN[cat].forEach((r, n) => {
+      const it = byId[r[0]]; if (!it) return;
+      it.order = n;
+      if (r[1] != null) { it.lvl = r[1]; it.price = r[2]; }
+    });
+  }
+  DATA.PLAN = PLAN;
 })();
 
 /* ---------- checker outlines ----------
@@ -3606,7 +3651,7 @@ class BoardView {
   constructor(canvas, opts) {
     opts = opts || {};
     this.cv = canvas; this.ctx = canvas.getContext('2d');
-    this.cos = { board: 'club', checkers: 'classic', dice: 'ivory', moveFx: 'glide', throwFx: 'toss', trim: 'none', inlay: 'none', mat: 'none', cube: 'ivory' };
+    this.cos = { board: 'club', checkers: 'classic', dice: 'ivory', moveFx: 'glide', throwFx: 'toss', hitFx: 'knock', trim: 'none', inlay: 'none', mat: 'none', cube: 'ivory' };
     this.pos = BG.startPos('classic');
     this.rot = false; this.cssW = 640; this.cssH = 400; this.dpr = 1; this.k = 0.5;
     this.numbers = true; this.fast = false; this.legalHints = true;
@@ -3614,7 +3659,7 @@ class BoardView {
     this.cube = { value: 1, owner: -1, show: false, glow: false };
     this.cubePos = null;
     this.dice = []; this.dblLeft = 0;
-    this.parts = []; this.flights = []; this.tweens = []; this.drag = null; this.shake = 0; this.cup = null;
+    this.parts = []; this.trails = []; this.flights = []; this.tweens = []; this.drag = null; this.shake = 0; this.cup = null;
     this.boardImg = null; this.boardKey = ''; this.boardScale = 1;
     this.snd = () => { };
     this.running = false; this.lastT = 0; this.frameCount = 0;
@@ -3718,7 +3763,7 @@ class BoardView {
     dur = this.fast ? dur / 1.7 : dur;
     return new Promise((res) => {
       const tw = { start: performance.now(), dur, fn, done: false };
-      tw.finish = () => { if (tw.done) return; tw.done = true; fn(1); res(); };
+      tw.finish = () => { if (tw.done) return; tw.done = true; try { fn(1); } catch (e) { console.warn('tween', e); } res(); };
       tw.timer = setTimeout(tw.finish, dur + 160);
       this.tweens.push(tw);
     });
@@ -3728,7 +3773,7 @@ class BoardView {
   /* ----- particles ----- */
   emit(kind, x, y, o) {
     o = o || {};
-    this.parts.push(Object.assign({ kind, x, y, vx: 0, vy: 0, life: 0.5, max: 0.5, size: 4, color: '#fff', g: 0, rot: 0, vr: 0, grow: 0 }, o));
+    this.parts.push(Object.assign({ kind, x, y, vx: 0, vy: 0, life: 0.5, max: 0.5, size: 4, color: '#fff', g: 0, rot: 0, vr: 0, grow: 0, a: 1 }, o));
   }
   burst(x, y, n, color, speed, o) {
     for (let i = 0; i < n; i++) {
@@ -3801,15 +3846,10 @@ class BoardView {
       const tw = this.tweens[i];
       if (tw.done) { this.tweens.splice(i, 1); continue; }
       const u = clamp01((now - tw.start) / tw.dur);
-      if (u >= 1) { clearTimeout(tw.timer); tw.finish(); this.tweens.splice(i, 1); } else tw.fn(u);
+      if (u >= 1) { clearTimeout(tw.timer); tw.finish(); this.tweens.splice(i, 1); } else { try { tw.fn(u); } catch (e) { console.warn('tween', e); clearTimeout(tw.timer); tw.finish(); this.tweens.splice(i, 1); } }
     }
-    // particles
-    for (let i = this.parts.length - 1; i >= 0; i--) {
-      const p = this.parts[i];
-      p.life -= dt; if (p.life <= 0) { this.parts.splice(i, 1); continue; }
-      p.x += p.vx * dt; p.y += p.vy * dt; p.vy += p.g * dt; p.rot += p.vr * dt; p.size += p.grow * dt;
-      if (p.kind === 'spark') { p.vx *= 0.97; p.vy *= 0.97; }
-    }
+    // particles, ribbons
+    this.fxStep(dt);
     // cube easing
     if (this.cube.show) {
       const t = this.cubeTarget();
@@ -3829,8 +3869,10 @@ class BoardView {
     const th = DATA.find('boards', this.cos.board);
     if (this.numbers && !this.small && !this.rot) this.drawNumbers(ctx, th);
     this.drawHighlights(ctx, now);
+    this.fxDraw(ctx, 'ground');
     this.drawStacks(ctx, now);
     this.drawCube(ctx);
+    this.drawFxUnder(ctx);
     this.drawFlights(ctx);
     this.drawDrag(ctx);
     this.drawDice(ctx);
@@ -3954,7 +3996,7 @@ class BoardView {
 
   drawFlights(ctx) {
     for (const f of this.flights) {
-      if (f.alpha <= 0.01) continue;
+      if (f.alpha <= 0.01 || f.hidden) continue;
       this.drawChecker(ctx, f.x, f.y, f.p, { lift: f.z, scale: f.scale, sx: f.sx, alpha: f.alpha });
     }
   }
@@ -3964,18 +4006,15 @@ class BoardView {
   }
 
   drawDice(ctx) {
-    const ds = DATA.find('dice', this.cos.dice);
-    for (const d of this.dice) {
-      if (!d.visible) continue;
-      GFX.dieShadow(ctx, d.x, d.y, d.size * d.scale, d.z * 1.0);
-    }
-    for (const d of this.dice) {
-      if (!d.visible) continue;
-      const a = d.alpha * (d.used ? 0.38 : 1);
-      GFX.drawDie3D(ctx, d.R, d.x - d.z * 0.1, d.y - d.z * 0.55, d.size * d.scale, ds, { alpha: a });
-    }
+    const ds = DATA.find('dice', this.cos.dice), c = this.cup;
+    const one = (d) => { const a = d.alpha * (d.used ? 0.38 : 1); GFX.drawDie3D(ctx, d.R, d.x - d.z * 0.1, d.y - d.z * 0.55, d.size * d.scale, ds, { alpha: a }); };
+    if (c) this.drawCup(ctx, c, 'back');
+    for (const d of this.dice) { if (!d.visible || d.inCup) continue; GFX.dieShadow(ctx, d.x, d.y, d.size * d.scale, d.z * 1.0); }
+    // dice still in the cup are drawn between the back and the front of the cup, so they sit inside it
+    for (const d of this.dice) if (d.visible && d.inCup) one(d);
+    if (c) this.drawCup(ctx, c, 'front');
+    for (const d of this.dice) if (d.visible && !d.inCup) one(d);
     if (this.dblLeft > 0 && this.dice.length === 2 && this.dice[0].side === this.dice[1].side) {
-      const c = this.dice[0];
       const mx = (this.dice[0].x + this.dice[1].x) / 2, my = Math.max(this.dice[0].y, this.dice[1].y) + 56;
       for (let i = 0; i < 4; i++) {
         ctx.beginPath(); ctx.arc(mx + (i - 1.5) * 20, my, 6, 0, TAU);
@@ -3983,49 +4022,40 @@ class BoardView {
         ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 1.5; ctx.stroke();
       }
     }
-    if (this.cup) this.drawCup(ctx, this.cup);
   }
 
-  drawCup(ctx, c) {
-    ctx.save(); ctx.globalAlpha = c.alpha; ctx.translate(c.x, c.y); ctx.rotate(c.rot);
-    // shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(10, 70, 62, 20, 0, 0, TAU); ctx.fill();
-    const g = ctx.createLinearGradient(-60, 0, 60, 0);
-    g.addColorStop(0, '#3a2012'); g.addColorStop(0.3, '#8a5530'); g.addColorStop(0.6, '#6b3f22'); g.addColorStop(1, '#2e180c');
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.moveTo(-58, -52); ctx.lineTo(58, -52); ctx.lineTo(44, 66); ctx.quadraticCurveTo(0, 80, -44, 66); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 2; ctx.stroke();
-    // stitching
-    ctx.strokeStyle = 'rgba(255,225,170,0.55)'; ctx.lineWidth = 2; ctx.setLineDash([5, 5]);
-    ctx.beginPath(); ctx.moveTo(-50, -34); ctx.lineTo(-38, 56); ctx.moveTo(50, -34); ctx.lineTo(38, 56); ctx.stroke(); ctx.setLineDash([]);
-    // gold band
-    ctx.fillStyle = '#c9a24f'; ctx.fillRect(-57, 14, 114, 10); ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(-57, 14, 114, 3);
-    // mouth
-    ctx.fillStyle = '#c9a24f'; ctx.beginPath(); ctx.ellipse(0, -52, 59, 17, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = '#1a0c05'; ctx.beginPath(); ctx.ellipse(0, -52, 52, 12, 0, 0, TAU); ctx.fill();
+  // the leather dice cup. phase 'back' = body and the dark inside; 'front' = the near side of the body and rim, drawn over dice in the cup
+  drawCup(ctx, c, phase) {
+    if (!phase || phase === 'all') { BoardView.prototype.drawCup.call(this, ctx, c, 'back'); BoardView.prototype.drawCup.call(this, ctx, c, 'front'); return; }
+    const sc = c.sc === undefined ? 1 : c.sc, lift = (c.h || 0) * 0.55;
+    const bodyPath = () => { ctx.beginPath(); ctx.moveTo(-58, -52); ctx.lineTo(58, -52); ctx.lineTo(44, 66); ctx.quadraticCurveTo(0, 80, -44, 66); ctx.closePath(); };
+    const paintBody = () => {
+      const g = ctx.createLinearGradient(-60, 0, 60, 0);
+      g.addColorStop(0, '#3a2012'); g.addColorStop(0.3, '#8a5530'); g.addColorStop(0.6, '#6b3f22'); g.addColorStop(1, '#2e180c');
+      ctx.fillStyle = g; ctx.fillRect(-60, -54, 120, 140);
+      ctx.strokeStyle = 'rgba(255,225,170,0.55)'; ctx.lineWidth = 2; ctx.setLineDash([5, 5]);
+      ctx.beginPath(); ctx.moveTo(-50, -34); ctx.lineTo(-38, 56); ctx.moveTo(50, -34); ctx.lineTo(38, 56); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = '#c9a24f'; ctx.fillRect(-57, 14, 114, 10); ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(-57, 14, 114, 3);
+    };
+    ctx.save(); ctx.globalAlpha = c.alpha;
+    if (phase === 'back') { ctx.fillStyle = 'rgba(0,0,0,' + (0.3 * Math.max(0.35, 1 - (c.h || 0) / 260)) + ')'; ctx.beginPath(); ctx.ellipse(c.x + 10 * sc, c.y + 70 * sc, 62 * sc, 20 * sc, 0, 0, TAU); ctx.fill(); }
+    ctx.translate(c.x, c.y - lift); ctx.rotate(c.rot); ctx.scale(sc, sc);
+    if (phase === 'back') {
+      ctx.save(); bodyPath(); ctx.clip(); paintBody(); ctx.restore();
+      bodyPath(); ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = '#c9a24f'; ctx.beginPath(); ctx.ellipse(0, -52, 59, 17, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#1a0c05'; ctx.beginPath(); ctx.ellipse(0, -52, 52, 12, 0, 0, TAU); ctx.fill();
+      const g2 = ctx.createLinearGradient(0, -64, 0, -40); g2.addColorStop(0, 'rgba(0,0,0,0.7)'); g2.addColorStop(1, 'rgba(60,30,12,0.0)'); ctx.fillStyle = g2; ctx.beginPath(); ctx.ellipse(0, -52, 52, 12, 0, 0, TAU); ctx.fill();
+    } else {
+      // the near half of the body and rim, redrawn over anything inside the cup
+      ctx.save(); ctx.beginPath(); ctx.moveTo(59, -52); ctx.ellipse(0, -52, 59, 17, 0, 0, Math.PI, false); ctx.lineTo(-58, -52); ctx.lineTo(-44, 66); ctx.quadraticCurveTo(0, 80, 44, 66); ctx.closePath(); ctx.clip();
+      paintBody(); ctx.restore();
+      bodyPath(); ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.strokeStyle = '#c9a24f'; ctx.lineWidth = 7; ctx.beginPath(); ctx.ellipse(0, -52, 55.5, 14.5, 0, 0.04, Math.PI - 0.04, false); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,240,200,0.5)'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.ellipse(0, -53, 57, 15.5, 0, 0.5, 2.6, false); ctx.stroke();
+    }
     ctx.restore();
   }
-
-  drawParticles(ctx) {
-    for (const p of this.parts) {
-      const a = clamp01(p.life / p.max);
-      ctx.save();
-      if (p.kind === 'spark') {
-        ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a;
-        const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 2.2);
-        g.addColorStop(0, p.color); g.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, p.size * 2.2, 0, TAU); ctx.fill();
-      } else if (p.kind === 'ring') {
-        ctx.globalAlpha = a; ctx.strokeStyle = p.color; ctx.lineWidth = 4 * a + 1; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, TAU); ctx.stroke();
-      } else if (p.kind === 'dust') {
-        ctx.globalAlpha = a * 0.35; ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, TAU); ctx.fill();
-      } else if (p.kind === 'confetti') {
-        ctx.globalAlpha = Math.min(1, a * 2); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillStyle = p.color; ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
-      }
-      ctx.restore();
-    }
-  }
-
   /* ----- checker move animation ----- */
   async moveChecker(m, p, fxId, o) {
     o = o || {};
@@ -4052,175 +4082,13 @@ class BoardView {
     this.flights.splice(this.flights.indexOf(fl), 1);
     if (m.to !== BG.OFF) this.snd('checker');
     if (m.hit) {
-      this.snd('hit');
-      this.burst(b.x, b.y, 18, '#ff8a6a', 220); this.ring(b.x, b.y, '#ff7a5a', 70, 0.4); this.shake = Math.max(this.shake, 5);
-      const o2 = 1 - p;
-      const bn = pos.bar[o2] + 1;
-      const target = this.barSlot(o2, bn - 1, bn);
-      const hf = { x: b.x, y: b.y, z: 0, p: o2, scale: 1, sx: 1, alpha: 1 };
+      const o2 = 1 - p, bn = pos.bar[o2] + 1;
+      const hf = { x: b.x, y: b.y, z: 0, zb: b.h || 0, p: o2, scale: 1, sx: 1, alpha: 1 };
       this.flights.push(hf);
-      const dx = target.x - b.x, dy = target.y - b.y;
-      await this.tween(430, (u) => { const e = E.inOut(u); hf.x = b.x + dx * e; hf.y = b.y + dy * e; hf.z = Math.sin(Math.PI * u) * 70; hf.scale = 1 + 0.12 * Math.sin(Math.PI * u); });
+      await this.hitSequence(o.hitFx || this.cos.hitFx || 'knock', { b, target: this.barSlot(o2, bn - 1, bn), hf, atk: p, vic: o2 });
       this.flights.splice(this.flights.indexOf(hf), 1);
       pos.bar[o2]++;
       this.snd('checker', 0.7);
-    }
-  }
-
-  flyChecker(fl, a, b, fx, p) {
-    const dist = Math.hypot(b.x - a.x, b.y - a.y);
-    const base = clamp(250 + dist * 0.5, 300, 720);
-    const set = DATA.find('checkers', this.cos.checkers)[p === 0 ? 'a' : 'b'];
-    const col = set.pat === 'neon' ? set.acc : set.hi;
-    const lerp = (u) => { fl.x = a.x + (b.x - a.x) * u; fl.y = a.y + (b.y - a.y) * u; fl.zb = (a.h || 0) + ((b.h || 0) - (a.h || 0)) * u; fl.u = u; };
-    switch (fx) {
-      case 'arc':
-        return this.tween(base * 1.15, (u) => { lerp(E.inOut(u)); fl.z = Math.sin(Math.PI * u) * (60 + dist * 0.2); if (u > 0.9) fl.scale = 1 - Math.sin((u - 0.9) * Math.PI * 10) * 0.03; });
-      case 'spin':
-        return this.tween(base * 1.1, (u) => { lerp(E.inOut(u)); fl.z = Math.sin(Math.PI * u) * 50; fl.sx = Math.cos(u * TAU * 2.2 * (u < 1 ? 1 : 0)); fl.rot = u < 1 ? u * TAU * 2 : 0; if (u >= 1) fl.sx = 1; });
-      case 'comet':
-        return this.tween(base * 0.8, (u) => {
-          lerp(E.inOut(u)); fl.z = Math.sin(Math.PI * u) * 12;
-          if (u < 1) for (let i = 0; i < 2; i++) this.emit('spark', fl.x + rnd(-6, 6), fl.y + rnd(-6, 6), { vx: rnd(-20, 20), vy: rnd(-20, 20), life: 0.5, max: 0.5, size: rnd(5, 9), color: col });
-        });
-      case 'warp': {
-        let ringed1 = false, ringed2 = false;
-        return this.tween(640, (u) => {
-          if (u < 0.3) {
-            const v = u / 0.3; fl.x = a.x; fl.y = a.y; fl.zb = a.h || 0; fl.u = 0; fl.scale = 1 - E.in2(v); fl.alpha = 1 - v * 0.6; fl.sx = 1;
-            if (!ringed1) { ringed1 = true; this.ring(a.x, a.y, col, 80, 0.45); this.burst(a.x, a.y, 10, col, 120); this.snd('sparkle'); }
-          } else if (u < 0.5) { fl.alpha = 0; fl.x = b.x; fl.y = b.y; fl.zb = b.h || 0; fl.scale = 0.001; }
-          else {
-            const v = (u - 0.5) / 0.5; fl.x = b.x; fl.y = b.y; fl.zb = b.h || 0; fl.u = 1; fl.alpha = 1; fl.scale = Math.max(0.01, E.back(v));
-            if (!ringed2) { ringed2 = true; this.ring(b.x, b.y, col, 90, 0.5); this.burst(b.x, b.y, 12, col, 150); }
-          }
-        });
-      }
-      case 'slam': {
-        let hit = false;
-        return this.tween(base * 1.5, (u) => {
-          if (u < 0.55) { const v = u / 0.55; lerp(E.out3(v)); fl.z = 150 * E.out3(v); }
-          else if (u < 0.66) { lerp(1); fl.z = 150; }
-          else { const v = (u - 0.66) / 0.34; lerp(1); fl.z = 150 * (1 - E.in3(v)); }
-          if (u >= 0.999 && !hit) { hit = true; this.snd('slam'); this.shake = 9; this.dust(b.x, b.y, 10); this.ring(b.x, b.y, '#ffffff', 60, 0.35); fl.z = 0; }
-        });
-      }
-      case 'steam': {
-        const nx = -(b.y - a.y), ny = (b.x - a.x), nl = Math.hypot(nx, ny) || 1;
-        return this.tween(base * 1.25, (u) => {
-          lerp(E.inOut(u)); const w = Math.sin(u * Math.PI * 3) * 26 * Math.sin(Math.PI * u); fl.x += nx / nl * w; fl.y += ny / nl * w; fl.z = Math.sin(Math.PI * u) * 18;
-          if (u < 1 && this.frameCount % 2 === 0) this.emit('dust', fl.x, fl.y, { vx: rnd(-8, 8), vy: rnd(-8, 8), life: 0.8, max: 0.8, size: rnd(5, 9), color: '#f4efe6', grow: 16 });
-        });
-      }
-      case 'anchor': {
-        let hit = false;
-        return this.tween(base * 1.5, (u) => {
-          if (u < 0.5) { const v = u / 0.5; lerp(E.out3(v)); fl.z = 120 * E.out3(v); } else { const v = (u - 0.5) / 0.5; lerp(1); fl.z = 120 * (1 - E.in3(v)); }
-          if (u >= 0.999 && !hit) { hit = true; fl.z = 0; this.snd('slam'); this.shake = 7; this.ring(b.x, b.y, '#7fc8ff', 80, 0.55); setTimeout(() => this.ring(b.x, b.y, '#7fc8ff', 120, 0.7), 120); this.burst(b.x, b.y, 18, '#9fd8ff', 200); }
-        });
-      }
-      case 'deal':
-        return this.tween(base * 0.8, (u) => {
-          lerp(E.out2(u)); fl.z = 8 + Math.sin(Math.PI * u) * 16; fl.rot = u * TAU * 3; fl.sx = Math.cos(u * TAU * 3); if (u >= 1) { fl.sx = 1; fl.rot = 0; }
-          if (u < 1) this.emit('spark', fl.x, fl.y, { vx: rnd(-30, 30), vy: rnd(-30, 30), life: 0.45, max: 0.45, size: rnd(3, 6), color: '#ffd75a' });
-        });
-      case 'lightning': {
-        let rung = false, struck = false, arrived = false;
-        return this.tween(620, (u) => {
-          if (u < 0.22) {
-            const v = u / 0.22; fl.x = a.x; fl.y = a.y; fl.zb = a.h || 0; fl.u = 0; fl.scale = 1 - E.in2(v); fl.alpha = 1 - v * 0.6; fl.sx = 1;
-            if (!rung) { rung = true; this.ring(a.x, a.y, '#bfe0ff', 70, 0.35); this.snd('sparkle'); }
-          } else if (u < 0.4) {
-            fl.scale = 0.001; fl.alpha = 0; fl.x = b.x; fl.y = b.y; fl.zb = b.h || 0;
-            if (!struck && u > 0.28) {
-              struck = true;
-              for (let i = 0; i <= 22; i++) { const t = i / 22, j = 34 * Math.sin(Math.PI * t); this.emit('spark', a.x + (b.x - a.x) * t + (Math.random() - 0.5) * j, a.y + (b.y - a.y) * t + (Math.random() - 0.5) * j, { life: 0.3, max: 0.3, size: rnd(5, 8), color: '#d6ecff' }); }
-              this.shake = 6; this.snd('slam');
-            }
-          } else {
-            const v = (u - 0.4) / 0.6; fl.x = b.x; fl.y = b.y; fl.zb = b.h || 0; fl.u = 1; fl.alpha = 1; fl.scale = Math.max(0.01, E.back(Math.min(1, v * 1.6)));
-            if (!arrived) { arrived = true; this.ring(b.x, b.y, '#d6ecff', 90, 0.45); this.burst(b.x, b.y, 14, '#bfe0ff', 200); }
-          }
-        });
-      }
-      case 'phoenix':
-        return this.tween(base * 1.5, (u) => {
-          lerp(E.inOut(u)); fl.z = Math.sin(Math.PI * u) * (80 + dist * 0.22);
-          if (u < 1) for (let i = 0; i < 2; i++) this.emit('spark', fl.x + rnd(-5, 5), fl.y + rnd(-5, 5), { vx: rnd(-25, 25), vy: rnd(-25, 25), life: 0.6, max: 0.6, size: rnd(4, 8), color: Math.random() < 0.5 ? '#ff8a2a' : '#ffd24a' });
-          if (u >= 1) { this.burst(b.x, b.y, 22, '#ff9a3a', 230); this.ring(b.x, b.y, '#ffb347', 90, 0.5); }
-        });
-      case 'petals':
-        return this.tween(base * 1.35, (u) => {
-          lerp(E.inOut(u)); const w = Math.sin(u * Math.PI * 2.5) * 16 * Math.sin(Math.PI * u); fl.x += w; fl.z = Math.sin(Math.PI * u) * 22;
-          if (u < 1 && this.frameCount % 2 === 0) this.emit('dust', fl.x + rnd(-10, 10), fl.y + rnd(-10, 10), { vx: rnd(-14, 14), vy: rnd(8, 30), life: 1, max: 1, size: rnd(4, 7), color: Math.random() < 0.5 ? '#ffb7c8' : '#ff8fa8', grow: -2 });
-          if (u >= 1) this.burst(b.x, b.y, 10, '#ffb7c8', 120);
-        });
-      case 'bounce':
-        return this.tween(base * 1.5, (u) => {
-          lerp(E.out2(u)); const k = u * 3, f = k - Math.floor(k); fl.z = Math.sin(Math.PI * f) * (46 - Math.floor(k) * 14) * (u < 1 ? 1 : 0);
-          fl.scale = 1 + (f < 0.12 || f > 0.9 ? -0.05 : 0.02); fl.sx = f < 0.1 || f > 0.92 ? 1.1 : 1; if (u >= 1) { fl.z = 0; fl.sx = 1; fl.scale = 1; }
-        });
-      case 'ghost': {
-        let last = 0;
-        return this.tween(base * 1.1, (u) => {
-          lerp(E.inOut(u)); fl.z = 18 + Math.sin(Math.PI * u) * 10 + Math.sin(u * 22) * 3; fl.alpha = 0.72 + 0.28 * Math.sin(u * 14);
-          if (u < 1 && this.frameCount - last > 2) { last = this.frameCount; this.emit('dust', fl.x, fl.y, { vx: 0, vy: 0, life: 0.55, max: 0.55, size: 20, color: col, grow: -20 }); }
-          if (u >= 1) fl.alpha = 1;
-        });
-      }
-      case 'meteor': {
-        let hit = false;
-        return this.tween(base * 1.6, (u) => {
-          if (u < 0.45) { const v = u / 0.45; lerp(0); fl.z = 230 * E.out3(v); fl.x = a.x; fl.y = a.y; }
-          else { const v = (u - 0.45) / 0.55, e = E.in3(v); fl.x = a.x + (b.x - a.x) * e; fl.y = a.y + (b.y - a.y) * e; fl.zb = (a.h || 0) + ((b.h || 0) - (a.h || 0)) * e; fl.u = e; fl.z = 230 * (1 - e); }
-          if (u > 0.3 && u < 0.999) this.emit('spark', fl.x + rnd(-6, 6), fl.y + rnd(-6, 6), { vx: rnd(-20, 20), vy: rnd(-20, 20), life: 0.5, max: 0.5, size: rnd(5, 10), color: Math.random() < 0.5 ? '#ff8a2a' : '#ffd24a' });
-          if (u >= 0.999 && !hit) { hit = true; fl.z = 0; this.snd('slam'); this.shake = 12; this.ring(b.x, b.y, '#ff9a3a', 110, 0.55); this.burst(b.x, b.y, 28, '#ffb347', 300); this.dust(b.x, b.y, 12); }
-        });
-      }
-      case 'vortex': {
-        const R0 = 60 + dist * 0.1;
-        return this.tween(base * 1.4, (u) => {
-          const e = E.inOut(u), rho = R0 * Math.sin(Math.PI * u) * (1 - u * 0.3), ph = u * TAU * 2.2; lerp(e);
-          fl.x += Math.cos(ph) * rho; fl.y += Math.sin(ph) * rho * 0.6; fl.z = 10 + Math.sin(Math.PI * u) * 24;
-          if (u < 1 && this.frameCount % 2 === 0) this.emit('spark', fl.x, fl.y, { vx: rnd(-10, 10), vy: rnd(-10, 10), life: 0.45, max: 0.45, size: rnd(3, 6), color: '#b784ff' });
-        });
-      }
-      case 'rocket': {
-        const dx = (b.x - a.x) / (dist || 1), dy = (b.y - a.y) / (dist || 1);
-        return this.tween(base * 0.85, (u) => {
-          lerp(E.in2(u)); fl.z = 6 + 18 * Math.sin(Math.PI * u);
-          if (u < 1) for (let i = 0; i < 2; i++) this.emit('spark', fl.x - dx * 22 + rnd(-4, 4), fl.y - dy * 22 + rnd(-4, 4), { vx: -dx * rnd(30, 90), vy: -dy * rnd(30, 90), life: 0.4, max: 0.4, size: rnd(4, 8), color: Math.random() < 0.5 ? '#ff7a2a' : '#ffe08a' });
-          if (u >= 1) { this.ring(b.x, b.y, '#ffb347', 70, 0.4); this.burst(b.x, b.y, 12, '#ffcf6a', 200); this.shake = Math.max(this.shake, 4); }
-        });
-      }
-      case 'tumble':
-        return this.tween(base * 1.2, (u) => {
-          lerp(E.inOut(u)); fl.sx = Math.cos(u * TAU * 4 * (u < 1 ? 1 : 0)); fl.z = Math.abs(Math.sin(u * TAU * 2)) * 14; fl.rot = u * TAU * 1.5; if (u >= 1) { fl.sx = 1; fl.rot = 0; fl.z = 0; }
-          if (u < 1 && this.frameCount % 3 === 0) this.emit('dust', fl.x, fl.y + 10, { vx: rnd(-10, 10), vy: rnd(-6, 6), life: 0.35, max: 0.35, size: rnd(4, 7), color: '#e6dfcf', grow: 14 });
-        });
-      case 'fairy':
-        return this.tween(base * 1.3, (u) => {
-          lerp(E.inOut(u)); fl.z = 14 + Math.sin(u * 9) * 5;
-          if (u < 1) for (let i = 0; i < 2; i++) this.emit('spark', fl.x + rnd(-8, 8), fl.y + rnd(-8, 8), { vx: rnd(-14, 14), vy: rnd(-4, 24), life: 0.8, max: 0.8, size: rnd(2, 5), color: Math.random() < 0.5 ? '#fff3a8' : '#ffd0f0' });
-          if (u >= 1) { this.ring(b.x, b.y, '#fff3a8', 70, 0.45); this.burst(b.x, b.y, 14, '#fff3a8', 130); this.snd('sparkle'); }
-        });
-      case 'confetti': {
-        const CC = ['#ff5a5a', '#ffd24a', '#5ad2ff', '#7aff9a', '#d27aff'];
-        return this.tween(base * 1.1, (u) => {
-          lerp(E.inOut(u)); fl.z = Math.sin(Math.PI * u) * (50 + dist * 0.15); fl.rot = u * TAU;
-          if (u < 1 && this.frameCount % 2 === 0) this.emit('spark', fl.x, fl.y, { vx: rnd(-40, 40), vy: rnd(-40, 40), life: 0.6, max: 0.6, size: rnd(3, 6), color: CC[(Math.random() * 5) | 0] });
-          if (u >= 1) { for (let i = 0; i < 5; i++) this.burst(b.x, b.y, 6, CC[i], 260); this.ring(b.x, b.y, '#ffffff', 80, 0.4); this.snd('sparkle'); }
-        });
-      }
-      case 'zigzag': {
-        const nx = -(b.y - a.y) / (dist || 1), ny = (b.x - a.x) / (dist || 1);
-        return this.tween(base * 0.95, (u) => {
-          lerp(E.out2(u)); const tri = Math.abs(((u * 6) % 2) - 1) * 2 - 1, amp = 34 * (1 - u); fl.x += nx * tri * amp; fl.y += ny * tri * amp; fl.z = 6;
-          if (u < 1 && this.frameCount % 2 === 0) this.emit('spark', fl.x, fl.y, { vx: 0, vy: 0, life: 0.3, max: 0.3, size: 5, color: col });
-        });
-      }
-      default: // glide
-        return this.tween(base, (u) => { lerp(E.inOut(u)); fl.z = Math.sin(Math.PI * u) * 14 + (a.lift || 0) * (1 - u); });
     }
   }
 
@@ -4261,23 +4129,24 @@ class BoardView {
       const nSame = bySide[sp.side];
       const end = this.diceEnd(sp, idxSide[sp.side]++, nSame);
       const yaw = rnd(0, TAU);
-      return { value: sp.value, side: sp.side, x: end.x, y: end.y, z: 0, size: 60, scale: 1, alpha: 0, visible: false, used: false, end, Rf: GFX.rotFinal(sp.value, yaw), R: GFX.rotFinal(sp.value, yaw), _hi: 0 };
+      return { value: sp.value, side: sp.side, x: end.x, y: end.y, z: 0, size: 60, scale: 1, alpha: 0, visible: false, used: false, end, Rf: GFX.rotFinal(sp.value, yaw), R: GFX.rotFinal(sp.value, yaw), _hi: 0, inCup: false, trails: [] };
     });
     this.dice = dice; this.dblLeft = 0;
-    const plans = dice.map((d, i) => this.planDie(fx, d, i, dice.length));
-    const T = Math.max(...plans.map(p => p.T));
+    const cupP = fx === 'cup' ? this.planCup(dice) : null;
+    const plans = cupP ? cupP.dicePlans : dice.map((d, i) => this.planDie(fx, d, i, dice.length));
+    const T = cupP ? cupP.T : Math.max(...plans.map(p => p.T));
+    const sts = dice.map(() => ({}));
     this.snd('whoosh');
     if (fx !== 'cup') this.snd('rattle', 0.35);
-    const extra = (fx === 'cup') ? this.planCup(dice) : null;
-    const total = extra ? extra.T : T;
-    return this.tween(total, (u) => {
+    return this.tween(T, (u) => {
       for (let i = 0; i < dice.length; i++) {
-        const pl = plans[i];
-        pl.sample(clamp01(u * total / pl.T), u);
+        const pl = plans[i], up = clamp01(u * T / pl.T);
+        pl.sample(up, u);
+        this.throwDecor(fx, dice[i], up, sts[i], i, dice.length);
       }
-      if (extra) extra.sample(u);
+      if (cupP) cupP.sample(u);
     }).then(() => {
-      for (const d of dice) { d.x = d.end.x; d.y = d.end.y; d.z = 0; d.scale = 1; d.alpha = 1; d.visible = true; d.R = d.Rf; }
+      for (const d of dice) { d.x = d.end.x; d.y = d.end.y; d.z = 0; d.scale = 1; d.alpha = 1; d.visible = true; d.R = d.Rf; d.inCup = false; for (const t of d.trails) t.end = true; d.aura = null; }
       this.cup = null;
     });
   }
@@ -4286,7 +4155,7 @@ class BoardView {
     const axis = [rnd(-1, 1), rnd(-1, 1), rnd(-0.6, 0.6)];
     const end = d.end, side = d.side;
     const setR = (th) => { d.R = GFX.matmul(GFX.rotAxis(axis, th), d.Rf); };
-    const hitSnd = (prof, u, k0) => { while (d._hi < prof.hits.length && u >= prof.hits[d._hi]) { this.snd('diceHit', Math.max(0.35, 1 - d._hi * 0.3) * (k0 || 1)); d._hi++; } };
+    const hitSnd = (prof, u, k0) => { while (d._hi < prof.hits.length && u >= prof.hits[d._hi]) { this.snd('diceHit', Math.max(0.35, 1 - d._hi * 0.3) * (k0 || 1)); this.dieLand(d, Math.max(0.3, 1 - d._hi * 0.35)); d._hi++; } };
     const dir = side === 0 ? 1 : -1;
     switch (fx) {
       case 'drop': {
@@ -4309,7 +4178,6 @@ class BoardView {
             const e = E.out4(u); d.visible = true; d.alpha = 1;
             d.x = sx + (end.x - sx) * e; d.y = sy + (end.y - sy) * e; d.z = prof.z(u); d.scale = 1;
             setR(th * (1 - E.out3(u)));
-            if (u < 0.85 && this.frameCount - lastDust > 2) { lastDust = this.frameCount; this.emit('dust', d.x - dir * 20, d.y + 10, { vx: dir * rnd(10, 40), vy: rnd(-12, 12), life: 0.45, max: 0.45, size: rnd(4, 8), color: '#e6dfcf', grow: 20 }); }
             hitSnd(prof, u, 0.8);
           },
         };
@@ -4321,7 +4189,6 @@ class BoardView {
           sample: (u) => {
             const e = E.out3(u), arc = u < 0.7 ? Math.sin(Math.PI * (u / 0.7)) * 260 : 0; d.visible = true; d.alpha = 1;
             d.x = sx + (end.x - sx) * e; d.y = sy + (end.y - sy) * e; d.z = u < 0.7 ? arc : prof.z((u - 0.7) / 0.3); d.scale = 1; setR(th * (1 - E.out3(u)));
-            if (u < 0.85 && this.frameCount % 2 === 0) this.emit('spark', d.x, d.y, { vx: rnd(-10, 10), vy: rnd(-10, 10), life: 0.6, max: 0.6, size: rnd(4, 7), color: HUE[(this.frameCount / 2 | 0) % 6] });
             if (u > 0.7) hitSnd(prof, (u - 0.7) / 0.3, 0.9);
           },
         };
@@ -4333,7 +4200,6 @@ class BoardView {
           T: 1250 + i * 110, hits: prof.hits,
           sample: (u) => {
             const v = Math.max(0, (u - 0.1) / 0.9), e = E.in2(Math.min(1, v * 1.4)); d.visible = u > 0.1; d.alpha = 1; d.x = sx + (end.x - sx) * e; d.y = sy + (end.y - sy) * e; d.z = prof.z(v); d.scale = 1; setR(th * (1 - E.out3(u)));
-            if (u > 0.1 && u < 0.62) this.emit('spark', d.x, d.y, { vx: rnd(-20, 20), vy: rnd(-20, 20), life: 0.5, max: 0.5, size: rnd(5, 9), color: Math.random() < 0.5 ? '#ff8a2a' : '#ffd24a' });
             if (u > 0.6 && !hit) { hit = true; this.shake = Math.max(this.shake, 8); this.ring(end.x, end.y, '#ff9a3a', 120, 0.5); this.burst(end.x, end.y, 24, '#ffb347', 280); this.snd('slam'); }
             hitSnd(prof, v, 1);
           },
@@ -4349,7 +4215,6 @@ class BoardView {
             const k = Math.min(2.999, u * 3), s = Math.floor(k), f = E.out2(k - s), A = path[s], Bp = path[s + 1]; d.visible = true; d.alpha = 1;
             d.x = A.x + (Bp.x - A.x) * f; d.y = A.y + (Bp.y - A.y) * f; d.z = u > 0.8 ? prof.z((u - 0.8) / 0.2) : 8 + 6 * Math.sin(f * Math.PI); d.scale = 1; setR(th * (1 - E.out3(u)));
             if (s !== seg) { seg = s; this.ring(A.x, A.y, '#ffd75a', 50, 0.3); this.burst(A.x, A.y, 8, '#ffd75a', 140); this.snd('diceHit', 0.7); }
-            if (u < 0.9 && this.frameCount % 2 === 0) this.emit('spark', d.x, d.y, { vx: rnd(-10, 10), vy: rnd(-10, 10), life: 0.35, max: 0.35, size: 4, color: '#ffd75a' });
             if (u > 0.8) hitSnd(prof, (u - 0.8) / 0.2, 0.8);
           },
         };
@@ -4384,8 +4249,6 @@ class BoardView {
           T: 1600 + i * 100, hits: prof.hits,
           sample: (u) => {
             const e = 1 - Math.pow(1 - u, 5); d.visible = true; d.alpha = 1; d.x = sx + (end.x - sx) * e; d.y = sy + (end.y - sy) * e; d.z = prof.z(u); d.scale = 1; setR(th * (1 - E.out4(u)));
-            if (u < 0.9 && this.frameCount % 2 === 0) this.emit('dust', d.x - dir * 14, d.y + 8, { vx: dir * rnd(8, 30), vy: rnd(-10, 10), life: 0.7, max: 0.7, size: rnd(4, 8), color: '#cfeeff', grow: 14 });
-            if (u < 0.9 && this.frameCount % 3 === 0) this.emit('spark', d.x, d.y, { vx: rnd(-8, 8), vy: rnd(-8, 8), life: 0.5, max: 0.5, size: rnd(2, 4), color: '#ffffff' });
             hitSnd(prof, u, 0.7);
           },
         };
@@ -4401,7 +4264,6 @@ class BoardView {
             d.visible = true; d.alpha = Math.min(1, u * 8); d.x = end.x + Math.cos(ph) * rho; d.y = end.y + Math.sin(ph) * rho * 0.7;
             d.z = u < 0.6 ? 26 * (1 - u / 0.6) + 10 * Math.sin(u * 20) * (1 - u) : prof.z((u - 0.6) / 0.4) * 0.8; d.scale = 0.55 + 0.45 * E.out2(Math.min(1, u * 1.6));
             setR(th * (1 - E.out3(u)));
-            if (u < 0.9 && this.frameCount - last > 1) { last = this.frameCount; this.emit('spark', d.x, d.y, { vx: rnd(-15, 15), vy: rnd(-15, 15), life: 0.5, max: 0.5, size: rnd(3, 6), color: '#9fd8ff' }); }
             if (u > 0.6) hitSnd(prof, (u - 0.6) / 0.4, 0.8);
           },
         };
@@ -4422,26 +4284,6 @@ class BoardView {
           },
         };
       }
-      case 'cup': {
-        // dice leave the cup mouth then bounce to rest (timeline shared with planCup)
-        const prof = bounceProfile(0, [52, 18, 6]);
-        const th = TAU * rnd(2.2, 3.2);
-        const startU = 0.52, endU = 0.9;
-        return {
-          T: 2200, hits: prof.hits,
-          sample: (u, gu) => {
-            if (gu < startU) { d.visible = false; return; }
-            const v = clamp01((gu - startU) / (endU - startU));
-            const cp = this._cupPour;
-            const sx = cp.mx + (i - (N - 1) / 2) * 20, sy = cp.my;
-            const e = E.out3(v);
-            d.visible = true; d.alpha = 1; d.x = sx + (end.x - sx) * e; d.y = sy + (end.y - sy) * e;
-            d.z = prof.z(v) + 30 * (1 - v); d.scale = 1;
-            setR(th * (1 - E.out3(v)));
-            hitSnd(prof, v, 0.9);
-          },
-        };
-      }
       case 'swirl': {
         const R0 = rnd(110, 140), phi0 = rnd(0, TAU) + i * Math.PI, turns = TAU * 2.6 * (side === 0 ? 1 : -1), th = TAU * rnd(3, 4), prof = bounceProfile(0, [10, 4]);
         let last = 0;
@@ -4450,7 +4292,6 @@ class BoardView {
           sample: (u) => {
             const e = E.out2(u), rho = R0 * (1 - e), ph = phi0 + turns * E.out3(u);
             d.visible = true; d.alpha = Math.min(1, u * 10); d.x = end.x + Math.cos(ph) * rho; d.y = end.y + Math.sin(ph) * rho * 0.8; d.z = u < 0.7 ? 8 : prof.z((u - 0.7) / 0.3) * 0.8; d.scale = 1; setR(th * (1 - E.out3(u)));
-            if (u < 0.85 && this.frameCount - last > 1) { last = this.frameCount; this.emit('dust', d.x, d.y, { vx: rnd(-8, 8), vy: rnd(-8, 8), life: 0.7, max: 0.7, size: rnd(4, 8), color: '#f2e2c8', grow: 12 }); }
             if (u > 0.7) hitSnd(prof, (u - 0.7) / 0.3, 0.8);
           },
         };
@@ -4462,7 +4303,6 @@ class BoardView {
           sample: (u) => {
             const e = E.out3(u); d.visible = true; d.alpha = 1;
             d.x = sx + (end.x - sx) * e; d.y = sy + (end.y - sy) * e + Math.sin(u * 10) * 34 * (1 - u); d.z = prof.z(u) + 8 * Math.sin(u * 12) * (1 - u); d.scale = 1; setR(th * (1 - E.out3(u)));
-            if (u < 0.9 && this.frameCount % 2 === 0) this.emit('dust', d.x - dir * 18, d.y + 8, { vx: dir * rnd(10, 40), vy: rnd(-10, 10), life: 0.5, max: 0.5, size: rnd(4, 8), color: '#e6f6ff', grow: 18 });
             hitSnd(prof, u, 0.8);
           },
         };
@@ -4475,7 +4315,6 @@ class BoardView {
             d.visible = true; d.alpha = Math.min(1, u * 10);
             const rho = u < 0.72 ? R : R * (1 - E.inOut((u - 0.72) / 0.28)), ph = phi0 + spins * E.out2(Math.min(1, u / 0.9));
             d.x = end.x + Math.cos(ph) * rho; d.y = end.y + Math.sin(ph) * rho * 0.8; d.z = u < 0.72 ? 10 : prof.z((u - 0.72) / 0.28); d.scale = 1; setR(th * (1 - E.out3(u)));
-            if (u < 0.95 && this.frameCount % 2 === 0) this.emit('spark', d.x, d.y, { vx: rnd(-10, 10), vy: rnd(-10, 10), life: 0.4, max: 0.4, size: rnd(3, 5), color: '#ffd75a' });
             if (u > 0.72) hitSnd(prof, (u - 0.72) / 0.28, 0.9);
           },
         };
@@ -4499,7 +4338,6 @@ class BoardView {
           T: 1900 + i * 140, hits: prof.hits,
           sample: (u) => {
             d.visible = true; d.alpha = Math.min(1, u * 6); d.x = end.x; d.y = end.y; d.z = prof.z(u); d.scale = 1; setR(th * (1 - E.out2(u)));
-            if (u < 0.8 && this.frameCount % 2 === 0) this.emit('spark', end.x + rnd(-40, 40), end.y + rnd(-40, 40), { vx: rnd(-6, 6), vy: rnd(10, 40), life: 0.8, max: 0.8, size: rnd(2, 5), color: '#ffd75a' });
             hitSnd(prof, u, 0.9);
             if (u > 0.99 && !d._ring) { d._ring = 1; this.ring(end.x, end.y, '#ffd75a', 90, 0.6); }
           },
@@ -4522,37 +4360,1301 @@ class BoardView {
     }
   }
 
-  planCup(dice) {
-    const side = dice[0].side;
-    const cx = side === 0 ? (GEO.xr + GEO.xEnd) / 2 : (GEO.x0 + GEO.xbar) / 2;
-    const dir = side === 0 ? -1 : 1; // pour towards the board centre
-    this.cup = { x: cx, y: GEO.mid - 20, rot: 0, alpha: 0 };
-    this._cupPour = { mx: cx + dir * 40, my: GEO.mid - 30 };
-    let rattled = false;
-    return {
-      T: 2200,
-      sample: (u) => {
-        const c = this.cup;
-        if (!c) return;
-        if (u < 0.5) {
-          const v = u / 0.5;
-          c.alpha = Math.min(1, v * 8);
-          c.x = cx + Math.sin(u * 90) * 7; c.y = GEO.mid - 20 + Math.cos(u * 70) * 6 - 24 * Math.sin(Math.PI * Math.min(1, v * 1.2)) * 0.3; c.rot = Math.sin(u * 80) * 0.13;
-          if (!rattled) { rattled = true; this.snd('rattle', 0.9); }
-        } else if (u < 0.66) {
-          const v = E.inOut((u - 0.5) / 0.16);
-          c.x = cx + dir * 30 * v; c.y = GEO.mid - 20 - 10 * v; c.rot = dir * -1.9 * v * -1; c.alpha = 1;
-          this._cupPour.mx = c.x + dir * 36 * v; this._cupPour.my = c.y - 6;
-        } else if (u < 0.78) { c.alpha = 1; }
-        else { const v = (u - 0.78) / 0.22; c.alpha = 1 - E.in2(v); c.x = cx + dir * (30 + 120 * E.in2(v)); c.y = GEO.mid - 30 - 60 * v; }
-        if (u >= 0.99) this.cup = null;
-      },
-    };
-  }
-
   /* ----- cube ----- */
   setCube(c) { Object.assign(this.cube, c); if (!this.cubePos && this.cube.show) { const t = this.cubeTarget(); this.cubePos = { x: t.x, y: t.y }; } }
 }
+
+/* ============================================================
+   Effects engine for BoardView (2D) and BoardView3D (overlay):
+   particles with height, ribbons that follow a checker, auras, sprite shards and motes.
+   The move effects (fx_move.js) and hit effects (fx_hit.js) are built on top of this.
+   ============================================================ */
+const FXS = 1.45; // new effects draw their glows, puffs and pieces this much larger than the nominal size
+const FXC = (() => {
+  const store = { glow: {}, soft: {}, rgb: {} };
+  let px = null, pxc = null, n = 0;
+  function rgb(c) {
+    let v = store.rgb[c]; if (v) return v;
+    if (!px) { px = document.createElement('canvas'); px.width = px.height = 1; pxc = px.getContext('2d', { willReadFrequently: true }); }
+    pxc.clearRect(0, 0, 1, 1); pxc.fillStyle = '#000'; pxc.fillStyle = c; pxc.fillRect(0, 0, 1, 1);
+    const d = pxc.getImageData(0, 0, 1, 1).data;
+    return (store.rgb[c] = [d[0], d[1], d[2]]);
+  }
+  const rgba = (c, a) => { const v = rgb(c); return 'rgba(' + v[0] + ',' + v[1] + ',' + v[2] + ',' + a + ')'; };
+  const mix = (a, b, t) => { const x = rgb(a), y = rgb(b); return 'rgb(' + ((x[0] + (y[0] - x[0]) * t) | 0) + ',' + ((x[1] + (y[1] - x[1]) * t) | 0) + ',' + ((x[2] + (y[2] - x[2]) * t) | 0) + ')'; };
+  // a soft round sprite in one colour: kind 'glow' has a hot core, 'soft' is a flat puff
+  function sprite(kind, color) {
+    const m = store[kind], key = color;
+    if (m[key]) return m[key];
+    if (++n > 400) { store.glow = {}; store.soft = {}; n = 0; }
+    const c = document.createElement('canvas'); c.width = c.height = 64;
+    const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+    if (kind === 'glow') { g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.22, 'rgba(255,255,255,0.7)'); g.addColorStop(0.55, 'rgba(255,255,255,0.2)'); g.addColorStop(1, 'rgba(255,255,255,0)'); }
+    else { g.addColorStop(0, 'rgba(255,255,255,0.85)'); g.addColorStop(0.5, 'rgba(255,255,255,0.45)'); g.addColorStop(1, 'rgba(255,255,255,0)'); }
+    x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+    x.globalCompositeOperation = 'source-in'; x.fillStyle = color; x.fillRect(0, 0, 64, 64);
+    return (m[key] = c);
+  }
+  const glow = (c) => sprite('glow', c), soft = (c) => sprite('soft', c);
+  // colour ramp lookup: list of colours, t in 0..1
+  const ramp = (list, t) => list[Math.min(list.length - 1, Math.max(0, (t * list.length) | 0))];
+  // the colours of a checker set for one side, used to tint effects to match
+  function palette(setId, side) {
+    const set = DATA.find('checkers', setId), st = set[side === 0 ? 'a' : 'b'];
+    const acc = st.pat === 'neon' && st.acc ? st.acc : (st.hi || st.base);
+    return { base: st.base, hi: st.hi || st.base, lo: st.lo || st.base, acc, st };
+  }
+  // sample real pixel colours from the checker sprite (for dust and motes)
+  const sampleCache = new WeakMap();
+  function sampler(spr) {
+    let s = sampleCache.get(spr); if (s) return s;
+    const S = GFX.SPR.S, c = document.createElement('canvas'); c.width = c.height = S;
+    const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(spr, 0, 0, S, S);
+    let d; try { d = x.getImageData(0, 0, S, S).data; } catch (e) { d = null; }
+    s = { at(px_, py_) { if (!d) return '#c8b080'; const i = ((py_ | 0) * S + (px_ | 0)) * 4; return d[i + 3] < 40 ? null : 'rgb(' + d[i] + ',' + d[i + 1] + ',' + d[i + 2] + ')'; } };
+    sampleCache.set(spr, s); return s;
+  }
+  return { rgb, rgba, mix, glow, soft, ramp, palette, sampler };
+})();
+
+Object.assign(BoardView.prototype, {
+  /* ----- projection hooks: 2D maps height to a lift on screen, 3D overrides these ----- */
+  fxProj(x, y, z) { return [x, y - (z || 0) * 0.55, 1]; },
+  fxMat(x, y, z) { return [1, 0, 0, 1, x, y - (z || 0) * 0.55]; },
+  trailSkip() { return 0; },
+  fxQ() { return this.small ? 0.7 : 1; },
+
+  /* ----- emission helpers ----- */
+  rate(key, perSec, fn) {
+    const k = '_acc_' + key;
+    this[k] = (this[k] || 0) + perSec * this.fxQ() * (this.dt || 0.016);
+    let guard = 24;
+    while (this[k] >= 1 && guard--) { this[k]--; fn(); }
+    if (this[k] > 2) this[k] = 0;
+  },
+  put(kind, x, y, z, o) {
+    if (this.parts.length > 1500 && (kind === 'spark' || kind === 'smoke' || kind === 'mote')) return null;
+    const p = Object.assign({ kind, x, y, z, vx: 0, vy: 0, vz: 0, gz: 0, life: 0.5, max: 0, size: 4, color: '#fff', g: 0, rot: 0, vr: 0, grow: 0, a: 1 }, o || {});
+    p.max = o && o.max ? o.max : p.life; this.parts.push(p); return p;
+  },
+  // height of the body of a flying checker
+  bodyZ(fl) { return (fl.zb || 0) + (fl.z || 0) + 4; },
+  // a random spot on the face of a checker
+  onDisc(fl, f) {
+    const a = Math.random() * TAU, d = Math.sqrt(Math.random()) * GEO.r * (f || 0.92) * (fl.scale || 1);
+    return [fl.x + Math.cos(a) * d, fl.y + Math.sin(a) * d, this.bodyZ(fl) + 2];
+  },
+  // a spot on the rim, at angle a
+  onRim(fl, a, f) { const d = GEO.r * (f || 1) * (fl.scale || 1); return [fl.x + Math.cos(a) * d, fl.y + Math.sin(a) * d, this.bodyZ(fl) + 2]; },
+  fxSpr(p) { return this.sprite(p); },
+
+  /* ----- ribbons that trail behind a flying checker ----- */
+  trail(o) {
+    const tr = Object.assign({ pts: [], color: '#fff', color2: null, core: null, w: GEO.r, life: 0.4, add: true, a: 0.7, pw: 0.8, end: false, under: true }, o || {});
+    (this.trails = this.trails || []).push(tr); return tr;
+  },
+  trailPush(tr, x, y, z) {
+    if (!tr || tr.end) return;
+    const l = tr.pts[tr.pts.length - 1];
+    if (l && Math.hypot(x - l.x, y - l.y) < 1.5 && Math.abs(z - l.z) < 1.5) { l.age = 0; return; }
+    tr.pts.push({ x, y, z, age: 0 });
+  },
+
+  /* ----- per-frame update (called from frame) ----- */
+  fxStep(dt) {
+    this.dt = dt;
+    const ps = this.parts;
+    for (let i = ps.length - 1; i >= 0; i--) {
+      const p = ps[i];
+      if (p.delay > 0) { p.delay -= dt; continue; }
+      p.life -= dt; if (p.life <= 0) { if (p.onEnd) p.onEnd(p); ps.splice(i, 1); continue; }
+      if (p.drag !== undefined) { const k = Math.pow(p.drag, dt); p.vx *= k; p.vy *= k; p.vz *= k; }
+      else if (p.kind === 'spark') { p.vx *= 0.97; p.vy *= 0.97; }
+      if (p.orb) { const o = p.orb; o.a += o.w * dt; o.r = Math.max(0, o.r - o.dr * dt); p.x = o.cx + Math.cos(o.a) * o.r; p.y = o.cy + Math.sin(o.a) * o.r * (o.sq || 1); }
+      else { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += p.g * dt; }
+      if (p.z !== undefined) {
+        p.z += p.vz * dt; p.vz -= p.gz * dt;
+        if (p.floor !== undefined && p.z < p.floor && p.vz < 0) { p.z = p.floor; p.vz = -p.vz * (p.bounce || 0.35); p.vx *= 0.7; p.vy *= 0.7; p.vr *= 0.6; }
+      }
+      p.rot += p.vr * dt; p.size += p.grow * dt; if (p.size < 0) p.size = 0;
+      if (p.ph !== undefined) p.ph += (p.vph || 0) * dt;
+      if (p.ramp) p.color = FXC.ramp(p.ramp, 1 - p.life / p.max);
+      if (p.flick) p.a = 0.65 + Math.random() * 0.35;
+    }
+    const ts = this.trails;
+    if (ts) for (let i = ts.length - 1; i >= 0; i--) {
+      const tr = ts[i], pts = tr.pts;
+      for (const q of pts) q.age += dt;
+      while (pts.length && pts[0].age > tr.life) pts.shift();
+      if (tr.end && !pts.length) ts.splice(i, 1);
+    }
+  },
+
+  /* ----- drawing ----- */
+  fxDraw(ctx, phase) {
+    const ps = this.parts;
+    if (phase === 'ground') { for (const p of ps) if (p.ground) this.fxPart(ctx, p); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; return; }
+    if (phase !== 'over') { this.fxTrails(ctx); this.fxAuras(ctx); for (const p of ps) if (p.under && (phase === 'all' || !p.ground)) this.fxPart(ctx, p); }
+    if (phase !== 'under') for (const p of ps) if (!p.under) this.fxPart(ctx, p);
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  },
+  fxTrails(ctx) {
+    const ts = this.trails; if (!ts || !ts.length) return;
+    const sk = this.trailSkip();
+    for (const tr of ts) {
+      let pts = tr.pts; if (pts.length < 2) continue;
+      const head = pts[pts.length - 1];
+      let j = pts.length - 1;
+      if (sk > 0 && !tr.end) { while (j > 1 && Math.hypot(pts[j].x - head.x, pts[j].y - head.y) < sk) j--; }
+      if (j < 1) continue;
+      const passes = [{ w: tr.w, c: tr.color, c2: tr.color2 || tr.color, a: tr.a }];
+      if (tr.core) passes.push({ w: tr.w * (tr.coreW || 0.38), c: tr.core, c2: tr.core, a: Math.min(1, tr.a * 1.15) });
+      for (const ps of passes) {
+        const L = [], R = [];
+        for (let i = 0; i <= j; i++) {
+          const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+          let dx = b.x - a.x, dy = b.y - a.y; const dl = Math.hypot(dx, dy); if (dl < 0.01) { dx = 0; dy = 1; } else { dx /= dl; dy /= dl; }
+          const age = clamp01(pts[i].age / tr.life), w = ps.w * Math.pow(1 - age, tr.pw) * (tr.wobble ? 1 + 0.15 * Math.sin(i * 1.7 + pts[i].age * 20) : 1);
+          const z = pts[i].z;
+          L.push(this.fxProj(pts[i].x - dy * w, pts[i].y + dx * w, z)); R.push(this.fxProj(pts[i].x + dy * w, pts[i].y - dx * w, z));
+        }
+        const p0 = this.fxProj(pts[0].x, pts[0].y, pts[0].z), p1 = this.fxProj(pts[j].x, pts[j].y, pts[j].z);
+        let g; try { g = ctx.createLinearGradient(p0[0], p0[1], p1[0], p1[1]); } catch (e) { continue; }
+        g.addColorStop(0, FXC.rgba(ps.c2, 0)); g.addColorStop(0.35, FXC.rgba(ps.c2, ps.a * 0.45)); g.addColorStop(1, FXC.rgba(ps.c, ps.a));
+        ctx.globalCompositeOperation = tr.add ? 'lighter' : 'source-over'; ctx.globalAlpha = 1;
+        ctx.beginPath(); ctx.moveTo(L[0][0], L[0][1]);
+        for (let i = 1; i < L.length; i++) ctx.lineTo(L[i][0], L[i][1]);
+        for (let i = R.length - 1; i >= 0; i--) ctx.lineTo(R[i][0], R[i][1]);
+        ctx.closePath(); ctx.fillStyle = g; ctx.fill();
+      }
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  },
+  fxAuras(ctx) {
+    for (const f of this.flights) {
+      const au = f.aura; if (!au || f.hidden) continue;
+      const pulse = au.pulse ? 1 + Math.sin(performance.now() / 70) * au.pulse : 1;
+      const m = this.fxMat(f.x, f.y, this.bodyZ(f) - 3), R = GEO.r * au.r * pulse * (f.scale || 1);
+      ctx.save(); ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = au.a * (f.alpha === undefined ? 1 : f.alpha);
+      ctx.drawImage(FXC.glow(au.color), -R, -R, R * 2, R * 2);
+      ctx.restore();
+    }
+    for (const d of this.dice) {
+      const au = d.aura; if (!au || !d.visible || d.alpha < 0.1) continue;
+      const m = this.fxMat(d.x, d.y, this.dieZ(d)), Rr = d.size * 0.5 * au.r * d.scale * (au.pulse ? 1 + Math.sin(performance.now() / 70) * au.pulse : 1);
+      ctx.save(); ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = au.a * d.alpha;
+      ctx.drawImage(FXC.glow(au.color), -Rr, -Rr, Rr * 2, Rr * 2); ctx.restore();
+    }
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  },
+
+  fxPart(ctx, p) {
+    let a = clamp01(p.life / p.max);
+    if (p.delay > 0) a = p.af ? p.af(0) : 1;
+    else if (p.af) a = p.af(1 - p.life / p.max);
+    else {
+      if (p.fin) a *= clamp01((1 - p.life / p.max) / p.fin);
+      if (p.pw) a = Math.pow(a, p.pw);
+    }
+    a *= p.a;
+    if (a <= 0.005) return;
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+    const z = p.z;
+    switch (p.kind) {
+      case 'spark': {
+        const q = this.fxProj(p.x, p.y, z), k = q[2] * (z !== undefined ? FXS : 1), rad = Math.max(1, p.size * 2.2 * k);
+        ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a;
+        if (p.streak) {
+          const t = this.fxProj(p.x - p.vx * p.streak, p.y - p.vy * p.streak, z === undefined ? undefined : z - p.vz * p.streak);
+          ctx.lineCap = 'round'; ctx.strokeStyle = p.color;
+          ctx.globalAlpha = a * 0.35; ctx.lineWidth = Math.max(1.5, p.size * 1.8 * k); ctx.beginPath(); ctx.moveTo(t[0], t[1]); ctx.lineTo(q[0], q[1]); ctx.stroke();
+          ctx.globalAlpha = a; ctx.lineWidth = Math.max(1, p.size * 0.7 * k); ctx.stroke();
+        } else ctx.drawImage(FXC.glow(p.color), q[0] - rad, q[1] - rad, rad * 2, rad * 2);
+        break;
+      }
+      case 'smoke': {
+        const q = this.fxProj(p.x, p.y, z), rad = Math.max(1, p.size * 1.3 * q[2] * (z !== undefined ? FXS : 1));
+        ctx.globalAlpha = a * (p.alpha === undefined ? 0.5 : p.alpha);
+        ctx.drawImage(FXC.soft(p.color), q[0] - rad, q[1] - rad, rad * 2, rad * 2);
+        break;
+      }
+      case 'dust': {
+        const q = this.fxProj(p.x, p.y, z), rad = Math.max(1, p.size * 1.25 * q[2]);
+        ctx.globalAlpha = a * 0.5;
+        ctx.drawImage(FXC.soft(p.color), q[0] - rad, q[1] - rad * (this.is3d ? 0.7 : 1), rad * 2, rad * 2 * (this.is3d ? 0.7 : 1));
+        break;
+      }
+      case 'ring': case 'shock': {
+        const m = this.fxMat(p.x, p.y, z === undefined ? 1 : z);
+        ctx.save(); ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]); ctx.beginPath(); ctx.arc(0, 0, Math.max(0.5, p.size), 0, TAU); ctx.restore();
+        ctx.globalAlpha = a; ctx.strokeStyle = p.color;
+        if (p.kind === 'shock') { ctx.globalCompositeOperation = 'lighter'; ctx.lineWidth = (p.w || 9) * a + 1.5; } else ctx.lineWidth = 4 * a + 1;
+        ctx.stroke();
+        break;
+      }
+      case 'disc': {
+        const m = this.fxMat(p.x, p.y, z === undefined ? 1 : z), R = Math.max(1, p.size);
+        ctx.save(); ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+        if (p.add !== false) ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = a; ctx.drawImage(FXC.glow(p.color), -R, -R, R * 2, R * 2);
+        ctx.restore();
+        break;
+      }
+      case 'fill': { // a flat solid disc (frost, char, void)
+        const m = this.fxMat(p.x, p.y, z === undefined ? 1 : z);
+        ctx.save(); ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]); ctx.beginPath(); ctx.arc(0, 0, Math.max(0.5, p.size), 0, TAU);
+        ctx.globalAlpha = a; ctx.fillStyle = p.color; ctx.fill();
+        if (p.edge) { ctx.lineWidth = 2; ctx.strokeStyle = p.edge; ctx.stroke(); }
+        ctx.restore();
+        break;
+      }
+      case 'mote': {
+        const q = this.fxProj(p.x, p.y, z), s = Math.max(0.6, p.size * q[2]);
+        ctx.globalAlpha = a; ctx.fillStyle = p.color; ctx.fillRect(q[0] - s, q[1] - s, s * 2, s * 2);
+        break;
+      }
+      case 'star': {
+        const q = this.fxProj(p.x, p.y, z), s = Math.max(1, p.size * q[2] * FXS), tw = p.tw ? 0.55 + 0.45 * Math.sin(p.rot * 3) : 1;
+        ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a * tw;
+        ctx.drawImage(FXC.glow(p.color), q[0] - s * 1.6, q[1] - s * 1.6, s * 3.2, s * 3.2);
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(1, s * 0.22); ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(q[0] - s * 1.5, q[1]); ctx.lineTo(q[0] + s * 1.5, q[1]); ctx.moveTo(q[0], q[1] - s * 1.5); ctx.lineTo(q[0], q[1] + s * 1.5); ctx.stroke();
+        break;
+      }
+      case 'paper': case 'confetti': {
+        let q, k = 1;
+        if (z === undefined && p.kind === 'confetti') { q = this.is3d ? this.fxProj(p.x, p.y, 120) : [p.x, p.y]; k = this.is3d ? q[2] * 1.2 : 1; }
+        else { q = this.fxProj(p.x, p.y, z); k = q[2]; }
+        const w = p.size * k * (z !== undefined ? 1.3 : 1), ph = p.kind === 'paper' ? Math.cos(p.ph || 0) : 1;
+        ctx.save(); ctx.globalAlpha = Math.min(1, a * 2); ctx.translate(q[0], q[1]); ctx.rotate(p.rot); ctx.scale(1, Math.max(0.12, Math.abs(ph)));
+        ctx.fillStyle = p.color; ctx.fillRect(-w / 2, -w / 4, w, w / 2); ctx.restore();
+        break;
+      }
+      case 'petal': {
+        const q = this.fxProj(p.x, p.y, z), w = Math.max(1, p.size * q[2] * 1.3);
+        ctx.save(); ctx.globalAlpha = Math.min(1, a * 1.5); ctx.translate(q[0], q[1]); ctx.rotate(p.rot); ctx.scale(1, 0.45 + 0.55 * Math.abs(Math.cos(p.ph || 0)));
+        ctx.fillStyle = p.color; ctx.beginPath(); ctx.ellipse(0, 0, w, w * 0.55, 0, 0, TAU); ctx.fill(); ctx.restore();
+        break;
+      }
+      case 'coin': {
+        const q = this.fxProj(p.x, p.y, z), w = Math.max(1.5, p.size * q[2] * 1.35), sy = 0.14 + 0.86 * Math.abs(Math.cos(p.ph || 0));
+        ctx.save(); ctx.globalAlpha = Math.min(1, a * 2); ctx.translate(q[0], q[1]); ctx.rotate(p.rot * 0.2); ctx.scale(1, sy);
+        ctx.fillStyle = '#b8860b'; ctx.beginPath(); ctx.arc(0, w * 0.12, w, 0, TAU); ctx.fill();
+        const g = ctx.createLinearGradient(-w, -w, w, w); g.addColorStop(0, '#fff2a8'); g.addColorStop(0.5, '#f2c84b'); g.addColorStop(1, '#c8921a');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, w, 0, TAU); ctx.fill();
+        ctx.strokeStyle = '#a8740a'; ctx.lineWidth = Math.max(1, w * 0.16); ctx.beginPath(); ctx.arc(0, 0, w * 0.66, 0, TAU); ctx.stroke();
+        ctx.restore();
+        break;
+      }
+      case 'glyph': {
+        const q = this.fxProj(p.x, p.y, z);
+        ctx.save(); ctx.globalAlpha = a; ctx.translate(q[0], q[1]); ctx.rotate(p.rot); ctx.fillStyle = p.color; ctx.font = '700 ' + Math.max(6, p.size * q[2]) + 'px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(p.text, 0, 0); ctx.restore();
+        break;
+      }
+      case 'beam': { // a vertical column of light
+        const b0 = this.fxProj(p.x, p.y, p.z0 || 0), b1 = this.fxProj(p.x, p.y, p.z1 || 120), w = Math.max(1, p.size * b0[2]);
+        const g = ctx.createLinearGradient(b0[0], b0[1], b1[0], b1[1]); g.addColorStop(0, FXC.rgba(p.color, 0.95)); g.addColorStop(1, FXC.rgba(p.color, 0));
+        ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a; ctx.fillStyle = g;
+        ctx.beginPath(); ctx.moveTo(b0[0] - w, b0[1]); ctx.lineTo(b0[0] + w, b0[1]); ctx.lineTo(b1[0] + w * 0.45, b1[1]); ctx.lineTo(b1[0] - w * 0.45, b1[1]); ctx.closePath(); ctx.fill();
+        break;
+      }
+      case 'bolt': {
+        const pts = p.pts.map(q => this.fxProj(q.x, q.y, q.z));
+        ctx.globalCompositeOperation = 'lighter'; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        const k = pts[0][2];
+        for (const [wd, al, col] of [[p.size * 5 * k, a * 0.28, p.color], [p.size * 2 * k, a * 0.7, p.color], [Math.max(1, p.size * 0.8 * k), a, '#ffffff']]) {
+          ctx.globalAlpha = al; ctx.strokeStyle = col; ctx.lineWidth = Math.max(1, wd); ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+          for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]); ctx.stroke();
+        }
+        break;
+      }
+      case 'echo': { // the whole checker, left behind as an afterimage
+        const m = this.fxMat(p.x, p.y, z), f = (GEO.r / GFX.SPR.R) * (p.sc || 1), S = GFX.SPR.S, spr = this.fxSpr(p.side || 0);
+        ctx.save(); ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]); ctx.rotate(p.rot);
+        ctx.globalAlpha = a; ctx.drawImage(spr, -GFX.SPR.cx * f, -GFX.SPR.cy * f, S * f, S * f);
+        if (p.glowC) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a * (p.glowA || 0.5); const R = GEO.r * (p.sc || 1) * 1.15; ctx.drawImage(FXC.glow(p.glowC), -R, -R, R * 2, R * 2); }
+        ctx.restore();
+        break;
+      }
+      case 'crystal': { // an ice spike growing out from the rim of a checker
+        const t = clamp01(1 - p.life / p.max), L = p.len * Math.min(1, t * 3.5), m = this.fxMat(p.x, p.y, z === undefined ? 4 : z), r0 = GEO.r * 0.88;
+        ctx.save(); ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]); ctx.rotate(p.ang);
+        ctx.beginPath(); ctx.moveTo(r0, -p.size); ctx.lineTo(r0 + L, 0); ctx.lineTo(r0, p.size); ctx.closePath();
+        ctx.globalAlpha = a * 0.9; ctx.fillStyle = p.color; ctx.fill(); ctx.globalAlpha = a; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 0.9; ctx.stroke();
+        ctx.restore();
+        break;
+      }
+      case 'shard': this.fxShard(ctx, p, a); break;
+    }
+  },
+  // a wedge of the checker, drawn from the real checker sprite
+  fxShard(ctx, p, a) {
+    const m = this.fxMat(p.x, p.y, p.z), f = GEO.r / GFX.SPR.R, S = GFX.SPR.S, spr = this.fxSpr(p.side || 0), W = p.w;
+    ctx.save(); ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+    ctx.rotate(p.rot); ctx.scale(1.18, 1.18);
+    if (p.flip !== undefined) ctx.scale(1, Math.max(0.2, Math.abs(Math.cos(p.flip))));
+    ctx.translate(-W.cx, -W.cy);
+    ctx.globalAlpha = a; ctx.beginPath(); W.path(ctx); ctx.save(); ctx.clip();
+    ctx.drawImage(spr, -GFX.SPR.cx * f, -GFX.SPR.cy * f, S * f, S * f);
+    if (p.tint) { ctx.globalAlpha = a * (p.tintA === undefined ? 0.4 : p.tintA); ctx.fillStyle = p.tint; ctx.fillRect(-GEO.r * 1.2, -GEO.r * 1.2, GEO.r * 2.4, GEO.r * 2.4); }
+    ctx.restore();
+    ctx.globalAlpha = a * 0.8; ctx.lineWidth = 0.9; ctx.strokeStyle = p.edge || 'rgba(255,255,255,0.55)'; ctx.beginPath(); W.path(ctx); ctx.stroke();
+    if (p.glowC) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a * 0.5; ctx.strokeStyle = p.glowC; ctx.lineWidth = 2.2; ctx.beginPath(); W.path(ctx); ctx.stroke(); }
+    ctx.restore();
+  },
+  drawParticles(ctx) { this.fxDraw(ctx, 'over'); },
+  drawFxUnder(ctx) { this.fxDraw(ctx, 'under'); },
+
+  /* ----- breaking a checker into pieces ----- */
+  // wedge shapes: n slices at jittered angles, each cut once across the radius
+  wedges(n, rings) {
+    const R = GEO.r * 1.04, out = [], base = Math.random() * TAU;
+    const ang = []; for (let i = 0; i < n; i++) ang.push(base + (i + rnd(-0.28, 0.28)) / n * TAU); ang.sort((a, b) => a - b);
+    for (let i = 0; i < n; i++) {
+      const a0 = ang[i], a1 = i + 1 < n ? ang[i + 1] : ang[0] + TAU;
+      const cuts = rings > 1 ? [0, rnd(0.34, 0.62), 1] : [0, 1];
+      for (let j = 0; j + 1 < cuts.length; j++) {
+        const r0 = cuts[j] * R, r1 = cuts[j + 1] * R, am = (a0 + a1) / 2, rm = (r0 + r1) / 2;
+        const path = (c) => { c.arc(0, 0, r1, a0, a1); if (r0 <= 0.01) c.lineTo(0, 0); else c.arc(0, 0, r0, a1, a0, true); c.closePath(); };
+        out.push({ path, cx: Math.cos(am) * rm, cy: Math.sin(am) * rm, am, rm, a0, a1, r0, r1 });
+      }
+    }
+    return out;
+  },
+  // blow a checker apart. o: speed, up, gz, life, spin, tint, side, floor
+  shatter(x, y, side, o) {
+    o = o || {};
+    const ws = this.wedges(o.n || 7, o.rings === undefined ? 2 : o.rings), z0 = o.z0 === undefined ? 6 : o.z0, out = [];
+    for (const w of ws) {
+      const sp = (o.speed || 150) * rnd(0.55, 1.2), dir = w.am + rnd(-0.25, 0.25);
+      out.push(this.put('shard', x + w.cx, y + w.cy, z0, {
+        side, w, vx: Math.cos(dir) * sp, vy: Math.sin(dir) * sp * (this.is3d ? 1 : 0.85), vz: (o.up || 160) * rnd(0.5, 1.2), gz: o.gz || 520, floor: o.floor === undefined ? 1 : o.floor, bounce: 0.3,
+        rot: rnd(0, TAU), vr: rnd(-9, 9) * (o.spin || 1), flip: o.flip === false ? undefined : rnd(0, TAU), life: o.life || 0.95, size: 1, tint: o.tint, tintA: o.tintA, edge: o.edge, glowC: o.glowC, pw: o.pw || 0.6, a: 1, drag: o.drag,
+      }));
+      const sh = out[out.length - 1]; if (sh && sh.flip !== undefined) sh.vflip = rnd(-9, 9);
+    }
+    return out;
+  },
+  // colour motes cut from the real checker face. delayFn(x,y) gives each its start delay
+  motes(x, y, side, n, o) {
+    o = o || {};
+    const spr = this.fxSpr(side), smp = FXC.sampler(spr), f = GEO.r / GFX.SPR.R, R = GFX.SPR.R * 0.97, out = [];
+    n = Math.round(n * this.fxQ());
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * TAU, d = Math.sqrt(Math.random()) * R, sx = GFX.SPR.cx + Math.cos(a) * d, sy = GFX.SPR.cy + Math.sin(a) * d, col = smp.at(sx, sy);
+      if (!col) continue;
+      const lx = Math.cos(a) * d * f, ly = Math.sin(a) * d * f, z0 = o.z0 === undefined ? 6 : o.z0;
+      const base = Object.assign({ color: col, size: rnd(0.9, 2) * (o.sz || 1), life: rnd(0.5, 1.0) * (o.life || 1), vx: 0, vy: 0, vz: 0, gz: 0, a: 1 }, o.make ? o.make(lx, ly) : {});
+      out.push(this.put('mote', x + lx, y + ly, z0, Object.assign(base, o.delayFn ? { delay: o.delayFn(lx, ly) } : {})));
+    }
+    return out;
+  },
+});
+
+// shard flipping (the second angle that makes a piece tumble in 3D)
+(() => {
+  const step = BoardView.prototype.fxStep;
+  BoardView.prototype.fxStep = function (dt) {
+    step.call(this, dt);
+    for (const p of this.parts) if (p.vflip !== undefined && !(p.delay > 0)) p.flip += p.vflip * dt;
+  };
+})();
+
+/* ============================================================
+   Move effects: how a checker travels from one point to another.
+   Every effect is emitted from the whole checker (its face, rim and body), not from one spot,
+   and leaves ribbons, glow and particles as wide as the checker itself.
+   ============================================================ */
+(() => {
+  const R = GEO.r, V = BoardView.prototype;
+  const FIRE = ['#fffbe0', '#ffd24a', '#ff8a2a', '#d8401a', '#5a1a0c'];
+  const SUITS = ['♠', '♥', '♦', '♣'];
+  const PAPER = ['#ff5a5a', '#ffd24a', '#5ad2ff', '#7aff9a', '#d27aff', '#ffffff'];
+
+  Object.assign(V, {
+    /* ----- small building blocks shared by the effects ----- */
+    fxTrail(fl, o) { const tr = this.trail(o); (fl.trails = fl.trails || []).push(tr); return tr; },
+    fxPush(tr, fl) { this.trailPush(tr, fl.x, fl.y, this.bodyZ(fl) - 3); },
+    puffRing(x, y, color, n, speed, size, o) {
+      for (let i = 0; i < n; i++) {
+        const a = i / n * TAU + rnd(-0.2, 0.2);
+        this.put('dust', x + Math.cos(a) * R * 0.7, y + Math.sin(a) * R * 0.7, 3, Object.assign({ vx: Math.cos(a) * speed * rnd(0.6, 1.2), vy: Math.sin(a) * speed * rnd(0.6, 1.2), vz: rnd(4, 24), size: size * rnd(0.7, 1.2), grow: size * 1.8, life: rnd(0.4, 0.75), color, under: true, a: 1 }, o || {}));
+      }
+    },
+    shockAt(x, y, color, r, life, w) { this.put('shock', x, y, 1, { color, size: 6, grow: r / (life || 0.45), life: life || 0.45, w: w || 10, under: true, ground: true }); },
+    flame(x, y, z, o) { return this.put('spark', x, y, z, Object.assign({ ramp: FIRE, color: FIRE[0], size: rnd(4, 8), life: rnd(0.3, 0.6), vz: rnd(20, 60), grow: -6 }, o || {})); },
+    sparkBurst(x, y, z, n, color, speed, o) {
+      n = Math.round(n * this.fxQ());
+      for (let i = 0; i < n; i++) {
+        const a = Math.random() * TAU, s = speed * rnd(0.35, 1.1);
+        this.put('spark', x, y, z, Object.assign({ vx: Math.cos(a) * s, vy: Math.sin(a) * s, vz: rnd(10, 90), gz: 300, floor: 0, bounce: 0.2, life: rnd(0.4, 0.9), size: rnd(1.5, 4), color, streak: 0.025, drag: 0.35 }, o || {}));
+      }
+    },
+    starBurst(x, y, z, n, colors, speed) {
+      n = Math.round(n * this.fxQ());
+      for (let i = 0; i < n; i++) {
+        const a = Math.random() * TAU, s = speed * rnd(0.3, 1);
+        this.put('star', x, y, z, { vx: Math.cos(a) * s, vy: Math.sin(a) * s, vz: rnd(10, 70), gz: 90, life: rnd(0.6, 1.1), size: rnd(1.5, 3.5), color: colors[(Math.random() * colors.length) | 0], tw: true, vr: rnd(2, 6), drag: 0.4 });
+      }
+    },
+    // a jagged bolt between two points; o.z0/o.z1 are the heights at each end
+    boltBetween(x0, y0, z0, x1, y1, z1, seg, jit, o) {
+      const pts = [], dx = x1 - x0, dy = y1 - y0, dl = Math.hypot(dx, dy) || 1, nx = -dy / dl, ny = dx / dl;
+      for (let i = 0; i <= seg; i++) {
+        const t = i / seg, j = (i === 0 || i === seg ? 0 : rnd(-jit, jit)) * Math.sin(Math.PI * t) ;
+        pts.push({ x: x0 + dx * t + nx * j, y: y0 + dy * t + ny * j, z: z0 + (z1 - z0) * t + (i === 0 || i === seg ? 0 : rnd(-jit, jit) * 0.4) });
+      }
+      return this.put('bolt', x0, y0, z0, Object.assign({ pts, size: 2.4, color: '#9fd0ff', life: 0.22 }, o || {}));
+    },
+    // electricity crawling across the face of a checker
+    arcOver(fl, color, n) {
+      for (let i = 0; i < n; i++) {
+        const a0 = Math.random() * TAU, a1 = a0 + rnd(1.2, 2.6) * (Math.random() < 0.5 ? 1 : -1), z = this.bodyZ(fl) + 2, s = fl.scale || 1;
+        const p0 = this.onRim(fl, a0, 0.95), p1 = this.onRim(fl, a1, 0.95), seg = 6, pts = [];
+        for (let k = 0; k <= seg; k++) {
+          const t = k / seg, j = k === 0 || k === seg ? 0 : rnd(-9, 9) * s;
+          pts.push({ x: p0[0] + (p1[0] - p0[0]) * t + j, y: p0[1] + (p1[1] - p0[1]) * t + rnd(-4, 4) * s * (k === 0 || k === seg ? 0 : 1), z });
+        }
+        this.put('bolt', p0[0], p0[1], z, { pts, size: 1.5, color, life: rnd(0.08, 0.16) });
+      }
+    },
+
+    /* ----- dispatch ----- */
+    async flyChecker(fl, a, b, fx, p) {
+      const dist = Math.hypot(b.x - a.x, b.y - a.y), pal = FXC.palette(this.cos.checkers, p);
+      const c = {
+        dist, base: clamp(250 + dist * 0.5, 300, 720), pal, col: pal.acc, dx: (b.x - a.x) / (dist || 1), dy: (b.y - a.y) / (dist || 1),
+        lerp: (u) => { fl.x = a.x + (b.x - a.x) * u; fl.y = a.y + (b.y - a.y) * u; fl.zb = (a.h || 0) + ((b.h || 0) - (a.h || 0)) * u; fl.u = u; },
+      };
+      fl.trails = []; fl.aura = null;
+      const fn = this['mv_' + fx] || this.mv_glide;
+      try { await fn.call(this, fl, a, b, p, c); }
+      finally { for (const t of fl.trails) t.end = true; fl.aura = null; }
+    },
+
+    /* ----- the effects ----- */
+    mv_glide(fl, a, b, p, c) {
+      const tr = this.fxTrail(fl, { color: c.pal.hi, w: R * 0.78, life: 0.3, add: false, a: 0.3, pw: 0.9 });
+      return this.tween(c.base, (u) => {
+        c.lerp(E.inOut(u)); fl.z = Math.sin(Math.PI * u) * 14 + (a.lift || 0) * (1 - u); this.fxPush(tr, fl);
+        if (u < 1) this.rate('glide', 26, () => { const q = this.onDisc(fl, 0.8); this.put('smoke', q[0], q[1], 3, { size: rnd(6, 10), grow: 10, life: 0.45, color: c.pal.hi, alpha: 0.22, vx: -c.dx * 12, vy: -c.dy * 12, under: true }); });
+      });
+    },
+    mv_arc(fl, a, b, p, c) {
+      const tr = this.fxTrail(fl, { color: '#e8f0ff', w: R * 0.72, life: 0.5, add: false, a: 0.38, pw: 0.7 });
+      this.puffRing(a.x, a.y, '#e8e2d4', 7, 40, 9);
+      let landed = false;
+      return this.tween(c.base * 1.15, (u) => {
+        c.lerp(E.inOut(u)); fl.z = Math.sin(Math.PI * u) * (60 + c.dist * 0.2); if (u > 0.9) fl.scale = 1 - Math.sin((u - 0.9) * Math.PI * 10) * 0.03;
+        this.fxPush(tr, fl);
+        if (u < 1) this.rate('arc', 40, () => { const q = this.onDisc(fl, 0.85); this.put('smoke', q[0], q[1], q[2], { size: rnd(5, 9), grow: 12, life: 0.5, color: '#f2f6ff', alpha: 0.25, vz: rnd(-8, 8) }); });
+        if (u >= 1 && !landed) { landed = true; this.puffRing(b.x, b.y, '#e8e2d4', 10, 70, 10); this.shockAt(b.x, b.y, '#ffffff', 56, 0.35, 5); }
+      });
+    },
+    mv_spin(fl, a, b, p, c) {
+      fl.aura = { color: '#ffe08a', r: 1.45, a: 0.28, pulse: 0.15 };
+      const tr = this.fxTrail(fl, { color: '#ffd978', w: R * 0.55, life: 0.35, add: true, a: 0.4, pw: 1 });
+      return this.tween(c.base * 1.1, (u) => {
+        c.lerp(E.inOut(u)); fl.z = Math.sin(Math.PI * u) * 50; fl.sx = Math.cos(u * TAU * 2.2 * (u < 1 ? 1 : 0)); fl.rot = u < 1 ? u * TAU * 2 : 0; if (u >= 1) fl.sx = 1;
+        this.fxPush(tr, fl);
+        if (u < 1) this.rate('spin', 110, () => {
+          const ang = u * TAU * 5 + rnd(-0.4, 0.4), q = this.onRim(fl, ang, 1.02), tx = -Math.sin(ang), ty = Math.cos(ang);
+          this.put('spark', q[0], q[1], q[2], { vx: tx * 110 - c.dx * 30, vy: ty * 110 - c.dy * 30, vz: rnd(-10, 40), life: 0.4, size: rnd(2, 4), color: Math.random() < 0.4 ? '#ffffff' : '#ffd978', streak: 0.045, drag: 0.5 });
+        });
+        if (u >= 1 && !fl._done) { fl._done = true; this.starBurst(b.x, b.y, 14, 8, ['#fff3a8', '#ffffff', '#ffd978'], 90); this.shockAt(b.x, b.y, '#ffe08a', 70, 0.4, 7); }
+      });
+    },
+    mv_comet(fl, a, b, p, c) {
+      fl.aura = { color: c.col, r: 1.7, a: 0.4, pulse: 0.1 };
+      const tr = this.fxTrail(fl, { color: c.col, color2: c.col, core: '#ffffff', w: R * 1.05, life: 0.6, a: 0.7, pw: 0.85 });
+      return this.tween(c.base * 0.8, (u) => {
+        c.lerp(E.inOut(u)); fl.z = Math.sin(Math.PI * u) * 12; this.fxPush(tr, fl);
+        if (u < 1) this.rate('comet', 150, () => {
+          const q = this.onDisc(fl, 0.95), s = rnd(40, 150);
+          this.put('spark', q[0], q[1], q[2], { vx: -c.dx * s + rnd(-30, 30), vy: -c.dy * s + rnd(-30, 30), vz: rnd(-12, 22), life: rnd(0.35, 0.7), size: rnd(2, 5), color: Math.random() < 0.3 ? '#ffffff' : c.col, streak: 0.04, drag: 0.5 });
+        });
+        if (u >= 1 && !fl._done) { fl._done = true; this.shockAt(b.x, b.y, c.col, 90, 0.5, 10); this.sparkBurst(b.x, b.y, 10, 16, c.col, 200); }
+      });
+    },
+    mv_warp(fl, a, b, p, c) {
+      let s1 = false, s2 = false;
+      const intoLight = (x, y, h) => {
+        this.put('beam', x, y, 0, { z0: 0, z1: 150, size: R * 0.8, color: c.col, life: 0.45, a: 0.8 });
+        this.motes(x, y, p, 90, { z0: 4, life: 0.9, sz: 1.3, make: (lx, ly) => ({ vx: -lx * 0.8, vy: -ly * 0.8, vz: rnd(60, 220), gz: -20, drag: 0.6 }) });
+      };
+      return this.tween(640, (u) => {
+        if (u < 0.3) {
+          const v = u / 0.3; fl.x = a.x; fl.y = a.y; fl.zb = a.h || 0; fl.u = 0; fl.scale = 1 - E.in2(v); fl.alpha = 1 - v * 0.6; fl.sx = 1;
+          if (!s1) { s1 = true; this.shockAt(a.x, a.y, c.col, 90, 0.45, 9); intoLight(a.x, a.y); this.snd('sparkle'); }
+        } else if (u < 0.5) { fl.alpha = 0; fl.x = b.x; fl.y = b.y; fl.zb = b.h || 0; fl.scale = 0.001; }
+        else {
+          const v = (u - 0.5) / 0.5; fl.x = b.x; fl.y = b.y; fl.zb = b.h || 0; fl.u = 1; fl.alpha = 1; fl.scale = Math.max(0.01, E.back(v));
+          if (!s2) {
+            s2 = true; this.shockAt(b.x, b.y, c.col, 100, 0.5, 9); this.put('beam', b.x, b.y, 0, { z0: 0, z1: 150, size: R * 0.8, color: c.col, life: 0.4, a: 0.8 });
+            for (let i = 0; i < 70 * this.fxQ(); i++) {
+              const ang = Math.random() * TAU, d = rnd(60, 110), z = rnd(30, 120);
+              this.put('spark', b.x + Math.cos(ang) * d, b.y + Math.sin(ang) * d, z, { vx: -Math.cos(ang) * d * 3.2, vy: -Math.sin(ang) * d * 3.2, vz: -z * 2.4, life: 0.32, size: rnd(2, 4), color: Math.random() < 0.4 ? '#ffffff' : c.col, streak: 0.04 });
+            }
+          }
+        }
+      });
+    },
+    mv_slam(fl, a, b, p, c) {
+      let hit = false;
+      fl.aura = { color: '#ffe9a8', r: 1.35, a: 0.0, pulse: 0 };
+      return this.tween(c.base * 1.5, (u) => {
+        if (u < 0.55) { const v = u / 0.55; c.lerp(E.out3(v)); fl.z = 150 * E.out3(v); if (fl.aura) fl.aura.a = 0.12; }
+        else if (u < 0.66) { c.lerp(1); fl.z = 150; if (fl.aura) fl.aura.a = 0.12 + 0.4 * ((u - 0.55) / 0.11); }
+        else {
+          const v = (u - 0.66) / 0.34; c.lerp(1); fl.z = 150 * (1 - E.in3(v)); if (fl.aura) fl.aura.a = 0.5;
+          this.rate('slam', 140, () => { const q = this.onRim(fl, Math.random() * TAU, rnd(0.2, 1)); this.put('spark', q[0], q[1], q[2], { vz: -260, life: 0.16, size: 2.4, color: '#fff3c8', streak: 0.06 }); });
+        }
+        if (u >= 0.999 && !hit) {
+          hit = true; fl.z = 0; fl.aura = null; this.snd('slam'); this.shake = 9;
+          this.shockAt(b.x, b.y, '#ffffff', 120, 0.4, 14); this.puffRing(b.x, b.y, '#d8d0c0', 14, 120, 12);
+          this.sparkBurst(b.x, b.y, 4, 22, '#ffe9a8', 260, { vz: rnd(10, 60) });
+          this.put('disc', b.x, b.y, 1, { size: R * 2.2, color: '#ffe9a8', life: 0.25, a: 0.7, under: true, ground: true });
+        }
+      });
+    },
+    mv_steam(fl, a, b, p, c) {
+      const nx = -c.dy, ny = c.dx;
+      const tr = this.fxTrail(fl, { color: '#f4efe6', w: R * 0.9, life: 0.55, add: false, a: 0.26, pw: 0.6, wobble: true });
+      return this.tween(c.base * 1.25, (u) => {
+        c.lerp(E.inOut(u)); const w = Math.sin(u * Math.PI * 3) * 26 * Math.sin(Math.PI * u); fl.x += nx * w; fl.y += ny * w; fl.z = Math.sin(Math.PI * u) * 18;
+        this.fxPush(tr, fl);
+        if (u < 1) this.rate('steam', 70, () => { const q = this.onDisc(fl, 1); this.put('smoke', q[0], q[1], q[2] - 2, { vx: rnd(-14, 14), vy: rnd(-14, 14), vz: rnd(22, 52), size: rnd(8, 14), grow: 20, life: rnd(0.7, 1.1), color: Math.random() < 0.5 ? '#f4efe6' : '#ffffff', alpha: 0.5, fin: 0.15 }); });
+        if (u >= 1 && !fl._done) { fl._done = true; for (let i = 0; i < 12; i++) { const q = this.onDisc(fl, 1); this.put('smoke', q[0], q[1], q[2], { vx: rnd(-30, 30), vy: rnd(-30, 30), vz: rnd(20, 50), size: rnd(10, 16), grow: 22, life: 1, color: '#f4efe6', alpha: 0.5 }); } }
+      });
+    },
+    mv_anchor(fl, a, b, p, c) {
+      let hit = false;
+      fl.aura = { color: '#7fc8ff', r: 1.45, a: 0.0, pulse: 0.1 };
+      return this.tween(c.base * 1.5, (u) => {
+        if (u < 0.5) { const v = u / 0.5; c.lerp(E.out3(v)); fl.z = 120 * E.out3(v); if (fl.aura) fl.aura.a = 0.1; } else { const v = (u - 0.5) / 0.5; c.lerp(1); fl.z = 120 * (1 - E.in3(v)); if (fl.aura) fl.aura.a = 0.3; }
+        this.rate('anchor', u < 0.5 ? 50 : 90, () => { const q = this.onRim(fl, Math.random() * TAU, rnd(0.4, 1)); this.put('spark', q[0], q[1], q[2], { vz: u < 0.5 ? rnd(-20, 30) : -180, vx: rnd(-14, 14), vy: rnd(-14, 14), gz: u < 0.5 ? 200 : 0, life: 0.35, size: rnd(1.8, 3.4), color: Math.random() < 0.5 ? '#cfeaff' : '#7fc8ff', streak: 0.04 }); });
+        if (u >= 0.999 && !hit) {
+          hit = true; fl.z = 0; fl.aura = null; this.snd('slam'); this.shake = 7;
+          this.shockAt(b.x, b.y, '#7fc8ff', 90, 0.6, 7); setTimeout(() => this.shockAt(b.x, b.y, '#9fd8ff', 135, 0.7, 6), 110); setTimeout(() => this.shockAt(b.x, b.y, '#cfeaff', 180, 0.8, 5), 230);
+          for (let i = 0; i < 46 * this.fxQ(); i++) { const ang = Math.random() * TAU, s = rnd(30, 150); this.put('spark', b.x + Math.cos(ang) * rnd(0, R), b.y + Math.sin(ang) * rnd(0, R), 4, { vx: Math.cos(ang) * s, vy: Math.sin(ang) * s, vz: rnd(100, 260), gz: 560, floor: 0, bounce: 0.1, life: rnd(0.5, 0.9), size: rnd(1.6, 3.2), color: '#cfeaff', drag: 0.8 }); }
+          this.puffRing(b.x, b.y, '#e8f6ff', 14, 70, 10);
+        }
+      });
+    },
+    mv_deal(fl, a, b, p, c) {
+      fl.aura = { color: '#ffd75a', r: 1.4, a: 0.22, pulse: 0.12 };
+      const tr = this.fxTrail(fl, { color: '#ffc83a', core: '#fff3b8', w: R * 0.95, life: 0.42, a: 0.55, pw: 0.9 });
+      return this.tween(c.base * 0.8, (u) => {
+        c.lerp(E.out2(u)); fl.z = 8 + Math.sin(Math.PI * u) * 16; fl.rot = u * TAU * 3; fl.sx = Math.cos(u * TAU * 3); if (u >= 1) { fl.sx = 1; fl.rot = 0; }
+        this.fxPush(tr, fl);
+        if (u < 1) {
+          this.rate('dealS', 120, () => { const q = this.onDisc(fl, 1); this.put('spark', q[0], q[1], q[2], { vx: -c.dx * rnd(30, 120) + rnd(-30, 30), vy: -c.dy * rnd(30, 120) + rnd(-30, 30), vz: rnd(-10, 30), life: 0.45, size: rnd(2, 4.5), color: '#ffd75a', streak: 0.04, drag: 0.5 }); });
+          this.rate('dealG', 16, () => { const q = this.onDisc(fl, 1), s = (Math.random() * 4) | 0; this.put('glyph', q[0], q[1], q[2] + 6, { text: SUITS[s], color: s % 2 ? '#ff7a7a' : '#f4efe0', size: rnd(12, 18), vz: rnd(10, 40), vx: -c.dx * 30 + rnd(-20, 20), vy: -c.dy * 30 + rnd(-20, 20), vr: rnd(-4, 4), life: 0.7, drag: 0.5 }); });
+        }
+        if (u >= 1 && !fl._done) { fl._done = true; this.shockAt(b.x, b.y, '#ffd75a', 70, 0.4, 7); this.starBurst(b.x, b.y, 12, 8, ['#ffd75a', '#ffffff'], 100); }
+      });
+    },
+    mv_lightning(fl, a, b, p, c) {
+      let rung = false, struck = false, arrived = false, arcT = 0;
+      return this.tween(620, (u) => {
+        if (u < 0.22) {
+          const v = u / 0.22; fl.x = a.x; fl.y = a.y; fl.zb = a.h || 0; fl.u = 0; fl.scale = 1 - E.in2(v); fl.alpha = 1 - v * 0.6; fl.sx = 1;
+          this.rate('lgA', 60, () => this.arcOver(fl, '#bfe0ff', 1));
+          if (!rung) { rung = true; this.shockAt(a.x, a.y, '#bfe0ff', 80, 0.35, 8); this.put('disc', a.x, a.y, 4, { size: R * 2, color: '#d6ecff', life: 0.25, a: 0.8 }); this.snd('sparkle'); }
+        } else if (u < 0.4) {
+          fl.scale = 0.001; fl.alpha = 0; fl.x = b.x; fl.y = b.y; fl.zb = b.h || 0;
+          if (!struck && u > 0.28) {
+            struck = true;
+            for (let k = 0; k < 3; k++) this.boltBetween(a.x, a.y, 8, b.x, b.y, 8, 12, 14 + k * 8, { life: 0.26 - k * 0.03, size: k ? 1.4 : 2.6, color: k ? '#bfe0ff' : '#9fd0ff' });
+            for (let i = 0; i <= 26; i++) { const t = i / 26; this.put('spark', a.x + (b.x - a.x) * t + rnd(-12, 12), a.y + (b.y - a.y) * t + rnd(-12, 12), rnd(2, 18), { vx: rnd(-40, 40), vy: rnd(-40, 40), vz: rnd(-10, 50), life: rnd(0.25, 0.5), size: rnd(2, 4), color: '#d6ecff', streak: 0.03 }); }
+            this.shake = 6; this.snd('slam');
+          }
+        } else {
+          const v = (u - 0.4) / 0.6; fl.x = b.x; fl.y = b.y; fl.zb = b.h || 0; fl.u = 1; fl.alpha = 1; fl.scale = Math.max(0.01, E.back(Math.min(1, v * 1.6)));
+          if (!arrived) { arrived = true; this.shockAt(b.x, b.y, '#d6ecff', 100, 0.45, 9); this.put('disc', b.x, b.y, 4, { size: R * 2.4, color: '#d6ecff', life: 0.3, a: 0.9 }); this.sparkBurst(b.x, b.y, 8, 18, '#bfe0ff', 210); }
+          if (v < 0.7) this.rate('lgB', 50, () => this.arcOver(fl, '#bfe0ff', 1));
+        }
+      });
+    },
+    mv_phoenix(fl, a, b, p, c) {
+      fl.aura = { color: '#ff9a3a', r: 1.9, a: 0.4, pulse: 0.14 };
+      const tr = this.fxTrail(fl, { color: '#ff8a2a', color2: '#ff5a1a', core: '#ffe9a0', w: R * 1.25, life: 0.75, a: 0.6, pw: 0.7, wobble: true });
+      return this.tween(c.base * 1.5, (u) => {
+        c.lerp(E.inOut(u)); fl.z = Math.sin(Math.PI * u) * (80 + c.dist * 0.22); this.fxPush(tr, fl);
+        if (u < 1) {
+          this.rate('phF', 170, () => { const q = this.onDisc(fl, 1); this.flame(q[0], q[1], q[2], { vx: -c.dx * rnd(10, 90) + rnd(-22, 22), vy: -c.dy * rnd(10, 90) + rnd(-22, 22), size: rnd(5, 10), life: rnd(0.4, 0.75) }); });
+          this.rate('phP', 30, () => { const q = this.onDisc(fl, 1); this.put('petal', q[0], q[1], q[2], { vx: -c.dx * 50 + rnd(-40, 40), vy: -c.dy * 50 + rnd(-40, 40), vz: rnd(10, 60), gz: 40, size: rnd(5, 8), color: Math.random() < 0.5 ? '#ff9a3a' : '#ffd24a', vr: rnd(-6, 6), ph: rnd(0, 6), vph: rnd(6, 12), life: 0.9, drag: 0.5 }); });
+        }
+        if (u >= 1 && !fl._done) {
+          fl._done = true; this.shockAt(b.x, b.y, '#ffb347', 110, 0.55, 12); this.put('disc', b.x, b.y, 4, { size: R * 2.6, color: '#ffb347', life: 0.35, a: 0.8 });
+          for (let i = 0; i < 46 * this.fxQ(); i++) { const ang = Math.random() * TAU, s = rnd(50, 200); this.flame(b.x + Math.cos(ang) * R * 0.5, b.y + Math.sin(ang) * R * 0.5, 6, { vx: Math.cos(ang) * s, vy: Math.sin(ang) * s, vz: rnd(20, 100), life: rnd(0.45, 0.9), size: rnd(6, 12) }); }
+          for (let i = 0; i < 16; i++) { const ang = Math.random() * TAU, s = rnd(50, 160); this.put('petal', b.x, b.y, 10, { vx: Math.cos(ang) * s, vy: Math.sin(ang) * s, vz: rnd(60, 160), gz: 120, floor: 0, size: rnd(5, 8), color: Math.random() < 0.5 ? '#ff9a3a' : '#ffd24a', vr: rnd(-6, 6), ph: rnd(0, 6), vph: rnd(6, 12), life: 1.1, drag: 0.5 }); }
+        }
+      });
+    },
+    mv_petals(fl, a, b, p, c) {
+      const tr = this.fxTrail(fl, { color: '#ffb7c8', w: R * 0.8, life: 0.42, add: false, a: 0.2, pw: 0.9 });
+      return this.tween(c.base * 1.35, (u) => {
+        c.lerp(E.inOut(u)); const w = Math.sin(u * Math.PI * 2.5) * 16 * Math.sin(Math.PI * u); fl.x += w; fl.z = Math.sin(Math.PI * u) * 22; this.fxPush(tr, fl);
+        if (u < 1) this.rate('pet', 34, () => { const q = this.onDisc(fl, 1); this.put('petal', q[0], q[1], q[2], { vx: rnd(-18, 18) - c.dx * 18, vy: rnd(-18, 18) - c.dy * 18, vz: rnd(10, 40), gz: 34, floor: 0.5, size: rnd(4.5, 8), color: ['#ffb7c8', '#ff8fa8', '#ffd9e2', '#ffffff'][(Math.random() * 4) | 0], vr: rnd(-5, 5), ph: rnd(0, 6), vph: rnd(5, 11), life: rnd(1, 1.5), drag: 0.6 }); });
+        if (u >= 1 && !fl._done) { fl._done = true; for (let i = 0; i < 26 * this.fxQ(); i++) { const ang = Math.random() * TAU, s = rnd(20, 90); this.put('petal', b.x, b.y, 8, { vx: Math.cos(ang) * s, vy: Math.sin(ang) * s, vz: rnd(30, 110), gz: 70, floor: 0.5, size: rnd(5, 8), color: ['#ffb7c8', '#ff8fa8', '#ffd9e2'][(Math.random() * 3) | 0], vr: rnd(-5, 5), ph: rnd(0, 6), vph: rnd(5, 11), life: 1.4, drag: 0.5 }); } this.shockAt(b.x, b.y, '#ffb7c8', 70, 0.45, 5); }
+      });
+    },
+    mv_bounce(fl, a, b, p, c) {
+      let last = -1;
+      return this.tween(c.base * 1.5, (u) => {
+        c.lerp(E.out2(u)); const k = u * 3, f = k - Math.floor(k), n = Math.floor(k); fl.z = Math.sin(Math.PI * f) * (46 - n * 14) * (u < 1 ? 1 : 0);
+        fl.scale = 1 + (f < 0.12 || f > 0.9 ? -0.05 : 0.02); fl.sx = f < 0.1 || f > 0.92 ? 1.1 : 1; if (u >= 1) { fl.z = 0; fl.sx = 1; fl.scale = 1; }
+        if (f < 0.08 && n !== last && u > 0.05) { last = n; this.puffRing(fl.x, fl.y, '#e8e2d4', 8, 55 - n * 12, 8); this.shockAt(fl.x, fl.y, '#ffffff', 52 - n * 10, 0.3, 4); }
+        if (u > 0.99 && last < 3) { last = 3; this.puffRing(b.x, b.y, '#e8e2d4', 8, 40, 7); }
+      });
+    },
+    mv_ghost(fl, a, b, p, c) {
+      fl.aura = { color: '#bfe6ff', r: 1.5, a: 0.25, pulse: 0.1 };
+      const tr = this.fxTrail(fl, { color: '#cfeaff', w: R * 0.9, life: 0.6, a: 0.28, pw: 0.7, wobble: true });
+      return this.tween(c.base * 1.1, (u) => {
+        c.lerp(E.inOut(u)); fl.z = 18 + Math.sin(Math.PI * u) * 10 + Math.sin(u * 22) * 3; fl.alpha = 0.72 + 0.28 * Math.sin(u * 14); this.fxPush(tr, fl);
+        if (u < 1) {
+          this.rate('gh', 24, () => this.put('echo', fl.x, fl.y, this.bodyZ(fl) - 2, { side: p, a: 0.4, life: 0.5, glowC: '#bfe6ff', glowA: 0.6, vz: 14, sc: 1, under: true }));
+          this.rate('ghW', 40, () => { const q = this.onDisc(fl, 1); this.put('smoke', q[0], q[1], q[2], { vx: rnd(-8, 8) - c.dx * 14, vy: rnd(-8, 8) - c.dy * 14, vz: rnd(22, 50), size: rnd(9, 15), grow: 16, life: 0.85, color: '#cfe9ff', alpha: 0.3, fin: 0.2 }); });
+        }
+        if (u >= 1) fl.alpha = 1;
+        if (u >= 1 && !fl._done) { fl._done = true; for (let i = 0; i < 3; i++) this.put('echo', b.x, b.y, this.bodyZ(fl), { side: p, a: 0.4, life: 0.4 + i * 0.12, glowC: '#bfe6ff', glowA: 0.6, vz: 40 + i * 25, sc: 1 + i * 0.12 }); this.shockAt(b.x, b.y, '#bfe6ff', 70, 0.5, 5); }
+      });
+    },
+    mv_vortex(fl, a, b, p, c) {
+      const R0 = 60 + c.dist * 0.1;
+      fl.aura = { color: '#a86bff', r: 1.7, a: 0.3, pulse: 0.2 };
+      const tr = this.fxTrail(fl, { color: '#a86bff', color2: '#6a2ae0', core: '#e8d4ff', w: R * 0.85, life: 0.5, a: 0.55, pw: 0.8, wobble: true });
+      return this.tween(c.base * 1.4, (u) => {
+        const e = E.inOut(u), rho = R0 * Math.sin(Math.PI * u) * (1 - u * 0.3), ph = u * TAU * 2.2; c.lerp(e);
+        fl.x += Math.cos(ph) * rho; fl.y += Math.sin(ph) * rho * 0.6; fl.z = 10 + Math.sin(Math.PI * u) * 24; this.fxPush(tr, fl);
+        if (u < 1) {
+          this.rate('vx', 90, () => {
+            const ang = u * TAU * 7 + (Math.random() < 0.5 ? 0 : Math.PI) + rnd(-0.3, 0.3), q = this.onRim(fl, ang, 1.05);
+            this.put('spark', q[0], q[1], q[2], { vx: -Math.sin(ang) * 120, vy: Math.cos(ang) * 120, vz: rnd(-10, 30), life: 0.45, size: rnd(2, 4.5), color: Math.random() < 0.4 ? '#e8d4ff' : '#b784ff', streak: 0.04, drag: 0.4 });
+          });
+          this.rate('vxS', 14, () => { const q = this.onDisc(fl, 1); this.put('star', q[0], q[1], q[2], { vz: rnd(10, 40), life: 0.7, size: rnd(1.5, 3), color: '#e8d4ff', tw: true, vr: 5 }); });
+        }
+        if (u >= 1 && !fl._done) { fl._done = true; this.shockAt(b.x, b.y, '#b784ff', 100, 0.5, 9); for (let i = 0; i < 24 * this.fxQ(); i++) { const ang = Math.random() * TAU; this.put('spark', b.x + Math.cos(ang) * 80, b.y + Math.sin(ang) * 80, 10, { vx: -Math.cos(ang) * 240, vy: -Math.sin(ang) * 240, life: 0.32, size: rnd(2, 4), color: '#b784ff', streak: 0.04 }); } }
+      });
+    },
+    mv_rocket(fl, a, b, p, c) {
+      fl.aura = { color: '#ff9a3a', r: 1.5, a: 0.3, pulse: 0.2 };
+      const fire = this.fxTrail(fl, { color: '#ff8a2a', color2: '#d8401a', core: '#fffbe0', w: R * 0.75, life: 0.32, a: 0.65, pw: 1 });
+      const smk = this.fxTrail(fl, { color: '#b8b0a8', w: R * 0.95, life: 0.9, add: false, a: 0.26, pw: 0.6, wobble: true });
+      this.puffRing(a.x, a.y, '#d8d0c0', 10, 70, 11);
+      return this.tween(c.base * 0.85, (u) => {
+        c.lerp(E.in2(u)); fl.z = 6 + 18 * Math.sin(Math.PI * u); this.fxPush(fire, fl); this.fxPush(smk, fl);
+        if (u < 1) {
+          this.rate('rkF', 190, () => {
+            const side = rnd(-0.8, 0.8) * R, bx = fl.x - c.dx * R * rnd(0.7, 1.1) - c.dy * side, by = fl.y - c.dy * R * rnd(0.7, 1.1) + c.dx * side;
+            this.flame(bx, by, this.bodyZ(fl), { vx: -c.dx * rnd(60, 170) + rnd(-12, 12), vy: -c.dy * rnd(60, 170) + rnd(-12, 12), vz: rnd(-8, 16), size: rnd(5, 9), life: rnd(0.25, 0.5) });
+          });
+          this.rate('rkS', 44, () => { const q = this.onRim(fl, Math.atan2(-c.dy, -c.dx) + rnd(-1, 1), 1); this.put('smoke', q[0], q[1], q[2], { vx: -c.dx * rnd(20, 60) + rnd(-14, 14), vy: -c.dy * rnd(20, 60) + rnd(-14, 14), vz: rnd(10, 30), size: rnd(8, 13), grow: 18, life: 0.9, color: '#9a928a', alpha: 0.4 }); });
+        }
+        if (u >= 1 && !fl._done) { fl._done = true; this.shockAt(b.x, b.y, '#ffb347', 90, 0.45, 10); this.sparkBurst(b.x, b.y, 6, 22, '#ffcf6a', 230); this.puffRing(b.x, b.y, '#d8d0c0', 10, 80, 10); this.shake = Math.max(this.shake, 4); }
+      });
+    },
+    mv_tumble(fl, a, b, p, c) {
+      const tr = this.fxTrail(fl, { color: '#cfc6b4', w: R * 0.7, life: 0.35, add: false, a: 0.2, pw: 1 });
+      return this.tween(c.base * 1.2, (u) => {
+        c.lerp(E.inOut(u)); fl.sx = Math.cos(u * TAU * 4 * (u < 1 ? 1 : 0)); fl.z = Math.abs(Math.sin(u * TAU * 2)) * 14; fl.rot = u * TAU * 1.5; if (u >= 1) { fl.sx = 1; fl.rot = 0; fl.z = 0; }
+        this.fxPush(tr, fl);
+        if (u < 1) this.rate('tb', 46, () => { const q = this.onRim(fl, Math.random() * TAU, 1); this.put('dust', q[0], q[1], 3, { vx: rnd(-20, 20) - c.dx * 20, vy: rnd(-20, 20) - c.dy * 20, vz: rnd(4, 20), size: rnd(6, 10), grow: 16, life: 0.55, color: '#e6dfcf', under: true }); });
+        if (u >= 1 && !fl._done) { fl._done = true; this.puffRing(b.x, b.y, '#e6dfcf', 10, 60, 9); }
+      });
+    },
+    mv_zigzag(fl, a, b, p, c) {
+      fl.aura = { color: c.col, r: 1.35, a: 0.2, pulse: 0.15 };
+      const nx = -c.dy, ny = c.dx;
+      const tr = this.fxTrail(fl, { color: c.col, core: '#ffffff', w: R * 0.8, life: 0.4, a: 0.65, pw: 0.9 });
+      return this.tween(c.base * 0.95, (u) => {
+        c.lerp(E.out2(u)); const tri = Math.abs(((u * 6) % 2) - 1) * 2 - 1, amp = 34 * (1 - u); fl.x += nx * tri * amp; fl.y += ny * tri * amp; fl.z = 6; this.fxPush(tr, fl);
+        if (u < 1) {
+          this.rate('zzE', 22, () => this.put('echo', fl.x, fl.y, this.bodyZ(fl) - 2, { side: p, a: 0.36, life: 0.3, glowC: c.col, glowA: 0.7, under: true }));
+          this.rate('zzS', 110, () => { const q = this.onRim(fl, Math.random() * TAU, 1.02); this.put('spark', q[0], q[1], q[2], { vx: rnd(-60, 60), vy: rnd(-60, 60), vz: rnd(-10, 30), life: 0.35, size: rnd(2, 4), color: Math.random() < 0.4 ? '#ffffff' : c.col, streak: 0.04, drag: 0.4 }); });
+        }
+        if (u >= 1 && !fl._done) { fl._done = true; this.shockAt(b.x, b.y, c.col, 70, 0.4, 7); this.sparkBurst(b.x, b.y, 6, 12, c.col, 160); }
+      });
+    },
+    mv_fairy(fl, a, b, p, c) {
+      fl.aura = { color: '#ffe9a8', r: 1.55, a: 0.22, pulse: 0.2 };
+      const tr = this.fxTrail(fl, { color: '#ffd0f0', color2: '#fff3a8', w: R * 0.85, life: 0.5, a: 0.3, pw: 0.8, wobble: true });
+      const COL = ['#fff3a8', '#ffd0f0', '#cfe9ff', '#ffffff'];
+      return this.tween(c.base * 1.3, (u) => {
+        c.lerp(E.inOut(u)); fl.z = 14 + Math.sin(u * 9) * 5; this.fxPush(tr, fl);
+        if (u < 1) this.rate('fy', 110, () => { const q = this.onDisc(fl, 1); this.put('star', q[0], q[1], q[2], { vx: rnd(-18, 18) - c.dx * 14, vy: rnd(-18, 18) - c.dy * 14, vz: rnd(-8, 26), gz: 16, floor: 1, size: rnd(1.4, 3.4), color: COL[(Math.random() * 4) | 0], tw: true, vr: rnd(3, 8), life: rnd(0.6, 1.1), drag: 0.6 }); });
+        if (u >= 1 && !fl._done) { fl._done = true; this.starBurst(b.x, b.y, 12, 26, COL, 130); this.shockAt(b.x, b.y, '#fff3a8', 70, 0.45, 6); this.snd('sparkle'); }
+      });
+    },
+    mv_confetti(fl, a, b, p, c) {
+      const tr = this.fxTrail(fl, { color: '#ffffff', w: R * 0.6, life: 0.3, add: false, a: 0.12 });
+      return this.tween(c.base * 1.1, (u) => {
+        c.lerp(E.inOut(u)); fl.z = Math.sin(Math.PI * u) * (50 + c.dist * 0.15); fl.rot = u * TAU; this.fxPush(tr, fl);
+        if (u < 1) this.rate('cf', 100, () => { const q = this.onDisc(fl, 1); this.put('paper', q[0], q[1], q[2], { vx: rnd(-44, 44) - c.dx * 20, vy: rnd(-44, 44) - c.dy * 20, vz: rnd(20, 80), gz: 150, floor: 0.5, size: rnd(5, 9), color: PAPER[(Math.random() * 6) | 0], vr: rnd(-8, 8), ph: rnd(0, 6), vph: rnd(6, 13), life: rnd(1, 1.5), drag: 0.55 }); });
+        if (u >= 1 && !fl._done) {
+          fl._done = true; this.shockAt(b.x, b.y, '#ffffff', 80, 0.4, 7); this.snd('sparkle');
+          for (let i = 0; i < 80 * this.fxQ(); i++) { const ang = Math.random() * TAU, s = rnd(30, 150); this.put('paper', b.x, b.y, 8, { vx: Math.cos(ang) * s, vy: Math.sin(ang) * s, vz: rnd(120, 300), gz: 330, floor: 0.5, size: rnd(5, 9), color: PAPER[(Math.random() * 6) | 0], vr: rnd(-8, 8), ph: rnd(0, 6), vph: rnd(6, 13), life: rnd(1.1, 1.7), drag: 0.6 }); }
+        }
+      });
+    },
+    mv_meteor(fl, a, b, p, c) {
+      let hit = false;
+      fl.aura = { color: '#ff8a2a', r: 2.1, a: 0, pulse: 0.15 };
+      const smoke = this.fxTrail(fl, { color: '#3a2a22', w: R * 1.0, life: 0.9, add: false, a: 0.38, pw: 0.6, wobble: true });
+      const fire = this.fxTrail(fl, { color: '#ff8a2a', color2: '#d8401a', core: '#fff2b0', w: R * 1.1, life: 0.5, a: 0.7, pw: 0.9 });
+      return this.tween(c.base * 1.6, (u) => {
+        if (u < 0.45) { const v = u / 0.45; c.lerp(0); fl.z = 230 * E.out3(v); fl.x = a.x; fl.y = a.y; }
+        else { const v = (u - 0.45) / 0.55, e = E.in3(v); fl.x = a.x + (b.x - a.x) * e; fl.y = a.y + (b.y - a.y) * e; fl.zb = (a.h || 0) + ((b.h || 0) - (a.h || 0)) * e; fl.u = e; fl.z = 230 * (1 - e); }
+        if (fl.aura) fl.aura.a = u > 0.3 ? 0.5 : 0;
+        if (u > 0.3 && u < 0.999) {
+          this.fxPush(fire, fl); this.fxPush(smoke, fl);
+          this.rate('mtF', 200, () => { const q = this.onDisc(fl, 1); this.flame(q[0], q[1], q[2], { vx: rnd(-26, 26), vy: rnd(-26, 26), vz: rnd(30, 90), size: rnd(6, 12), life: rnd(0.35, 0.7) }); });
+          this.rate('mtE', 60, () => { const q = this.onDisc(fl, 1); this.put('spark', q[0], q[1], q[2], { vx: rnd(-60, 60), vy: rnd(-60, 60), vz: rnd(40, 150), gz: 200, life: 0.7, size: rnd(1.6, 3.4), color: '#ffd24a', streak: 0.03 }); });
+        }
+        if (u >= 0.999 && !hit) {
+          hit = true; fl.z = 0; fl.aura = null; this.snd('slam'); this.shake = 12;
+          this.shockAt(b.x, b.y, '#ff9a3a', 150, 0.6, 16); setTimeout(() => this.shockAt(b.x, b.y, '#ffd24a', 100, 0.45, 8), 90);
+          this.put('disc', b.x, b.y, 4, { size: R * 3.2, color: '#ffd24a', life: 0.3, a: 0.9 });
+          this.put('fill', b.x, b.y, 0.5, { size: R * 1.5, color: '#150b06', life: 1.6, a: 0.5, pw: 0.5, under: true, ground: true });
+          for (let i = 0; i < 56 * this.fxQ(); i++) { const ang = Math.random() * TAU, s = rnd(30, 230); this.flame(b.x + Math.cos(ang) * R * 0.4, b.y + Math.sin(ang) * R * 0.4, 5, { vx: Math.cos(ang) * s, vy: Math.sin(ang) * s, vz: rnd(20, 120), size: rnd(7, 14), life: rnd(0.45, 0.95) }); }
+          this.sparkBurst(b.x, b.y, 5, 30, '#ffc86a', 300, { vz: rnd(60, 220) }); this.puffRing(b.x, b.y, '#4a3a32', 12, 90, 14);
+        }
+      });
+    },
+  });
+})();
+
+/* ============================================================
+   Hit effects: what happens to a checker when it is landed on.
+   The victim is blown apart, burnt, frozen or swallowed on the spot, then comes back on the bar.
+   ============================================================ */
+(() => {
+  const R = GEO.r, V = BoardView.prototype;
+  const PAPER = ['#ff5a5a', '#ffd24a', '#5ad2ff', '#7aff9a', '#d27aff', '#ffffff'];
+
+  Object.assign(V, {
+    async hitSequence(id, h) {
+      h.pal = FXC.palette(this.cos.checkers, h.vic);
+      const fn = this['hit_' + id] || this.hit_knock;
+      try { await fn.call(this, h); }
+      finally {
+        const hf = h.hf, t = h.target;
+        hf.hidden = false; hf.alpha = 1; hf.scale = 1; hf.sx = 1; hf.z = 0; hf.x = t.x; hf.y = t.y; hf.zb = t.h || 0; hf.aura = null;
+        for (const tr of hf.trails || []) tr.end = true;
+      }
+    },
+
+    /* ----- shared pieces ----- */
+    // the victim flies to the bar in an arc
+    flyToBar(h, o) {
+      o = o || {}; const hf = h.hf, x0 = hf.x, y0 = hf.y, t = h.target, dx = t.x - x0, dy = t.y - y0;
+      return this.tween(o.dur || 430, (u) => {
+        const e = E.inOut(u); hf.x = x0 + dx * e; hf.y = y0 + dy * e; hf.zb = (t.h || 0) * e; hf.z = Math.sin(Math.PI * u) * (o.h === undefined ? 70 : o.h); hf.scale = 1 + 0.12 * Math.sin(Math.PI * u);
+        if (o.each) o.each(u, hf);
+      });
+    },
+    // the victim pops back into being on the bar
+    async appear(h, o) {
+      o = o || {}; const hf = h.hf, t = h.target;
+      hf.x = t.x; hf.y = t.y; hf.zb = t.h || 0; hf.z = 0; hf.hidden = false; hf.scale = 0.2;
+      this.shockAt(t.x, t.y, o.color || '#ffffff', 60, 0.35, 5);
+      if (o.sparks !== false) this.sparkBurst(t.x, t.y, 6, 10, o.color || '#ffe9a8', 120);
+      await this.tween(o.dur || 220, (u) => { hf.scale = Math.max(0.2, E.back(u)); });
+    },
+    // pieces of the checker fly in from all around and rebuild it
+    gatherShards(x, y, side, T, o) {
+      o = o || {};
+      for (const w of this.wedges(o.n || 7, 2)) {
+        const ang = Math.random() * TAU, d = rnd(60, 110), ex = x + w.cx, ey = y + w.cy, ez = 6;
+        const sx = ex + Math.cos(ang) * d, sy = ey + Math.sin(ang) * d, sz = ez + rnd(30, 110), f0 = rnd(-5, 5), r0 = rnd(-4, 4);
+        this.put('shard', sx, sy, sz, { side, w, vx: (ex - sx) / T, vy: (ey - sy) / T, vz: (ez - sz) / T, rot: r0, vr: -r0 / T, flip: f0, vflip: -f0 / T, life: T, size: 1, pw: 0.3, tint: o.tint, tintA: o.tintA, edge: o.edge, glowC: o.glowC, a: 0.95 });
+      }
+    },
+    gatherMotes(x, y, side, n, T) {
+      for (const q of this.motes(x, y, side, n, { z0: 6, life: 1 })) {
+        const ex = q.x, ey = q.y, ez = q.z, a = Math.random() * TAU, d = rnd(50, 110);
+        q.x = ex + Math.cos(a) * d; q.y = ey + Math.sin(a) * d; q.z = ez + rnd(10, 80);
+        q.vx = (ex - q.x) / T; q.vy = (ey - q.y) / T; q.vz = (ez - q.z) / T; q.life = q.max = T; q.a = 0.9; q.size *= 1.2;
+      }
+    },
+    impactFlash(x, y, color, size, life) { this.put('disc', x, y, 5, { size: size || R * 3, color: color || '#ffffff', life: life || 0.22, a: 1 }); },
+
+    /* ----- the effects ----- */
+    // Knock-out: the checker is bumped off and tumbles to the bar
+    async hit_knock(h) {
+      const { b, hf } = h;
+      this.snd('hit'); this.shake = Math.max(this.shake, 5);
+      this.sparkBurst(b.x, b.y, 8, 20, '#ff8a6a', 230); this.shockAt(b.x, b.y, '#ff7a5a', 72, 0.4, 8); this.puffRing(b.x, b.y, '#d8d0c0', 8, 70, 9);
+      const tr = this.trail({ color: '#ff7a5a', color2: '#ff7a5a', w: R * 0.8, life: 0.3, a: 0.5 }); (hf.trails = [tr]);
+      await this.flyToBar(h, { each: (u) => { this.trailPush(tr, hf.x, hf.y, this.bodyZ(hf) - 3); this.rate('kn', 70, () => { const q = this.onDisc(hf, 1); this.put('spark', q[0], q[1], q[2], { vx: rnd(-40, 40), vy: rnd(-40, 40), vz: rnd(-10, 30), life: 0.35, size: rnd(2, 3.6), color: '#ff9a7a', streak: 0.03, drag: 0.5 }); }); } });
+    },
+
+    // Cartoon squash: flattened, sees stars, then hops to the bar
+    async hit_squash(h) {
+      const { b, hf } = h;
+      this.snd('boing'); this.shake = Math.max(this.shake, 4); this.puffRing(b.x, b.y, '#e8e2d4', 12, 90, 10); this.shockAt(b.x, b.y, '#ffffff', 70, 0.35, 6);
+      await this.tween(120, (u) => { const e = E.out2(u); hf.scale = 1 - 0.42 * e; hf.sx = 1 + 0.55 * e; });
+      let t0 = performance.now(), ang = 0;
+      await this.tween(380, (u) => {
+        ang += 14 * (this.dt || 0.016); hf.x = b.x + Math.sin(u * 40) * 1.6;
+        if (u < 1) this.rate('dz', 26, () => {
+          const a = ang + Math.random() * 0.4;
+          this.put('star', b.x + Math.cos(a) * R * 0.85, b.y + Math.sin(a) * R * 0.35, 20 + Math.sin(a) * 6, { vz: 6, life: 0.4, size: rnd(2.5, 4), color: ['#ffe14a', '#ff8fd0', '#7fe0ff'][(Math.random() * 3) | 0], tw: true, vr: 8 });
+        });
+      });
+      hf.x = b.x; hf.sx = 1; hf.scale = 1;
+      this.snd('boing');
+      const tr = this.trail({ color: '#ffe14a', w: R * 0.6, life: 0.3, a: 0.4 }); hf.trails = [tr];
+      await this.flyToBar(h, { dur: 400, h: 90, each: () => { this.trailPush(tr, hf.x, hf.y, this.bodyZ(hf) - 3); this.rate('sqS', 40, () => { const q = this.onDisc(hf, 1); this.put('star', q[0], q[1], q[2], { vz: rnd(-10, 20), life: 0.5, size: rnd(1.5, 3), color: '#ffe14a', tw: true, vr: 6 }); }); } });
+      this.puffRing(h.target.x, h.target.y, '#e8e2d4', 8, 40, 8);
+    },
+
+    // Party popper: bursts into confetti and streamers, then drifts to the bar
+    async hit_popper(h) {
+      const { b, hf } = h;
+      this.snd('pop'); this.shake = Math.max(this.shake, 3);
+      this.impactFlash(b.x, b.y, '#fff3c8', R * 2.6, 0.2); this.shockAt(b.x, b.y, '#ffffff', 90, 0.4, 7);
+      for (let i = 0; i < 90 * this.fxQ(); i++) {
+        const ang = Math.random() * TAU, s = rnd(30, 170), streamer = Math.random() < 0.18;
+        const q = this.onDisc(hf, 0.9);
+        this.put('paper', q[0], q[1], 8, { vx: Math.cos(ang) * s, vy: Math.sin(ang) * s, vz: rnd(120, 330), gz: 340, floor: 0.5, size: streamer ? 15 : rnd(5, 9), color: PAPER[(Math.random() * 6) | 0], vr: rnd(-8, 8), ph: rnd(0, 6), vph: rnd(6, 13), life: rnd(1.1, 1.8), drag: 0.6 });
+      }
+      this.starBurst(b.x, b.y, 16, 14, ['#ffe14a', '#ffffff', '#ff8fd0'], 150);
+      setTimeout(() => this.snd('sparkle'), 90);
+      const tr = this.trail({ color: '#ffffff', w: R * 0.6, life: 0.3, add: false, a: 0.2 }); hf.trails = [tr];
+      await this.flyToBar(h, { dur: 480, h: 100, each: () => { this.trailPush(tr, hf.x, hf.y, this.bodyZ(hf) - 3); this.rate('pp', 90, () => { const q = this.onDisc(hf, 1); this.put('paper', q[0], q[1], q[2], { vx: rnd(-40, 40), vy: rnd(-40, 40), vz: rnd(20, 80), gz: 150, floor: 0.5, size: rnd(5, 9), color: PAPER[(Math.random() * 6) | 0], vr: rnd(-8, 8), ph: rnd(0, 6), vph: rnd(6, 13), life: rnd(0.9, 1.4), drag: 0.55 }); }); } });
+    },
+
+    // Glass shatter: cracks, then breaks into pieces of the real checker
+    async hit_shatter(h) {
+      const { b, hf, vic } = h;
+      this.snd('hit');
+      this.impactFlash(b.x, b.y, '#ffffff', R * 2.2, 0.16);
+      for (let i = 0; i < 7; i++) { const a = i / 7 * TAU + rnd(-0.3, 0.3); this.boltBetween(b.x, b.y, 9, b.x + Math.cos(a) * R * 0.95, b.y + Math.sin(a) * R * 0.95, 9, 4, 5, { life: 0.12, size: 1.1, color: '#cfe9ff' }); }
+      await this.wait(110);
+      hf.hidden = true; this.snd('shatter'); this.shake = Math.max(this.shake, 8);
+      this.shatter(b.x, b.y, vic, { n: 8, rings: 2, speed: 170, up: 200, gz: 560, life: 1.0, edge: 'rgba(255,255,255,0.7)', glowC: 'rgba(200,230,255,0.7)' });
+      this.shockAt(b.x, b.y, '#dff1ff', 100, 0.45, 8);
+      this.starBurst(b.x, b.y, 12, 20, ['#ffffff', '#cfe9ff'], 210);
+      this.sparkBurst(b.x, b.y, 10, 24, '#e8f4ff', 240);
+      await this.wait(360);
+      this.gatherShards(h.target.x, h.target.y, vic, 0.26);
+      await this.wait(250);
+      await this.appear(h, { color: '#cfe9ff' });
+    },
+
+    // Coin burst: the checker turns into a shower of gold coins
+    async hit_coins(h) {
+      const { b, hf } = h;
+      this.snd('hit'); this.shake = Math.max(this.shake, 5);
+      this.impactFlash(b.x, b.y, '#ffe9a8', R * 2.6, 0.2); this.shockAt(b.x, b.y, '#ffd75a', 90, 0.45, 8);
+      await this.tween(70, (u) => { hf.scale = 1 + 0.18 * u; });
+      hf.hidden = true;
+      for (let i = 0; i < 16; i++) {
+        const ang = Math.random() * TAU, s = rnd(30, 150), q = this.onDisc(hf, 0.8);
+        this.put('coin', q[0], q[1], 8, { vx: Math.cos(ang) * s, vy: Math.sin(ang) * s * 0.85, vz: rnd(150, 290), gz: 560, floor: 1, bounce: 0.5, size: rnd(6, 9), ph: rnd(0, 6), vph: rnd(10, 20), rot: rnd(0, TAU), vr: rnd(-4, 4), life: rnd(1.0, 1.4), drag: 0.55, pw: 0.5 });
+      }
+      this.sparkBurst(b.x, b.y, 8, 34, '#ffd75a', 230); this.starBurst(b.x, b.y, 12, 12, ['#fff3a8', '#ffffff'], 140);
+      this.snd('coin'); setTimeout(() => this.snd('coin'), 110); setTimeout(() => this.snd('coin'), 240);
+      await this.wait(440);
+      await this.appear(h, { color: '#ffd75a' });
+    },
+
+    // Explosion: fireball, shock waves, smoke and the checker in flying pieces
+    async hit_explode(h) {
+      const { b, hf, vic } = h;
+      this.snd('boom'); this.shake = 16;
+      hf.hidden = true;
+      this.impactFlash(b.x, b.y, '#ffffff', R * 4.2, 0.16);
+      this.put('disc', b.x, b.y, 6, { size: R * 1.6, grow: R * 7, color: '#ff9a2a', life: 0.5, a: 0.95 });
+      this.put('disc', b.x, b.y, 8, { size: R * 1.0, grow: R * 4.5, color: '#ffe9a0', life: 0.38, a: 1 });
+      this.put('disc', b.x, b.y, 1, { size: R * 5.5, color: '#ff7a1a', life: 0.9, a: 0.55, under: true, ground: true });
+      this.shockAt(b.x, b.y, '#ffd24a', 230, 0.55, 18); setTimeout(() => this.shockAt(b.x, b.y, '#ff8a2a', 160, 0.5, 11), 70); setTimeout(() => this.shockAt(b.x, b.y, '#ffffff', 280, 0.6, 5), 40);
+      this.put('fill', b.x, b.y, 0.5, { size: R * 1.9, color: '#150b06', life: 1.9, a: 0.55, pw: 0.5, under: true, ground: true });
+      this.shatter(b.x, b.y, vic, { n: 7, rings: 2, speed: 330, up: 260, gz: 520, life: 1.1, tint: '#2a0d04', tintA: 0.22, glowC: '#ffa040', edge: 'rgba(255,200,120,0.9)', spin: 1.4 });
+      for (let i = 0; i < 120 * this.fxQ(); i++) { const a = Math.random() * TAU, s = rnd(50, 300); this.flame(b.x + Math.cos(a) * R * 0.4, b.y + Math.sin(a) * R * 0.4, 6, { vx: Math.cos(a) * s, vy: Math.sin(a) * s, vz: rnd(20, 170), size: rnd(9, 20), life: rnd(0.5, 1.1), drag: 0.45 }); }
+      for (let i = 0; i < 10; i++) this.flame(b.x + rnd(-10, 10), b.y + rnd(-10, 10), 10, { vz: rnd(60, 140), size: rnd(22, 34), life: rnd(0.55, 0.9), vx: rnd(-24, 24), vy: rnd(-24, 24), drag: 0.4 });
+      for (let i = 0; i < 30 * this.fxQ(); i++) { const a = Math.random() * TAU, s = rnd(20, 120); this.put('smoke', b.x + Math.cos(a) * R * 0.5, b.y + Math.sin(a) * R * 0.5, 8, { vx: Math.cos(a) * s, vy: Math.sin(a) * s, vz: rnd(30, 100), size: rnd(18, 28), grow: 30, life: rnd(1.0, 1.6), color: '#3a2a22', alpha: 0.55, fin: 0.1, drag: 0.5 }); }
+      this.sparkBurst(b.x, b.y, 10, 60, '#ffd24a', 380, { vz: rnd(80, 280), size: rnd(2.5, 5) });
+      await this.wait(400);
+      this.gatherShards(h.target.x, h.target.y, vic, 0.26, { glowC: '#ff8a2a' });
+      await this.wait(250);
+      this.puffRing(h.target.x, h.target.y, '#3a2a22', 8, 40, 9);
+      await this.appear(h, { color: '#ffb347' });
+    },
+
+    // Disintegrate: the checker turns to dust and blows away
+    async hit_disintegrate(h) {
+      const { b, hf, vic, pal } = h;
+      this.snd('crumble'); this.shake = Math.max(this.shake, 3);
+      this.impactFlash(b.x, b.y, '#ffe9c8', R * 2.4, 0.2);
+      await this.wait(50);
+      hf.hidden = true;
+      this.motes(b.x, b.y, vic, 640, { z0: 2, sz: 1.3, life: 1, delayFn: (lx, ly) => (lx + R) / (2 * R) * 0.36 + rnd(0, 0.06), make: () => ({ vx: rnd(60, 150), vy: rnd(-45, 15), vz: rnd(30, 130), gz: -30, drag: 0.7, life: rnd(0.7, 1.35), pw: 0.7 }) });
+      const sweep = this.tween(360, (u) => {
+        const x = b.x - R + u * 2 * R;
+        this.rate('dsw', 140, () => { const dy = rnd(-1, 1) * Math.sqrt(Math.max(0, 1 - Math.pow((x - b.x) / R, 2))) * R; this.put('spark', x + rnd(-3, 3), b.y + dy, 5, { vx: rnd(50, 130), vy: rnd(-30, 20), vz: rnd(10, 60), life: 0.4, size: rnd(1.6, 3), color: pal.acc, a: 0.8, drag: 0.6 }); });
+      });
+      await sweep;
+      await this.wait(200);
+      this.gatherMotes(h.target.x, h.target.y, vic, 150, 0.28);
+      await this.wait(260);
+      await this.appear(h, { color: pal.acc, sparks: false });
+    },
+
+    // Burn to ash: scorched from the rim inwards, then it crumbles to ash
+    async hit_burn(h) {
+      const { b, hf, vic } = h;
+      this.snd('crackle'); this.shake = Math.max(this.shake, 3);
+      this.shockAt(b.x, b.y, '#ff8a2a', 80, 0.4, 8);
+      const DUR = 560;
+      this.put('fill', b.x, b.y, 4.6, { size: R * 1.04, color: '#120a06', life: DUR / 1000, a: 1, af: (t) => 0.9 * Math.min(1, t * 1.6) });
+      const glowRing = this.put('shock', b.x, b.y, 4.8, { color: '#ff6a1a', size: R, grow: 0, life: DUR / 1000, w: 4, a: 1, flick: true });
+      await this.tween(DUR, (u) => {
+        glowRing.size = R * (1 - u * 0.95);
+        this.rate('bnF', 190, () => { const q = this.onDisc(hf, 1); this.flame(q[0], q[1], 7, { vz: rnd(30, 90), size: rnd(5, 10), life: rnd(0.35, 0.7), vx: rnd(-14, 14), vy: rnd(-14, 14) }); });
+        this.rate('bnE', 50, () => { const q = this.onDisc(hf, 1); this.put('spark', q[0], q[1], 8, { vx: rnd(-30, 30), vy: rnd(-30, 30), vz: rnd(50, 150), gz: 120, life: 0.8, size: rnd(1.4, 3), color: '#ffb347', streak: 0.03 }); });
+        this.rate('bnC', 16, () => { const a = Math.random() * TAU, d = R * rnd(0.55, 0.95); this.boltBetween(b.x + Math.cos(a) * d, b.y + Math.sin(a) * d, 5, b.x + Math.cos(a) * d * 0.35, b.y + Math.sin(a) * d * 0.35, 5, 4, 5, { life: 0.22, size: 1.3, color: '#ff7a2a' }); });
+      });
+      hf.hidden = true;
+      this.motes(b.x, b.y, vic, 130, { z0: 4, sz: 1.2, make: () => ({ color: ['#2a241f', '#4a423a', '#7a7268', '#a09a90'][(Math.random() * 4) | 0], vx: rnd(-30, 50), vy: rnd(-30, 30), vz: rnd(40, 120), gz: -10, drag: 0.7, life: rnd(0.8, 1.4), pw: 0.7 }) });
+      for (let i = 0; i < 9 * this.fxQ(); i++) this.put('smoke', b.x + rnd(-R, R) * 0.7, b.y + rnd(-R, R) * 0.7, 8, { vx: rnd(-18, 18), vy: rnd(-18, 18), vz: rnd(30, 70), size: rnd(11, 17), grow: 18, life: 1.1, color: '#4a423a', alpha: 0.4, drag: 0.6 });
+      for (let i = 0; i < 24 * this.fxQ(); i++) this.flame(b.x + rnd(-R, R) * 0.7, b.y + rnd(-R, R) * 0.7, 6, { vz: rnd(30, 90), size: rnd(6, 11), life: rnd(0.4, 0.8) });
+      await this.wait(150);
+      this.gatherMotes(h.target.x, h.target.y, vic, 120, 0.28);
+      await this.wait(240);
+      await this.appear(h, { color: '#ffb347' });
+    },
+
+    // Flash freeze: frost grows over the checker, then it shatters into ice
+    async hit_freeze(h) {
+      const { b, hf, vic } = h;
+      this.snd('freeze');
+      this.shockAt(b.x, b.y, '#bfe9ff', 90, 0.5, 8);
+      const DUR = 260;
+      this.put('fill', b.x, b.y, 4.6, { size: R * 1.04, color: '#bfe9ff', edge: '#ffffff', life: (DUR + 90) / 1000, a: 1, af: (t) => 0.62 * Math.min(1, t * 3.4) });
+      for (let i = 0; i < 12; i++) { const a = i / 12 * TAU + rnd(-0.15, 0.15); this.put('crystal', b.x, b.y, 4.2, { ang: a, len: rnd(9, 20), size: rnd(3.5, 6), color: i % 2 ? '#dff4ff' : '#9fd8ff', life: (DUR + 90) / 1000 + 0.05, a: 1 }); }
+      await this.tween(DUR, () => { this.rate('fz', 90, () => { const q = this.onDisc(hf, 1.1); this.put('smoke', q[0], q[1], 8, { vx: rnd(-14, 14), vy: rnd(-14, 14), vz: rnd(10, 36), size: rnd(8, 13), grow: 14, life: 0.7, color: '#dff4ff', alpha: 0.35, fin: 0.2 }); this.put('star', q[0], q[1], 8, { vz: rnd(5, 30), life: 0.5, size: rnd(1.4, 2.6), color: '#ffffff', tw: true, vr: 6 }); }); });
+      await this.wait(90);
+      hf.hidden = true; this.snd('shatter'); this.shake = Math.max(this.shake, 6);
+      this.impactFlash(b.x, b.y, '#dff4ff', R * 2.6, 0.2);
+      this.shatter(b.x, b.y, vic, { n: 9, rings: 2, speed: 190, up: 190, gz: 540, life: 1.0, tint: '#aee0ff', tintA: 0.5, edge: 'rgba(255,255,255,0.9)', glowC: 'rgba(160,220,255,0.8)' });
+      this.puffRing(b.x, b.y, '#dff4ff', 12, 100, 11); this.shockAt(b.x, b.y, '#dff4ff', 110, 0.45, 8);
+      this.starBurst(b.x, b.y, 16, 24, ['#ffffff', '#9fd8ff', '#dff4ff'], 220);
+      await this.wait(280);
+      this.gatherShards(h.target.x, h.target.y, vic, 0.26, { tint: '#aee0ff', tintA: 0.35 });
+      await this.wait(250);
+      await this.appear(h, { color: '#bfe9ff' });
+    },
+
+    // Lightning strike: a bolt from the sky, the checker crackles and is thrown to the bar
+    async hit_lightning(h) {
+      const { b, hf } = h;
+      this.snd('zap'); this.shake = 10;
+      const sx = b.x + rnd(-40, 40), sy = b.y - 30;
+      this.impactFlash(b.x, b.y, '#ffffff', R * 5, 0.22);
+      for (let k = 0; k < 3; k++) this.boltBetween(sx, sy, 400, b.x, b.y, 12, 16, 26 + k * 10, { life: 0.34 - k * 0.05, size: k ? 1.6 : 3.2, color: k ? '#bfe0ff' : '#9fd0ff' });
+      for (let k = 0; k < 4; k++) { const a = k / 4 * TAU + rnd(-0.5, 0.5); this.boltBetween(b.x, b.y, 6, b.x + Math.cos(a) * 110, b.y + Math.sin(a) * 110, 3, 8, 14, { life: 0.22, size: 1.8, color: '#9fd0ff' }); }
+      this.shockAt(b.x, b.y, '#d6ecff', 130, 0.45, 12);
+      this.put('fill', b.x, b.y, 0.5, { size: R * 1.1, color: '#0a0a0f', life: 1.5, a: 0.4, pw: 0.5, under: true, ground: true });
+      this.sparkBurst(b.x, b.y, 8, 30, '#d6ecff', 290);
+      await this.tween(150, (u) => { hf.x = b.x + rnd(-3, 3); hf.y = b.y + rnd(-3, 3); hf.alpha = 0.55 + Math.random() * 0.45; this.rate('lz', 70, () => this.arcOver(hf, '#bfe0ff', 1)); });
+      hf.x = b.x; hf.y = b.y; hf.alpha = 1;
+      const tr = this.trail({ color: '#9fd0ff', core: '#ffffff', w: R * 0.85, life: 0.4, a: 0.6 }); hf.trails = [tr];
+      await this.flyToBar(h, { dur: 440, h: 100, each: () => { this.trailPush(tr, hf.x, hf.y, this.bodyZ(hf) - 3); this.rate('lzA', 50, () => this.arcOver(hf, '#bfe0ff', 1)); this.rate('lzS', 90, () => { const q = this.onDisc(hf, 1); this.put('spark', q[0], q[1], q[2], { vx: rnd(-50, 50), vy: rnd(-50, 50), vz: rnd(-10, 30), life: 0.35, size: rnd(2, 3.6), color: '#d6ecff', streak: 0.04 }); }); } });
+      this.shockAt(h.target.x, h.target.y, '#d6ecff', 70, 0.35, 6); this.sparkBurst(h.target.x, h.target.y, 8, 10, '#d6ecff', 150);
+    },
+
+    // Black hole: the checker is torn apart and spirals into a void
+    async hit_blackhole(h) {
+      const { b, hf, vic } = h;
+      this.snd('suck'); this.shake = Math.max(this.shake, 4);
+      const voidP = this.put('fill', b.x, b.y, 0.6, { size: 4, color: '#06020c', life: 5, a: 0.95, under: true, ground: true });
+      const rim = this.put('shock', b.x, b.y, 0.9, { color: '#b784ff', size: 4, grow: 0, life: 5, w: 6, a: 0.9, under: true, ground: true });
+      this.shockAt(b.x, b.y, '#b784ff', 120, 0.55, 9);
+      await this.tween(120, (u) => { const e = E.out2(u); voidP.size = 4 + (R * 1.7 - 4) * e; rim.size = voidP.size; hf.scale = 1 - 0.1 * u; });
+      hf.hidden = true;
+      for (const q of this.motes(b.x, b.y, vic, 150, { z0: 5, sz: 1.2, life: 0.5 })) {
+        const lx = q.x - b.x, ly = q.y - b.y, r = Math.hypot(lx, ly) + 8, T = rnd(0.38, 0.55);
+        q.orb = { cx: b.x, cy: b.y, r, a: Math.atan2(ly, lx), w: rnd(7, 11), dr: r / T, sq: 1 }; q.life = q.max = T; q.pw = 0.5; q.delay = rnd(0, 0.08);
+      }
+      for (let i = 0; i < 46 * this.fxQ(); i++) {
+        const r = rnd(R * 1.6, R * 3.2), T = rnd(0.4, 0.62);
+        this.put('spark', b.x, b.y, rnd(4, 20), { orb: { cx: b.x, cy: b.y, r, a: Math.random() * TAU, w: rnd(6, 10), dr: r / T, sq: 1 }, life: T, size: rnd(1.6, 3.4), color: Math.random() < 0.4 ? '#e8d4ff' : '#b784ff', a: 0.9, delay: rnd(0, 0.1) });
+      }
+      await this.wait(440);
+      this.impactFlash(b.x, b.y, '#e8d4ff', R * 3, 0.25); this.shockAt(b.x, b.y, '#d6b8ff', 140, 0.5, 12);
+      this.sparkBurst(b.x, b.y, 8, 30, '#e8d4ff', 240);
+      voidP.life = 0.001; rim.life = 0.001;
+      await this.wait(90);
+      this.put('shock', h.target.x, h.target.y, 1, { color: '#b784ff', size: 70, grow: -150, life: 0.4, w: 6, under: true, ground: true });
+      this.gatherMotes(h.target.x, h.target.y, vic, 100, 0.26);
+      await this.wait(230);
+      await this.appear(h, { color: '#b784ff' });
+    },
+
+    // Spirit release: a ghost lifts off the checker and drifts to the bar
+    async hit_spirit(h) {
+      const { b, hf, vic } = h;
+      this.snd('chime');
+      this.shockAt(b.x, b.y, '#cfe9ff', 90, 0.5, 7); this.impactFlash(b.x, b.y, '#dff0ff', R * 2.6, 0.3);
+      hf.hidden = true;
+      const g = this.put('echo', b.x, b.y, 6, { side: vic, a: 0, life: 4, glowC: '#cfe9ff', glowA: 0.8, sc: 1 });
+      const tr = this.trail({ color: '#cfe9ff', w: R * 0.8, life: 0.55, a: 0.4, wobble: true });
+      const t = h.target, x0 = b.x, y0 = b.y;
+      await this.tween(780, (u) => {
+        const e = E.inOut(clamp01((u - 0.22) / 0.78)), lift = E.out3(Math.min(1, u / 0.3));
+        g.x = x0 + (t.x - x0) * e; g.y = y0 + (t.y - y0) * e; g.z = 6 + lift * 46 + Math.sin(Math.PI * e) * 34 - e * 40; g.a = 0.62 * Math.min(1, u * 5) * (1 - clamp01((u - 0.9) / 0.1)); g.life = 4;
+        this.trailPush(tr, g.x, g.y, g.z);
+        this.rate('spW', 60, () => { const a = Math.random() * TAU, d = Math.sqrt(Math.random()) * R * 0.9; this.put('smoke', g.x + Math.cos(a) * d, g.y + Math.sin(a) * d, g.z, { vz: rnd(16, 40), vx: rnd(-8, 8), vy: rnd(-8, 8), size: rnd(8, 13), grow: 14, life: 0.75, color: '#dff0ff', alpha: 0.3, fin: 0.2 }); });
+        this.rate('spT', 26, () => { const a = Math.random() * TAU, d = Math.sqrt(Math.random()) * R; this.put('star', g.x + Math.cos(a) * d, g.y + Math.sin(a) * d, g.z + 4, { vz: rnd(4, 24), life: 0.6, size: rnd(1.4, 2.8), color: '#ffffff', tw: true, vr: 6 }); });
+      });
+      tr.end = true; g.life = 0.001;
+      await this.appear(h, { color: '#cfe9ff' });
+    },
+
+    // Fireworks: launched skyward, then it bursts into a shower of colour
+    async hit_fireworks(h) {
+      const { b, hf, pal } = h;
+      this.snd('whoosh'); this.shake = Math.max(this.shake, 4);
+      this.shockAt(b.x, b.y, '#ffd24a', 80, 0.4, 8); this.puffRing(b.x, b.y, '#d8d0c0', 8, 70, 9);
+      const tr = this.trail({ color: '#ffb347', core: '#fff2b0', w: R * 0.7, life: 0.35, a: 0.7 }); hf.trails = [tr];
+      let apexZ = 0;
+      await this.tween(400, (u) => {
+        const e = E.out3(u); hf.z = 215 * e; apexZ = hf.z; hf.scale = 1 - 0.25 * u; this.trailPush(tr, hf.x, hf.y, this.bodyZ(hf) - 3);
+        this.rate('fwS', 150, () => { const q = this.onDisc(hf, 0.9); this.put('spark', q[0], q[1], q[2], { vx: rnd(-26, 26), vy: rnd(-26, 26), vz: rnd(-120, -40), life: rnd(0.3, 0.6), size: rnd(2, 4), color: Math.random() < 0.5 ? '#ffd24a' : '#ff8a2a', streak: 0.04 }); });
+      });
+      hf.hidden = true; this.snd('boom'); setTimeout(() => this.snd('sparkle'), 120);
+      const cz = this.bodyZ(hf) + 2, COLS = [pal.acc, '#ffd24a', '#ff5a7a', '#5ad2ff', '#ffffff'];
+      this.put('disc', b.x, b.y, cz, { size: R * 3.4, color: '#fff2c8', life: 0.28, a: 1 });
+      for (let i = 0; i < 230 * this.fxQ(); i++) {
+        const th = Math.random() * TAU, ph = Math.acos(rnd(-1, 1)), s = rnd(120, 250), c = COLS[(i / 46 | 0) % COLS.length];
+        this.put('spark', b.x, b.y, cz, { vx: Math.sin(ph) * Math.cos(th) * s, vy: Math.sin(ph) * Math.sin(th) * s * 0.9, vz: Math.cos(ph) * s, gz: 170, life: rnd(0.9, 1.5), size: rnd(1.8, 3.6), color: c, streak: 0.03, drag: 0.4 });
+      }
+      this.starBurst(b.x, b.y, cz, 32, COLS, 190);
+      await this.wait(200);
+      await this.appear(h, { color: '#ffd24a' });
+    },
+  });
+})();
+
+/* ============================================================
+   Dice throws: the cup, plus trails, glow and impacts for every throw effect.
+   The motion of each throw lives in view.js (planDie); this file adds what you see around the dice.
+   ============================================================ */
+(() => {
+  const V = BoardView.prototype;
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const RAIN = ['#ff5a5a', '#ffb43a', '#ffe84a', '#5aff8a', '#5ad2ff', '#b784ff'];
+
+  Object.assign(V, {
+    /* ----- helpers ----- */
+    dieZ(d) { return d.z + (this.is3d ? 30 : 0); },
+    // a random spot inside the body of a die
+    dieSpot(d, f) { const s = d.size * d.scale * 0.5 * (f || 0.9); return [d.x + rnd(-s, s), d.y + rnd(-s, s), this.dieZ(d) + rnd(-s, s) * (this.is3d ? 0.9 : 0.35)]; },
+    dieCol() { const it = DATA.find('dice', this.cos.dice); return (it && it.body) || '#e8e0d0'; },
+    dieTrail(d, o) { const tr = this.trail(Object.assign({ w: d.size * 0.5 }, o)); d.trails.push(tr); return tr; },
+    dieTrailPush(tr, d) { this.trailPush(tr, d.x, d.y, this.dieZ(d)); },
+    // a die hits the table: k is 1 for the first, hardest bounce and fades after
+    dieLand(d, k) {
+      const x = d.x, y = d.y, col = d.landCol || '#e6dfcf';
+      this.puffRing(x, y, col, 4 + Math.round(5 * k), 30 + 55 * k, 4 + 5 * k);
+      if (k > 0.55) this.shockAt(x, y, d.landRing || 'rgba(255,255,255,0.9)', 38 + 44 * k, 0.32, 4);
+      this.sparkBurst(x, y, 4, Math.round(6 * k), d.landSpark || '#fff3c8', 70 + 90 * k, { vz: rnd(10, 50) });
+      if (d._hi === 0 && d.size * d.scale > 40) this.shake = Math.max(this.shake, 1.5);
+    },
+    // a point in the leather cup (or its mouth). lx sideways, lh height above the cup's base, lz towards the viewer
+    cupPoint(c, lx, lh, lz) {
+      const sc = c.sc === undefined ? 1 : c.sc, cs = Math.cos(c.rot), sn = Math.sin(c.rot);
+      if (this.is3d) return [c.x + sc * (cs * lx + sn * (lh - 52)), c.y + (lz || 0) * sc, 52 * sc + (c.h || 0) + sc * (-sn * lx + cs * (lh - 52)) - 30];
+      return [c.x + sc * (cs * lx + sn * (lh - 52) * 0.9), c.y + sc * (sn * lx - cs * (lh - 52) * 0.9) - (c.h || 0) * 0.55, 0];
+    },
+
+    /* ----- the cup: shake, wind up, swing and tip so the dice are flung out of the mouth ----- */
+    planCup(dice) {
+      const N = dice.length, side = dice[0].side, dp = side === 0 ? -1 : 1; // dp: the way the dice are thrown, towards the middle of the board
+      const cx0 = side === 0 ? (GEO.xr + GEO.xEnd) / 2 : (GEO.x0 + GEO.xbar) / 2, cy0 = GEO.mid - 20, DT = 2700, T = 2520; // DT is the length the motion is designed in; the throw is played a little faster (T)
+      const W = { x: cx0 - dp * 36, rot: -dp * 0.24, h: 14 }, TH = { x: cx0 + dp * 64, rot: dp * 1.5, h: 6 }, S = { x: cx0 + dp * 90, rot: dp * 1.78, h: 2 };
+      const cupAt = (t) => {
+        if (t < 180) { const v = t / 180; return { x: cx0, y: cy0 - 20 * (1 - E.out3(v)), rot: 0, alpha: Math.min(1, v * 4), sc: 0.85 + 0.15 * E.out3(v), h: 120 * (1 - E.out3(v)) }; }
+        if (t < 1000) { const k = t - 180; return { x: cx0 + Math.sin(k * 0.085) * 9, y: cy0 + Math.cos(k * 0.062) * 4, rot: Math.sin(k * 0.11) * 0.09, alpha: 1, sc: 1, h: Math.abs(Math.sin(k * 0.05)) * 10 }; }
+        if (t < 1250) { const v = E.inOut((t - 1000) / 250); return { x: lerp(cx0, W.x, v), y: cy0, rot: lerp(0, W.rot, v), alpha: 1, sc: 1, h: lerp(0, W.h, v) }; }
+        if (t < 1560) { const v = (t - 1250) / 310, e = E.inOut(v); return { x: lerp(W.x, TH.x, e), y: cy0, rot: lerp(W.rot, TH.rot, E.in2(v) * 0.5 + e * 0.5), alpha: 1, sc: 1, h: lerp(W.h, TH.h, e) }; }
+        if (t < 1850) { const v = E.out3((t - 1560) / 290); return { x: lerp(TH.x, S.x, v), y: cy0, rot: lerp(TH.rot, S.rot, v), alpha: 1, sc: 1, h: lerp(TH.h, S.h, v) }; }
+        if (t < 2350) { const v = (t - 1850) / 500; return { x: S.x + dp * 70 * v, y: cy0 - 36 * v, rot: S.rot, alpha: 1 - E.in2(v), sc: 1 - 0.2 * v, h: S.h + 170 * E.in2(v) }; }
+        return { x: S.x, y: cy0, rot: S.rot, alpha: 0, sc: 0.8, h: 200 };
+      };
+      this.cup = Object.assign({}, cupAt(0));
+      this.snd('rattle', 0.9);
+      let thrown = false;
+      const EXIT_LH = 136, LH0 = 84, SIZE_IN = 0.62;
+      const dicePlans = dice.map((d, i) => {
+        const lx0 = (i - (N - 1) / 2) * (N > 2 ? 22 : 27), lz = (i % 2 ? 9 : -9);
+        const tStart = 1330 + i * 22, te = 1470 + i * 48, Df = 1130 - i * 40;
+        const axis = [rnd(-1, 1), rnd(-1, 1), rnd(-0.6, 0.6)], spins = TAU * Math.round(rnd(2, 3.6));
+        const ex = this.cupPoint(cupAt(te), lx0, EXIT_LH, lz), zEx = this.is3d ? Math.max(14, ex[2]) : 8;
+        const prof = bounceProfile(zEx, [26, 10, 4]);
+        const setA = (a) => { d.R = GFX.matmul(GFX.rotAxis(axis, a), d.Rf); };
+        const shakeA = (t) => 0.7 * Math.sin(t * 0.031 + i * 1.9) + 0.45 * Math.sin(t * 0.057 + i);
+        let exited = false;
+        return {
+          T,
+          sample: (u) => {
+            const t = u * DT;
+            if (t < te) {
+              const c = cupAt(t), shaking = t >= 180 && t < 1000, slide = E.in2(clamp01((t - tStart) / (te - tStart)));
+              const lh = LH0 + (shaking ? 13 * Math.abs(Math.sin(t * 0.032 + i * 1.7)) : 0) + (EXIT_LH - LH0) * slide;
+              const lx = lx0 + (shaking ? Math.sin(t * 0.05 + i * 2.1) * 6 : 0);
+              const P = this.cupPoint(c, lx, lh, lz);
+              d.visible = c.alpha > 0.05; d.alpha = Math.min(1, c.alpha * 2); d.inCup = true; d.x = P[0]; d.y = P[1]; d.z = P[2]; d.scale = SIZE_IN + 0.04 * slide;
+              setA(shakeA(t) + spins * slide * 0.4);
+              if (shaking && Math.random() < 0.05) this.snd('diceHit', 0.25);
+            } else {
+              const v = clamp01((t - te) / Df);
+              if (!exited) {
+                exited = true; d.inCup = false;
+                if (!thrown) { thrown = true; this.snd('whoosh'); }
+                this.sparkBurst(ex[0], ex[1], ex[2] + (this.is3d ? 30 : 0), 8, '#fff3c8', 120, { vz: rnd(10, 60) });
+                this.puffRing(ex[0], ex[1], '#e6dfcf', 6, 50, 5);
+              }
+              const e = E.out3(v);
+              d.visible = true; d.alpha = 1; d.x = ex[0] + (d.end.x - ex[0]) * e; d.y = ex[1] + (d.end.y - ex[1]) * e;
+              d.z = prof.z(v) + (v < 0.22 ? 22 * Math.sin(Math.PI * v / 0.22) : 0);
+              d.scale = SIZE_IN + (1 - SIZE_IN) * E.out2(clamp01(v / 0.28));
+              setA((shakeA(te) + spins * 0.4 + spins) * (1 - E.out3(v)));
+              while (d._hi < prof.hits.length && v >= prof.hits[d._hi]) { this.snd('diceHit', Math.max(0.35, 1 - d._hi * 0.3)); this.dieLand(d, Math.max(0.3, 1 - d._hi * 0.35)); d._hi++; }
+            }
+          },
+        };
+      });
+      return {
+        T, dicePlans,
+        sample: (u) => { const t = u * DT; if (t >= 2350) { this.cup = null; return; } if (this.cup) Object.assign(this.cup, cupAt(t)); },
+      };
+    },
+
+    /* ----- the throw effects: ribbons, glow and particles around the dice ----- */
+    throwDecor(fx, d, u, st, i, N) {
+      const fn = this['td_' + fx]; if (!d.visible || d.alpha < 0.2) return;
+      st.vx = d.x - (st.lx === undefined ? d.x : st.lx); st.vy = d.y - (st.ly === undefined ? d.y : st.ly); st.lx = d.x; st.ly = d.y;
+      st.sp = Math.hypot(st.vx, st.vy);
+      if (fn && !d.inCup) fn.call(this, d, u, st, i, N);
+      else if (fx === 'cup' && !d.inCup) this.td_cup.call(this, d, u, st, i, N);
+    },
+    td_cup(d, u, st) {
+      if (!st.tr) st.tr = this.dieTrail(d, { color: '#fff3d8', w: d.size * 0.5, life: 0.28, add: false, a: 0.22, pw: 0.9 });
+      this.dieTrailPush(st.tr, d);
+      if (st.sp > 3) this.rate('cupS' + d.x.toFixed(0), 50, () => { const q = this.dieSpot(d, 0.9); this.put('spark', q[0], q[1], q[2], { vx: -st.vx * 4 + rnd(-20, 20), vy: -st.vy * 4 + rnd(-20, 20), vz: rnd(-10, 30), life: 0.35, size: rnd(1.6, 3), color: '#fff3d8', streak: 0.03, drag: 0.5 }); });
+    },
+    td_toss(d, u, st) {
+      if (!st.tr) { st.tr = this.dieTrail(d, { color: '#ffffff', w: d.size * 0.5, life: 0.3, add: false, a: 0.2, pw: 0.9 }); }
+      this.dieTrailPush(st.tr, d);
+      if (st.sp > 4) this.rate('tsD', 40, () => { const q = this.dieSpot(d, 0.8); this.put('smoke', q[0], q[1], 3, { size: rnd(5, 9), grow: 10, life: 0.4, color: '#e6dfcf', alpha: 0.2, vx: -st.vx * 3, vy: -st.vy * 3, under: true }); });
+    },
+    td_drop(d, u, st) {
+      if (!st.tr) { st.tr = this.dieTrail(d, { color: '#ffffff', core: '#ffffff', w: d.size * 0.5, life: 0.25, a: 0.35, pw: 0.7 }); d.aura = { color: '#ffffff', r: 1.6, a: 0.12, pulse: 0 }; }
+      if (d.z > 12) this.dieTrailPush(st.tr, d); else d.aura = null;
+      if (d.z > 40) this.rate('drS' + i0(d), 130, () => { const q = this.dieSpot(d, 1); this.put('spark', q[0], q[1], q[2], { vz: -340, life: 0.16, size: 2.2, color: '#ffffff', streak: 0.06 }); });
+    },
+    td_skid(d, u, st) {
+      d.landCol = '#d8c8a8';
+      if (!st.tr) st.tr = this.dieTrail(d, { color: '#d8c8a8', w: d.size * 0.6, life: 0.5, add: false, a: 0.32, pw: 0.6 });
+      this.dieTrailPush(st.tr, d);
+      if (u < 0.85 && st.sp > 3) {
+        this.rate('skD', 70, () => { const q = this.dieSpot(d, 0.9); this.put('dust', q[0] - Math.sign(st.vx) * 14, q[1], 3, { vx: -st.vx * 6 + rnd(-20, 20), vy: rnd(-20, 20), vz: rnd(8, 30), size: rnd(7, 13), grow: 22, life: rnd(0.4, 0.8), color: '#d8c8a8', under: true }); });
+        this.rate('skS', 60, () => { const q = this.dieSpot(d, 0.9); this.put('spark', q[0], q[1], 1, { vx: -st.vx * 8 + rnd(-40, 40), vy: rnd(-40, 40), vz: rnd(10, 60), gz: 300, floor: 0, life: 0.4, size: rnd(1.4, 2.6), color: '#ffd9a0', streak: 0.03 }); });
+      }
+    },
+    td_rainbow(d, u, st, i) {
+      if (!st.trs) st.trs = RAIN.map((c, k) => this.dieTrail(d, { color: c, w: 3.6, life: 0.7, a: 0.85, pw: 0.5 }));
+      if (u < 0.9) st.trs.forEach((tr, k) => this.trailPush(tr, d.x, d.y + (k - 2.5) * 6.5, this.dieZ(d)));
+      else st.trs.forEach(tr => { tr.end = true; });
+      if (u < 0.85) this.rate('rbS' + i, 45, () => { const q = this.dieSpot(d, 1); this.put('star', q[0], q[1], q[2], { vx: rnd(-20, 20), vy: rnd(-20, 20), vz: rnd(0, 30), gz: 30, life: 0.8, size: rnd(1.4, 2.6), color: RAIN[(Math.random() * 6) | 0], tw: true, vr: 6 }); });
+    },
+    td_meteor(d, u, st) {
+      d.landSpark = '#ffb347'; d.landCol = '#4a3a32';
+      if (!st.tr) { st.tr = this.dieTrail(d, { color: '#ff8a2a', color2: '#d8401a', core: '#fff2b0', w: d.size * 0.55, life: 0.5, a: 0.7, pw: 0.9 }); st.sm = this.dieTrail(d, { color: '#3a2a22', w: d.size * 0.6, life: 0.8, add: false, a: 0.35, pw: 0.6 }); d.aura = { color: '#ff8a2a', r: 2.2, a: 0.4, pulse: 0.15 }; }
+      if (u > 0.1 && u < 0.62) {
+        this.dieTrailPush(st.tr, d); this.dieTrailPush(st.sm, d);
+        this.rate('mtF' + d.end.x.toFixed(0), 150, () => { const q = this.dieSpot(d, 1); this.flame(q[0], q[1], q[2], { vx: rnd(-26, 26), vy: rnd(-26, 26), vz: rnd(20, 80), size: rnd(6, 11), life: rnd(0.35, 0.65) }); });
+      } else if (u >= 0.62) { d.aura = null; st.tr.end = true; st.sm.end = true; if (!st.done) { st.done = true; this.put('fill', d.end.x, d.end.y, 0.5, { size: d.size * 0.8, color: '#150b06', life: 1.6, a: 0.5, pw: 0.5, under: true, ground: true }); for (let k = 0; k < 28 * this.fxQ(); k++) { const a = Math.random() * TAU, s = rnd(30, 200); this.flame(d.end.x, d.end.y, 6, { vx: Math.cos(a) * s, vy: Math.sin(a) * s, vz: rnd(20, 110), size: rnd(7, 13), life: rnd(0.4, 0.8) }); } } }
+    },
+    td_pinball(d, u, st) {
+      if (!st.tr) { st.tr = this.dieTrail(d, { color: '#ffd75a', core: '#ffffff', w: d.size * 0.45, life: 0.4, a: 0.65, pw: 0.9 }); d.aura = { color: '#ffd75a', r: 1.6, a: 0.25, pulse: 0.2 }; }
+      this.dieTrailPush(st.tr, d);
+      if (u < 0.9) this.rate('pbS' + d.end.x.toFixed(0), 70, () => { const q = this.dieSpot(d, 1); this.put('spark', q[0], q[1], q[2], { vx: rnd(-50, 50), vy: rnd(-50, 50), vz: rnd(-10, 40), life: 0.35, size: rnd(1.8, 3.2), color: '#ffd75a', streak: 0.03 }); });
+      const seg = Math.min(2, Math.floor(u * 3 / 0.9));
+      if (st.seg !== undefined && seg !== st.seg && u < 0.9) { this.put('disc', d.x, d.y, 4, { size: 60, color: '#ffd75a', life: 0.25, a: 0.9 }); this.starBurst(d.x, d.y, this.dieZ(d), 6, ['#ffd75a', '#ffffff'], 130); }
+      st.seg = seg; if (u > 0.9) d.aura = null;
+    },
+    td_puff(d, u, st) {
+      if (!st.done) { st.done = true; for (let k = 0; k < 18 * this.fxQ(); k++) { const a = Math.random() * TAU, s = rnd(30, 110); this.put('smoke', d.end.x, d.end.y, 12, { vx: Math.cos(a) * s, vy: Math.sin(a) * s * 0.8, vz: rnd(10, 50), size: rnd(14, 24), grow: 22, life: rnd(0.8, 1.2), color: Math.random() < 0.5 ? '#d9c8ff' : '#f0c8ff', alpha: 0.5, fin: 0.1, drag: 0.5 }); } this.starBurst(d.end.x, d.end.y, 30, 14, ['#ffffff', '#e8d4ff', '#ffd0f0'], 150); this.snd('sparkle'); }
+      if (u < 0.8) this.rate('pfS' + d.end.x.toFixed(0), 40, () => { const q = this.dieSpot(d, 1); this.put('star', q[0], q[1], q[2], { vz: rnd(5, 30), life: 0.7, size: rnd(1.4, 2.8), color: ['#ffffff', '#e8d4ff', '#ffd0f0'][(Math.random() * 3) | 0], tw: true, vr: 6 }); });
+    },
+    td_catapult(d, u, st) {
+      if (!st.tr) { st.tr = this.dieTrail(d, { color: '#ffffff', w: d.size * 0.5, life: 0.35, add: false, a: 0.3, pw: 0.7 }); this.puffRing(d.x, d.y, '#d8c8a8', 10, 80, 10); }
+      if (u < 0.75) this.dieTrailPush(st.tr, d); else st.tr.end = true;
+      if (u < 0.6) this.rate('ctS' + d.end.x.toFixed(0), 90, () => { const q = this.dieSpot(d, 1); this.put('spark', q[0], q[1], q[2], { vz: d.z > 200 ? 200 : -200, vx: rnd(-20, 20), life: 0.2, size: 2, color: '#fff3c8', streak: 0.05 }); });
+    },
+    td_iceslide(d, u, st) {
+      d.landCol = '#cfeeff'; d.landSpark = '#e8f8ff';
+      if (!st.tr) st.tr = this.dieTrail(d, { color: '#9fd8ff', core: '#ffffff', w: d.size * 0.55, life: 0.55, a: 0.55, pw: 0.7 });
+      this.dieTrailPush(st.tr, d);
+      if (u < 0.9) {
+        this.rate('icD', 60, () => { const q = this.dieSpot(d, 0.9); this.put('smoke', q[0], q[1], 4, { vx: -st.vx * 4 + rnd(-14, 14), vy: rnd(-14, 14), vz: rnd(6, 24), size: rnd(8, 13), grow: 14, life: 0.6, color: '#dff4ff', alpha: 0.3, under: true }); });
+        this.rate('icS', 45, () => { const q = this.dieSpot(d, 1); this.put('star', q[0], q[1], q[2], { vx: -st.vx * 3, vz: rnd(5, 30), life: 0.5, size: rnd(1.4, 2.6), color: '#ffffff', tw: true, vr: 6 }); });
+      }
+    },
+    td_whirl(d, u, st) {
+      if (!st.tr) { st.tr = this.dieTrail(d, { color: '#9fd8ff', color2: '#cfe9ff', core: '#ffffff', w: d.size * 0.42, life: 0.6, a: 0.5, pw: 0.7, wobble: true }); d.aura = { color: '#9fd8ff', r: 1.5, a: 0.18, pulse: 0.2 }; }
+      this.dieTrailPush(st.tr, d);
+      if (u < 0.9) this.rate('whS' + d.end.x.toFixed(0), 100, () => { const a = Math.random() * TAU, r = d.size * 0.7; this.put('spark', d.x + Math.cos(a) * r, d.y + Math.sin(a) * r, this.dieZ(d), { vx: -Math.sin(a) * 140, vy: Math.cos(a) * 140, vz: rnd(-10, 30), life: 0.4, size: rnd(1.8, 3.4), color: Math.random() < 0.4 ? '#ffffff' : '#9fd8ff', streak: 0.04, drag: 0.5 }); });
+      else d.aura = null;
+    },
+    td_burst(d, u, st) {
+      if (!st.done) { st.done = true; this.put('disc', d.end.x, d.end.y, 6, { size: 90, color: '#fff2b0', life: 0.3, a: 1 }); this.shockAt(d.end.x, d.end.y, '#ffd66b', 150, 0.5, 9); this.starBurst(d.end.x, d.end.y, 24, 30, ['#ffd66b', '#ffffff', '#ffb43a'], 220); for (let k = 0; k < 24; k++) { const a = k / 24 * TAU; this.put('spark', d.end.x, d.end.y, 12, { vx: Math.cos(a) * 260, vy: Math.sin(a) * 260, life: 0.4, size: 2.4, color: '#fff2b0', streak: 0.05, drag: 0.3 }); } }
+      if (u < 0.8) this.rate('buS' + d.end.x.toFixed(0), 40, () => { const q = this.dieSpot(d, 1); this.put('star', q[0], q[1], q[2], { vz: rnd(-10, 20), gz: 60, life: 0.7, size: rnd(1.5, 3), color: ['#ffd66b', '#ffffff'][(Math.random() * 2) | 0], tw: true, vr: 6 }); });
+    },
+    td_swirl(d, u, st) {
+      d.landCol = '#f2e2c8';
+      if (!st.tr) st.tr = this.dieTrail(d, { color: '#f2e2c8', color2: '#c8a070', w: d.size * 0.5, life: 0.6, add: false, a: 0.4, pw: 0.7, wobble: true });
+      this.dieTrailPush(st.tr, d);
+      if (u < 0.85) {
+        this.rate('swW' + d.end.x.toFixed(0), 34, () => { const q = this.dieSpot(d, 0.9); this.put('smoke', q[0], q[1], q[2], { vz: rnd(18, 40), vx: rnd(-8, 8), vy: rnd(-8, 8), size: rnd(8, 13), grow: 14, life: 0.9, color: '#f6efe6', alpha: 0.35, fin: 0.2 }); });
+        this.rate('swB' + d.end.x.toFixed(0), 14, () => { const q = this.dieSpot(d, 1); this.put('mote', q[0], q[1], q[2], { vx: rnd(-20, 20), vy: rnd(-20, 20), vz: rnd(10, 40), gz: 60, life: 0.7, size: rnd(1.5, 2.6), color: '#5a3a24' }); });
+      }
+    },
+    td_wave(d, u, st) {
+      d.landCol = '#e6f6ff'; d.landRing = 'rgba(159,216,255,0.9)'; d.landSpark = '#cfeaff';
+      if (!st.tr) st.tr = this.dieTrail(d, { color: '#e6f6ff', color2: '#7fc8ff', w: d.size * 0.6, life: 0.55, add: false, a: 0.4, pw: 0.6, wobble: true });
+      this.dieTrailPush(st.tr, d);
+      if (u < 0.9) this.rate('wvS' + d.end.x.toFixed(0), 50, () => { const q = this.dieSpot(d, 1); this.put('spark', q[0], q[1], q[2], { vx: -st.vx * 3 + rnd(-30, 30), vy: rnd(-30, 30), vz: rnd(40, 120), gz: 480, floor: 0, life: 0.6, size: rnd(1.6, 3), color: '#cfeaff' }); });
+    },
+    td_roulette(d, u, st) {
+      if (!st.tr) { st.tr = this.dieTrail(d, { color: '#ffd75a', core: '#fff2b0', w: d.size * 0.4, life: 0.55, a: 0.55, pw: 0.7 }); d.aura = { color: '#ffd75a', r: 1.5, a: 0.2, pulse: 0.15 }; }
+      this.dieTrailPush(st.tr, d);
+      if (u < 0.95) this.rate('roS' + d.end.x.toFixed(0), 70, () => { const q = this.dieSpot(d, 1); this.put('spark', q[0], q[1], q[2], { vx: rnd(-40, 40), vy: rnd(-40, 40), vz: rnd(-10, 40), life: 0.4, size: rnd(1.8, 3.2), color: '#ffd75a', streak: 0.03 }); });
+      else d.aura = null;
+    },
+    td_thunder(d, u, st) {
+      if (!st.done && u > 0.1) {
+        st.done = true; const x = d.end.x, y = d.end.y;
+        for (let k = 0; k < 3; k++) this.boltBetween(x + rnd(-30, 30), y - 20, 420, x, y, 40, 14, 24 + k * 8, { life: 0.34 - k * 0.05, size: k ? 1.6 : 3.2, color: k ? '#bfe0ff' : '#9fd0ff' });
+        this.put('disc', x, y, 6, { size: 110, color: '#ffffff', life: 0.25, a: 1 }); this.shockAt(x, y, '#d6ecff', 150, 0.45, 10);
+      }
+      if (u > 0.12 && u < 0.7) this.rate('thA' + d.end.x.toFixed(0), 40, () => this.arcOver({ x: d.x, y: d.y, z: this.dieZ(d) - 4, zb: 0, scale: d.scale * 0.95 }, '#bfe0ff', 1));
+    },
+    td_descent(d, u, st) {
+      if (!st.done) { st.done = true; this.put('beam', d.end.x, d.end.y, 0, { z0: 0, z1: 460, size: 30, color: '#fff0b8', life: 1.5, a: 0.4 }); }
+      if (!st.tr) { st.tr = this.dieTrail(d, { color: '#ffd75a', w: d.size * 0.4, life: 0.5, a: 0.4, pw: 0.7 }); d.aura = { color: '#ffd75a', r: 1.7, a: 0.3, pulse: 0.1 }; }
+      if (u < 0.85) { this.dieTrailPush(st.tr, d); this.rate('deS' + d.end.x.toFixed(0), 50, () => { const q = this.dieSpot(d, 1.3); this.put('star', q[0], q[1], q[2], { vz: rnd(-30, 0), gz: 20, life: 1.0, size: rnd(1.4, 2.8), color: ['#ffd75a', '#fff2b0', '#ffffff'][(Math.random() * 3) | 0], tw: true, vr: 5 }); }); } else { d.aura = null; st.tr.end = true; }
+    },
+  });
+  function i0(d) { return d.end.x.toFixed(0); }
+})();
 
 /* ============================================================
    Mini 3D engine (WebGL2): matrices, geometry builders, PBR-style shading with
@@ -5754,6 +6856,7 @@ class BoardView3D extends BoardView {
     }
     // flights
     for (const f of this.flights) {
+      if (f.hidden) continue;
       const toOff = !!f.toOff;
       const tilt = toOff ? clamp01((f.u - 0.55) / 0.45) : 0;
       const h = (f.zb || 0);
@@ -5777,14 +6880,14 @@ class BoardView3D extends BoardView {
       const it = { geo: dm.geo, mat: dm.mat, model: M4.trs([dd.x - 640, 30 + dd.z, dd.y - 400], R, dd.scale * (dd.used ? 0.96 : 1), this.mm()), cast: true };
       if (dd.used) it.tint = [0.5, 0.5, 0.5];
       items.push(it);
-      this.blob(items, dd.x, dd.y, 40 * (1 + dd.z / 160), Math.max(0.1, 0.5 - dd.z / 260), 0);
+      if (!dd.inCup) this.blob(items, dd.x, dd.y, 40 * (1 + dd.z / 160), Math.max(0.1, 0.5 - dd.z / 260), 0);
     }
     // cup
     if (this.cup && this.cup.alpha > 0.02) {
       const c = this.cup, cp = A3.cup(), R = M4.rotZ(-c.rot);
-      const sc = 0.65 + 0.35 * Math.min(1, c.alpha);
+      const sc = c.sc === undefined ? 1 : c.sc, hh = c.h || 0;
       const off = [R[1] * -52 * sc, R[4] * -52 * sc, R[7] * -52 * sc];
-      for (const it of cp.items) items.push({ geo: it.geo, mat: it.mat, model: M4.trs([c.x - 640 + off[0], 52 * sc + off[1], c.y - 400 + off[2]], R, sc, this.mm()), cast: true });
+      for (const it of cp.items) items.push({ geo: it.geo, mat: it.mat, model: M4.trs([c.x - 640 + off[0], 52 * sc + hh + off[1], c.y - 400 + off[2]], R, sc, this.mm()), cast: true });
     }
     return items;
   }
@@ -5886,30 +6989,19 @@ class BoardView3D extends BoardView {
         ctx.beginPath(); ctx.arc(q[0], q[1], r, 0, TAU); ctx.fillStyle = i < this.dblLeft ? '#ffd75a' : 'rgba(0,0,0,0.45)'; ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 1.5; ctx.stroke();
       }
     }
-    this.drawParticles3(ctx);
+    this.fxDraw(ctx, 'all');
   }
 
-  drawParticles3(ctx) {
-    for (const p of this.parts) {
-      const a = clamp01(p.life / p.max);
-      const q = this.proj3(p.x, p.y, 14), k = this.pxPerUnit(p.x, p.y);
-      ctx.save();
-      if (p.kind === 'spark') {
-        ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a;
-        const rad = Math.max(1, p.size * 2.2 * k), g = ctx.createRadialGradient(q[0], q[1], 0, q[0], q[1], rad);
-        g.addColorStop(0, p.color); g.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(q[0], q[1], rad, 0, TAU); ctx.fill();
-      } else if (p.kind === 'ring') {
-        ctx.globalAlpha = a; ctx.strokeStyle = p.color; ctx.lineWidth = 4 * a + 1; this.ringPath(ctx, p.x, p.y, p.size, 1); ctx.stroke();
-      } else if (p.kind === 'dust') {
-        ctx.globalAlpha = a * 0.4; ctx.fillStyle = p.color; ctx.beginPath(); ctx.ellipse(q[0], q[1], p.size * k, p.size * k * 0.7, 0, 0, TAU); ctx.fill();
-      } else if (p.kind === 'confetti') {
-        const q2 = this.proj3(p.x, p.y, 120);
-        ctx.globalAlpha = Math.min(1, a * 2); ctx.translate(q2[0], q2[1]); ctx.rotate(p.rot); ctx.fillStyle = p.color; ctx.fillRect(-p.size / 2 * k * 1.2, -p.size / 4 * k * 1.2, p.size * k * 1.2, p.size / 2 * k * 1.2);
-      }
-      ctx.restore();
-    }
+  /* particles, ribbons and glows share the effects engine in view_fx.js; these hooks project them through the camera */
+  fxProj(x, y, z) {
+    const q = this.proj3(x, y, z === undefined ? 14 : z), r = this.proj3(x + 10, y, z === undefined ? 14 : z);
+    return [q[0], q[1], Math.hypot(r[0] - q[0], r[1] - q[1]) / 10];
   }
+  fxMat(x, y, z) {
+    const h = z === undefined ? 14 : z, o = this.proj3(x, y, h), px = this.proj3(x + 10, y, h), py = this.proj3(x, y + 10, h);
+    return [(px[0] - o[0]) / 10, (px[1] - o[1]) / 10, (py[0] - o[0]) / 10, (py[1] - o[1]) / 10, o[0], o[1]];
+  }
+  trailSkip() { return GEO.r * 0.7; }
 }
 
 /* ============================================================
@@ -5942,7 +7034,7 @@ const Studio = (() => {
     const mat = makeMat({ color: '#35604a', rough: 0.95, sheen: 0.5, bump: A3.misc('bumpFelt'), bumpScale: 1, bumpUv: [14, 14], map: null });
     return { geo: A3.misc('unitQuad'), mat, model: M4.trs([0, 0, 0], null, 700, v.mm()) };
   }
-  const cosOf = () => { const e = P().equipped; return { board: e.board, checkers: e.checkers, dice: e.dice, moveFx: e.moveFx, throwFx: e.throwFx, trim: 'none', inlay: 'none', mat: 'none', cube: e.cube }; };
+  const cosOf = () => { const e = P().equipped; return { board: e.board, checkers: e.checkers, dice: e.dice, moveFx: e.moveFx, throwFx: e.throwFx, hitFx: e.hitFx, trim: 'none', inlay: 'none', mat: 'none', cube: e.cube }; };
 
   return {
     board(id, w, h, dpr) {
@@ -6054,6 +7146,16 @@ const SFX = (() => {
     lose() { if (!ok()) return;[392, 349, 311, 262].forEach((f, i) => tone(f, 0.38, 'sawtooth', 0.07, i * 0.16)); },
     levelUp() { if (!ok()) return;[523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.28, 'triangle', 0.18, i * 0.09)); tone(1568, 0.6, 'sine', 0.14, 0.5); },
     whoosh() { if (!ok()) return; noise(0.35, 900, 0.6, 0.22, 0, 'bandpass'); },
+    boom() { if (!ok()) return; noise(0.5, 220, 0.7, 0.8, 0, 'lowpass'); tone(90, 0.5, 'sine', 0.6, 0, 32); noise(0.25, 1200, 0.8, 0.4, 0.01); noise(0.7, 140, 0.6, 0.35, 0.05, 'lowpass'); },
+    shatter() { if (!ok()) return; for (let i = 0; i < 9; i++) noise(0.05 + Math.random() * 0.05, 2400 + Math.random() * 3200, 3, 0.2, Math.random() * 0.22, 'highpass'); noise(0.12, 1800, 1.2, 0.35); tone(1500, 0.12, 'triangle', 0.08, 0.01, 700); },
+    crackle() { if (!ok()) return; for (let i = 0; i < 14; i++) noise(0.02 + Math.random() * 0.03, 800 + Math.random() * 2400, 2, 0.12 + Math.random() * 0.12, Math.random() * 0.55); noise(0.5, 500, 0.5, 0.18, 0, 'lowpass'); },
+    zap() { if (!ok()) return; noise(0.22, 3200, 0.8, 0.5, 0, 'highpass'); tone(2400, 0.14, 'sawtooth', 0.14, 0, 180); tone(110, 0.3, 'square', 0.16, 0.02, 50); noise(0.4, 160, 0.6, 0.35, 0.06, 'lowpass'); },
+    suck() { if (!ok()) return; tone(80, 0.55, 'sawtooth', 0.14, 0, 620); noise(0.5, 400, 0.7, 0.2, 0, 'bandpass'); tone(620, 0.12, 'sine', 0.2, 0.55, 90); },
+    pop() { if (!ok()) return; noise(0.05, 1600, 1.2, 0.5); tone(520, 0.1, 'triangle', 0.3, 0, 130); noise(0.18, 3200, 1.5, 0.12, 0.04, 'highpass'); },
+    boing() { if (!ok()) return; tone(180, 0.3, 'sine', 0.3, 0, 520); tone(520, 0.16, 'sine', 0.18, 0.28, 240); },
+    freeze() { if (!ok()) return; for (let i = 0; i < 6; i++) tone(2200 + Math.random() * 2600, 0.18, 'sine', 0.05, i * 0.03); noise(0.35, 5000, 1, 0.12, 0, 'highpass'); },
+    crumble() { if (!ok()) return; noise(0.7, 1500, 0.5, 0.22, 0, 'highpass'); for (let i = 0; i < 8; i++) noise(0.04, 1200 + Math.random() * 1800, 2, 0.1, Math.random() * 0.5); },
+    chime() { if (!ok()) return; [1568, 2093, 2637].forEach((f, i) => tone(f, 0.5, 'sine', 0.07, i * 0.07)); },
     sparkle() { if (!ok()) return; for (let i = 0; i < 5; i++) tone(1800 + Math.random() * 1800, 0.12, 'sine', 0.05, i * 0.04); },
   };
   return api;
@@ -6598,7 +7700,7 @@ function startAttract() {
   };
   fitMenu();
   const e = P().equipped;
-  menuView.setCosmetics({ board: e.board, checkers: e.checkers, dice: e.dice, moveFx: e.moveFx, throwFx: e.throwFx, trim: e.trim, inlay: e.inlay, mat: e.mat, cube: e.cube });
+  menuView.setCosmetics({ board: e.board, checkers: e.checkers, dice: e.dice, moveFx: e.moveFx, throwFx: e.throwFx, hitFx: e.hitFx, trim: e.trim, inlay: e.inlay, mat: e.mat, cube: e.cube });
   menuView.start();
   const id = ++attractRun;
   menuView.fast = false;
@@ -7888,7 +8990,7 @@ const Game = (() => {
   }
   function applyCosmetics() {
     const e = P().equipped;
-    view.setCosmetics({ board: e.board, checkers: e.checkers, dice: e.dice, moveFx: e.moveFx, throwFx: e.throwFx, trim: e.trim, inlay: e.inlay, mat: e.mat, cube: e.cube });
+    view.setCosmetics({ board: e.board, checkers: e.checkers, dice: e.dice, moveFx: e.moveFx, throwFx: e.throwFx, hitFx: e.hitFx, trim: e.trim, inlay: e.inlay, mat: e.mat, cube: e.cube });
     view._sprites = {};
   }
   function resetBoardView() {
@@ -8257,7 +9359,7 @@ const Game = (() => {
     view.sel = null; view.dests = []; view.movable = []; view.hint = null;
     G.dests = []; G.movable = new Set();
     updateHUD(); updateActions();
-    await view.moveChecker(m, G.turn, undefined, o.from ? { from: o.from, fx: 'glide' } : undefined);
+    await view.moveChecker(m, G.turn, undefined, Object.assign(o.from ? { from: o.from, fx: 'glide' } : {}, (G.turn === 0 || G.cfg.mode === '2p') ? {} : { hitFx: 'knock' }));
     if (!alive(id)) return;
     view.setDiceRemaining(G.rem);
     G.busy = false;
@@ -8920,7 +10022,7 @@ function renderShop() {
   $('#shop-filters').innerHTML = rarKeys.map(k => `<button type="button" class="fchip ${Shop.rar === k ? 'on' : ''}" data-rar="${k}" ${k !== 'all' ? `style="--rc:${DATA.RARITY[k].color}"` : ''}>${k === 'all' ? 'All' : DATA.RARITY[k].name.replace(' reward', '')}</button>`).join('')
     + '<span class="fsep"></span>' + [['all', 'Everything'], ['owned', 'Owned'], ['unowned', 'Not owned']].map(([k, l]) => `<button type="button" class="fchip ${Shop.show === k ? 'on' : ''}" data-show="${k}">${l}</button>`).join('')
     + `<span class="fcount">${shown.length} of ${all.length}</span>`;
-  const items = shown.slice().sort((a, b) => (owns(Shop.cat, b.id) - owns(Shop.cat, a.id)) || ((a.boss ? 1 : 0) - (b.boss ? 1 : 0)) || (a.price - b.price));
+  const items = shown.slice().sort((a, b) => (a.order == null ? 9999 : a.order) - (b.order == null ? 9999 : b.order));
   $('#shop-body').innerHTML = '<div class="shop-grid">' + items.map(it => {
     const own = owns(Shop.cat, it.id), eq = equippedId(Shop.cat) === it.id, locked = !own && it.lvl > lvl, rar = DATA.RARITY[it.rarity];
     let btn;
@@ -9009,6 +10111,8 @@ function drawFxIcon(ctx, w, h, cat, id) {
     if (id === 'confetti') { const CC = ['#ff5a5a', '#ffd24a', '#5ad2ff', '#7aff9a', '#d27aff']; for (let i = 0; i < 18; i++) { ctx.fillStyle = CC[i % 5]; ctx.fillRect(w / 2 + Math.cos(i * 1.4) * (20 + i * 3), cy - 10 + Math.sin(i * 1.4) * (14 + i * 2), 5, 3); } checker(w / 2, cy + 10, 0.5); }
     if (id === 'meteor') { const g = ctx.createLinearGradient(30, 12, w - 80, cy); g.addColorStop(0, 'rgba(255,138,42,0)'); g.addColorStop(1, 'rgba(255,210,90,0.95)'); ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(30, 10); ctx.lineTo(w - 70, cy - 12); ctx.lineTo(w - 70, cy + 12); ctx.closePath(); ctx.fill(); checker(w - 56, cy + 6, 0.52); }
     if (id === 'slam') { checker(w / 2, cy - 18, 0.55); ctx.strokeStyle = gold; for (const dx of [-34, -18, 18, 34]) { ctx.beginPath(); ctx.moveTo(w / 2 + dx, cy + 34); ctx.lineTo(w / 2 + dx * 1.6, cy + 42); ctx.stroke(); } ctx.beginPath(); ctx.moveTo(w / 2, cy - 62); ctx.lineTo(w / 2, cy - 44); ctx.moveTo(w / 2 - 8, cy - 52); ctx.lineTo(w / 2, cy - 44); ctx.lineTo(w / 2 + 8, cy - 52); ctx.stroke(); }
+  } else if (cat === 'hitFx') {
+    drawHitIcon(ctx, w, h, id, spr, chImg, checker);
   } else {
     if (id === 'swirl') { ctx.strokeStyle = '#f2e2c8'; ctx.beginPath(); for (let t = 0; t < 12; t += 0.1) { const r = 62 - t * 4.8, a = t * 1.1; const x = w / 2 + Math.cos(a) * r * 1.3, y = cy + Math.sin(a) * r * 0.6; t ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke(); die(w / 2, cy, 50, 4); }
     if (id === 'wave') { ctx.strokeStyle = '#9fd8ff'; for (let k = 0; k < 3; k++) { ctx.beginPath(); for (let x = 16; x < w - 70; x += 6) { const y = cy - 22 + k * 22 + Math.sin(x * 0.08 + k) * 8; x === 16 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); } ctx.stroke(); } die(w - 56, cy, 52, 6); }
@@ -9028,6 +10132,62 @@ function drawFxIcon(ctx, w, h, cat, id) {
     if (id === 'whirl') { ctx.strokeStyle = gold; ctx.beginPath(); for (let t = 0; t < 14; t += 0.1) { const r = 78 - t * 4.6, a = t * 0.9; const x = w / 2 + Math.cos(a) * r * 1.2, y = cy + Math.sin(a) * r * 0.6; t ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke(); die(w / 2, cy, 54, 5); }
     if (id === 'burst') { ctx.strokeStyle = gold; for (let i = 0; i < 12; i++) { const a = i / 12 * 6.283; ctx.beginPath(); ctx.moveTo(w / 2 + Math.cos(a) * 36, cy + Math.sin(a) * 36); ctx.lineTo(w / 2 + Math.cos(a) * (50 + (i % 2) * 12), cy + Math.sin(a) * (50 + (i % 2) * 12)); ctx.stroke(); } die(w / 2, cy, 54, 6); }
   }
+}
+/* shop picture for a hit effect: the checker caught in the middle of it */
+function drawHitIcon(ctx, w, h, id, spr, chImg, checker) {
+  const cx = w / 2, cy = h / 2 + 2, sc = 1.0, R = GEO.r * sc, TAU2 = Math.PI * 2;
+  const glow = (x, y, r, c, a) => { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a === undefined ? 1 : a; ctx.drawImage(FXC.glow(c), x - r, y - r, r * 2, r * 2); ctx.restore(); };
+  const piece = (x, y, wd, rot, alpha, tint, k) => {
+    const f = GEO.r / GFX.SPR.R, S = GFX.SPR.S, z = (k || 1) * sc;
+    ctx.save(); ctx.translate(x, y); ctx.scale(z, z); ctx.rotate(rot); ctx.translate(-wd.cx, -wd.cy);
+    ctx.globalAlpha = alpha; ctx.beginPath(); wd.path(ctx); ctx.save(); ctx.clip();
+    ctx.drawImage(spr, -GFX.SPR.cx * f, -GFX.SPR.cy * f, S * f, S * f);
+    if (tint) { ctx.globalAlpha = alpha * 0.45; ctx.fillStyle = tint; ctx.fillRect(-40, -40, 80, 80); }
+    ctx.restore(); ctx.globalAlpha = alpha * 0.85; ctx.lineWidth = 0.9; ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.beginPath(); wd.path(ctx); ctx.stroke(); ctx.restore();
+  };
+  const pieces = (n, rings, spread, tint, scatter) => { for (const wd of BoardView.prototype.wedges.call(null, n, rings)) { const d = wd.rm * sc * spread + (scatter ? Math.random() * scatter : 0); piece(cx + Math.cos(wd.am) * d, cy + Math.sin(wd.am) * d * 0.8, wd, (Math.random() - 0.5) * 1.6 * (spread > 0.4 ? 1 : 0.3), 1, tint); } };
+  const dot = (x, y, r, c, a) => { ctx.save(); ctx.globalAlpha = a === undefined ? 1 : a; ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU2); ctx.fill(); ctx.restore(); };
+  const star4 = (x, y, r, c) => { ctx.save(); ctx.strokeStyle = c; ctx.lineWidth = 1.6; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x - r, y); ctx.lineTo(x + r, y); ctx.moveTo(x, y - r); ctx.lineTo(x, y + r); ctx.stroke(); ctx.restore(); };
+  const rays = (n, r0, r1, c, lw) => { ctx.save(); ctx.strokeStyle = c; ctx.lineWidth = lw || 2; ctx.lineCap = 'round'; for (let i = 0; i < n; i++) { const a = i / n * TAU2 + 0.2; ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0 * 0.85); ctx.lineTo(cx + Math.cos(a) * (r1 + (i % 2) * 10), cy + Math.sin(a) * (r1 + (i % 2) * 10) * 0.85); ctx.stroke(); } ctx.restore(); };
+  const whole = (x, y, k, a) => { ctx.save(); ctx.globalAlpha = a === undefined ? 1 : a; ctx.translate(x, y); ctx.scale(k, k); const f = 0.55; if (chImg) ctx.drawImage(chImg, -84 * f, -84 * f, 168 * f, 168 * f); else ctx.drawImage(spr, -88 * f, -80 * f, 176 * f, 176 * f); ctx.restore(); };
+  const PAPER = ['#ff5a5a', '#ffd24a', '#5ad2ff', '#7aff9a', '#d27aff', '#ffffff'];
+  if (id === 'knock') {
+    ctx.strokeStyle = '#f1cf86'; ctx.lineWidth = 2.5; ctx.setLineDash([6, 6]); ctx.beginPath(); ctx.moveTo(cx - 70, cy + 22); ctx.quadraticCurveTo(cx - 10, cy - 70, cx + 62, cy + 16); ctx.stroke(); ctx.setLineDash([]);
+    glow(cx - 66, cy + 24, 26, '#ff7a5a', 0.9); star4(cx - 66, cy + 24, 14, '#ffffff'); whole(cx + 64, cy + 14, 0.8); rays(8, 22, 36, 'rgba(255,138,106,0.8)', 2);
+  } else if (id === 'squash') {
+    ctx.save(); ctx.translate(cx, cy + 8); ctx.scale(1.35, 0.5); whole(0, 0, 1.0); ctx.restore();
+    for (let i = 0; i < 4; i++) { const a = i / 4 * TAU2 + 0.5; star4(cx + Math.cos(a) * 40, cy - 22 + Math.sin(a) * 8, 6, ['#ffe14a', '#ff8fd0', '#7fe0ff', '#ffe14a'][i]); }
+  } else if (id === 'popper') {
+    whole(cx, cy + 4, 0.82); for (let i = 0; i < 30; i++) { const a = i * 2.4, d = 38 + (i * 13) % 46; ctx.save(); ctx.translate(cx + Math.cos(a) * d * 1.3, cy + Math.sin(a) * d * 0.85); ctx.rotate(i); ctx.fillStyle = PAPER[i % 6]; ctx.fillRect(-4, -2, 8, 4); ctx.restore(); }
+  } else if (id === 'shatter') {
+    pieces(8, 2, 1.0, null, 4); glow(cx, cy, 30, '#ffffff', 0.35); for (const [dx, dy] of [[-44, -26], [50, -20], [-30, 34], [40, 32]]) star4(cx + dx, cy + dy, 6, '#ffffff');
+  } else if (id === 'coins') {
+    for (let i = 0; i < 9; i++) { const a = i / 9 * TAU2 + 0.3, d = 24 + (i % 3) * 22, x = cx + Math.cos(a) * d * 1.4, y = cy + Math.sin(a) * d * 0.9, r = 9 + (i % 2) * 2; const g = ctx.createLinearGradient(x - r, y - r, x + r, y + r); g.addColorStop(0, '#fff2a8'); g.addColorStop(0.5, '#f2c84b'); g.addColorStop(1, '#c8921a'); ctx.save(); ctx.translate(x, y); ctx.scale(1, 0.55 + 0.45 * Math.abs(Math.cos(i * 1.7))); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU2); ctx.fill(); ctx.strokeStyle = '#a8740a'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, 0, r * 0.66, 0, TAU2); ctx.stroke(); ctx.restore(); }
+    glow(cx, cy, 34, '#ffd75a', 0.6);
+  } else if (id === 'explode') {
+    glow(cx, cy, 70, '#ff7a1a', 0.7); glow(cx, cy, 44, '#ffd24a', 0.9); glow(cx, cy, 22, '#ffffff', 1); pieces(7, 2, 1.25, '#2a0d04', 6); rays(12, 30, 52, 'rgba(255,170,60,0.85)', 2.5);
+  } else if (id === 'disintegrate') {
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, cx + 6, h); ctx.clip(); whole(cx - 8, cy + 4, 0.9); ctx.restore();
+    const sm = FXC.sampler(spr); for (let i = 0; i < 70; i++) { const px = GFX.SPR.cx + (Math.random() - 0.5) * 120, py = GFX.SPR.cy + (Math.random() - 0.5) * 120, c = sm.at(px, py) || '#c8b080', t = Math.random(); dot(cx + 6 + t * 74, cy - 8 + (Math.random() - 0.5) * 70 * (0.4 + t) - t * 16, 1.4 + (1 - t) * 1.8, c, 0.95 - t * 0.7); }
+  } else if (id === 'burn') {
+    whole(cx, cy + 6, 0.9); ctx.save(); ctx.fillStyle = 'rgba(14,8,5,0.72)'; ctx.beginPath(); ctx.ellipse(cx, cy + 6, R * 1.02, R * 1.02, 0, 0, TAU2); ctx.fill(); ctx.restore();
+    glow(cx, cy + 6, 38, '#ff6a1a', 0.4); for (let i = 0; i < 9; i++) { const a = i / 9 * TAU2, x = cx + Math.cos(a) * 24, y = cy + 4 + Math.sin(a) * 18; glow(x, y - 12, 14 + (i % 3) * 5, i % 2 ? '#ff8a2a' : '#ffd24a', 0.85); }
+  } else if (id === 'freeze') {
+    whole(cx, cy + 4, 0.9); ctx.save(); ctx.fillStyle = 'rgba(191,233,255,0.6)'; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy + 4, R * 1.02, 0, TAU2); ctx.fill(); ctx.stroke(); ctx.restore();
+    for (let i = 0; i < 12; i++) { const a = i / 12 * TAU2, r0 = R * 0.95, L = 10 + (i % 3) * 6; ctx.save(); ctx.translate(cx, cy + 4); ctx.rotate(a); ctx.fillStyle = i % 2 ? '#dff4ff' : '#9fd8ff'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(r0, -4); ctx.lineTo(r0 + L, 0); ctx.lineTo(r0, 4); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore(); }
+  } else if (id === 'lightning') {
+    whole(cx, cy + 14, 0.85); const pts = [[cx + 6, 2], [cx - 8, 22], [cx + 8, 34], [cx - 6, cy - 4], [cx + 2, cy + 6]]; ctx.save(); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    for (const [lw, a, c] of [[9, 0.3, '#9fd0ff'], [4, 0.8, '#bfe0ff'], [1.8, 1, '#ffffff']]) { ctx.globalAlpha = a; ctx.strokeStyle = c; ctx.lineWidth = lw; ctx.beginPath(); pts.forEach((q, i) => i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])); ctx.stroke(); } ctx.restore(); glow(cx, cy + 12, 40, '#9fd0ff', 0.5);
+  } else if (id === 'blackhole') {
+    glow(cx, cy, 64, '#7a3ae0', 0.5); dot(cx, cy, R * 1.05, '#06020c', 1); ctx.save(); ctx.strokeStyle = '#b784ff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(cx, cy, R * 1.15, R * 0.55, -0.3, 0, TAU2); ctx.stroke(); ctx.lineWidth = 1.5; ctx.strokeStyle = '#e8d4ff'; ctx.beginPath(); ctx.ellipse(cx, cy, R * 1.5, R * 0.75, -0.3, 0.4, 5.2); ctx.stroke(); ctx.restore();
+    const sm = FXC.sampler(spr); for (let i = 0; i < 40; i++) { const t = i / 40, a = t * 11, d = 60 * (1 - t) + 8; dot(cx + Math.cos(a) * d * 1.3, cy + Math.sin(a) * d * 0.7, 1.6 + (1 - t) * 1.6, sm.at(GFX.SPR.cx + 20, GFX.SPR.cy + 10) || '#cfd', 0.4 + t * 0.6); }
+  } else if (id === 'spirit') {
+    glow(cx, cy - 6, 56, '#cfe9ff', 0.55); whole(cx, cy - 6, 0.95, 0.5);
+    for (let i = 0; i < 7; i++) { const a = i * 1.1, x = cx + Math.sin(a * 2) * 30, y = cy + 20 + i * 5; glow(x, y, 8 + (i % 3) * 2, '#dff0ff', 0.35); } for (const [dx, dy] of [[-42, -24], [46, -30], [-34, 24], [40, 18]]) star4(cx + dx, cy + dy, 5, '#ffffff');
+  } else if (id === 'fireworks') {
+    const COLS = ['#ffd24a', '#ff5a7a', '#5ad2ff', '#ffffff', '#7aff9a']; for (let i = 0; i < 42; i++) { const a = i / 42 * TAU2, d = 34 + (i % 3) * 13, c = COLS[i % 5]; ctx.save(); ctx.strokeStyle = c; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * d * 0.6, cy - 10 + Math.sin(a) * d * 0.45); ctx.lineTo(cx + Math.cos(a) * d * 1.3, cy - 10 + Math.sin(a) * d * 0.95); ctx.stroke(); ctx.restore(); }
+    glow(cx, cy - 10, 26, '#fff2c8', 0.9); ctx.save(); ctx.strokeStyle = 'rgba(255,200,90,0.7)'; ctx.lineWidth = 3; ctx.setLineDash([3, 5]); ctx.beginPath(); ctx.moveTo(cx, h - 4); ctx.lineTo(cx, cy + 28); ctx.stroke(); ctx.restore();
+  } else if (id === 'knock') { whole(cx, cy, 1); }
 }
 function buyItem(cat, it) {
   const p = P(), lvl = levelNow();
@@ -9082,11 +10242,22 @@ function openPreview(cat, it) {
   v = makeView(cv, { small: true }); v.numbers = false;
   v.fit(Math.min(660, m.el.clientWidth - 48), 380);
   const e = P().equipped;
-  const cos = { board: e.board, checkers: e.checkers, dice: e.dice, moveFx: e.moveFx, throwFx: e.throwFx, trim: e.trim, inlay: e.inlay, mat: e.mat, cube: e.cube };
+  const cos = { board: e.board, checkers: e.checkers, dice: e.dice, moveFx: e.moveFx, throwFx: e.throwFx, hitFx: e.hitFx, trim: e.trim, inlay: e.inlay, mat: e.mat, cube: e.cube };
   cos[DATA.CATS[cat].slot] = it.id; v.setCosmetics(cos);
   if (cat === 'cubes') v.setCube({ show: true, value: 2, owner: 0, glow: false });
   v.snd = (n, a) => { if (SFX[n]) SFX[n](a); };
   v.start();
+  if (cat === 'hitFx') { // show the effect on a loop: land on a lone opposing checker
+    (async () => {
+      while (live) {
+        const pos = BG.startPos('classic'); pos.pts[9] = -1; v.clearDice(); v.setPos(pos); v.turnPlayer = 0;
+        await v.wait(800); if (!live) break;
+        await v.moveChecker({ from: 12, to: 9, die: 3, hit: true }, 0, 'glide');
+        await v.wait(1700);
+      }
+    })();
+    return;
+  }
   (async () => {
     while (live) {
       const pos = BG.startPos('classic'); v.clearDice(); v.setPos(pos); v.turnPlayer = 0;
