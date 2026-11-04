@@ -573,6 +573,14 @@ body.compact .shop-filters { padding-top: 4px; padding-bottom: 4px; }
 .on-alt { text-align: center; margin-top: 10px; }
 .linkbtn { background: none; border: 0; color: var(--mute); text-decoration: underline; cursor: pointer; font: inherit; font-size: 13px; padding: 4px 8px; }
 .linkbtn:hover { color: var(--ink); }
+.on-alt { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 10px; }
+.on-build { text-align: center; color: var(--mute); font-size: 11px; opacity: .7; margin-top: 8px; }
+.chk { display: flex; flex-direction: column; gap: 10px; margin: 4px 0 6px; }
+.chk-row { display: flex; gap: 10px; align-items: flex-start; text-align: left; }
+.chk-row small { color: var(--mute); font-size: 12.5px; line-height: 1.35; }
+.chk-ic { flex: 0 0 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; background: rgba(255,255,255,.12); color: var(--mute); margin-top: 1px; }
+.chk-ic.ok { background: rgba(120,200,130,.25); color: #8fe09b; }
+.chk-ic.bad { background: rgba(255,120,120,.25); color: #ff8a8a; }
 
 .on-code { overflow-wrap: anywhere; letter-spacing: .1em; padding-left: .1em; }
 .on-join { font-size: 28px; letter-spacing: .1em; }
@@ -7342,6 +7350,7 @@ const SFX = (() => {
    and rolls never need to be sent for trust, only for animation.
    ============================================================ */
 const Net = (() => {
+  const BUILD = '20261104-0948';
   const TOPIC = 'm', ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const HEARTBEAT = 2500, RESEND = 1400, LOST_AFTER = 14000;
   let ns = null, nsTried = false, S = null;
@@ -7554,66 +7563,122 @@ const Net = (() => {
      OFFER to another id, get an ANSWER back. The relay never sees game traffic; once the data channel opens we hang up. */
   const SIGNAL = () => window.__SIGNAL || 'wss://0.peerjs.com/peerjs';
   const idFor = (code) => 'bglegacy-' + code.toLowerCase();
-  function openSignal(id) {
+  const token = () => Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  const NO_SERVICE = 'Could not reach the matchmaking service. Try the manual codes instead.';
+  // Registers `id` with the matchmaking relay. A new id is confirmed by an OPEN message. Re-attaching with the SAME token
+  // (reuse) is how the real server lets a host come back after a drop: it answers nothing when the old registration is
+  // still alive, so a quiet open socket counts as registered once the server has had a moment to refuse it.
+  function openSignal(id, tok, reuse) {
+    tok = tok || token();
     return new Promise((resolve, reject) => {
-      let ws; const tok = Math.random().toString(36).slice(2);
-      try { ws = new WebSocket(SIGNAL() + (SIGNAL().includes('?') ? '&' : '?') + 'key=peerjs&id=' + encodeURIComponent(id) + '&token=' + tok); } catch (e) { reject(new Error('Could not reach the matchmaking service.')); return; }
-      let opened = false, hb = null; const handlers = [];
-      const api = { ws, on(fn) { handlers.push(fn); }, send(o) { try { if (ws.readyState === 1) ws.send(JSON.stringify(o)); } catch (e) { } }, close() { clearInterval(hb); try { ws.close(); } catch (e) { } } };
-      const timer = setTimeout(() => { if (!opened) { api.close(); reject(new Error('Could not reach the matchmaking service. Try the manual codes instead.')); } }, 9000);
+      let ws; try { ws = new WebSocket(SIGNAL() + (SIGNAL().includes('?') ? '&' : '?') + 'key=peerjs&id=' + encodeURIComponent(id) + '&token=' + tok); } catch (e) { reject(new Error(NO_SERVICE)); return; }
+      let done = false, hb = null, grace = null; const handlers = [];
+      const api = { ws, id, tok, closed: false, on(fn) { handlers.push(fn); }, send(o) { try { if (ws.readyState === 1) ws.send(JSON.stringify(o)); } catch (e) { } }, close() { api.closed = true; clearInterval(hb); clearTimeout(grace); try { ws.close(); } catch (e) { } } };
+      const win = () => { if (done) return; done = true; clearTimeout(timer); clearTimeout(grace); hb = setInterval(() => api.send({ type: 'HEARTBEAT' }), 5000); resolve(api); };
+      const lose = (msg) => { if (done) return; done = true; clearTimeout(timer); api.close(); reject(new Error(msg)); };
+      const timer = setTimeout(() => lose(NO_SERVICE), 9000);
+      if (reuse) ws.onopen = () => { grace = setTimeout(win, 1200); };
       ws.onmessage = (e) => {
         let m; try { m = JSON.parse(e.data); } catch (err) { return; }
-        if (m.type === 'OPEN') { opened = true; clearTimeout(timer); hb = setInterval(() => api.send({ type: 'HEARTBEAT' }), 5000); resolve(api); return; }
-        if (m.type === 'ID-TAKEN') { clearTimeout(timer); api.close(); reject(new Error('That code is already in use. Choose another.')); return; }
-        if (m.type === 'ERROR' || m.type === 'INVALID-KEY') { clearTimeout(timer); api.close(); reject(new Error('The matchmaking service refused the connection. Try the manual codes instead.')); return; }
+        if (!done) {
+          if (m.type === 'OPEN') { win(); return; }
+          if (m.type === 'ID-TAKEN') { lose('That code is already in use. Choose another.'); return; }
+          if (m.type === 'ERROR' || m.type === 'INVALID-KEY') { lose('The matchmaking service refused the connection. Try the manual codes instead.'); return; }
+        }
         handlers.forEach(f => f(m));
       };
-      ws.onerror = () => { if (!opened) { clearTimeout(timer); reject(new Error('Could not reach the matchmaking service. Try the manual codes instead.')); } };
-      ws.onclose = () => { if (!opened) { clearTimeout(timer); reject(new Error('Could not reach the matchmaking service. Try the manual codes instead.')); } else handlers.forEach(f => f({ type: 'CLOSED' })); };
+      ws.onerror = () => { if (!done) lose(NO_SERVICE); };
+      ws.onclose = () => { if (!done) lose(NO_SERVICE); else if (!api.closed) handlers.forEach(f => f({ type: 'CLOSED' })); };
     });
   }
   function softReset() {                                 // forget a half-finished handshake so a new guest can start clean
     S.peer = null; S.seq = 0; S.log = []; S.peerAck = 0; S.recv = 0; S.buf = new Map(); S.inbox = [];
     S.seedA = 0; S.seedB = 0; S.peerCommit = null; S.myReveal = false; S.peerReveal = null; S.peerProfile = null; S.left = false;
   }
-  const NOT_THERE = 'No game found with that code. Check it, and that your friend has created the game and is still on the waiting screen.';
+  const NOT_THERE = 'No game found with that code. Check the code, and that your friend has created the game and is still on the waiting screen. You both also need the same copy of the game (the same web address).';
+  const WAITING = 'Waiting for a friend to join…', LIVE = 'Your game is live. Waiting for a friend to join…';
   async function hostBroker(code, cfg, profile, cb) {
     code = cleanCode(code) || newCode(); if (code.length < MIN_CODE) throw new Error('Use at least 5 letters or numbers.');
-    let sig = await openSignal(idFor(code));              // must succeed once: it tells us the code is free and the service is reachable
+    const id = idFor(code), tok = token();
+    const first = await openSignal(id, tok, false);       // must succeed once: it tells us the code is free and the service is reachable
     const room = dcRoom();
     attach('host', code, room, cfg, profile, cb);
-    const mine = S; mine.sig = sig; let pc = null, linked = false, registering = false, attempt = 0;
+    const mine = S; mine.sig = first;
+    let pc = null, linked = false, registering = false, attempt = 0, seen = null, probe = null, probeTimer = null, strikes = 0, live = false, checking = false, quietUntil = 0;
     const note = (t, bad) => { if (S === mine && mine.cb.note) mine.cb.note(t, bad); };
+    const waiting = () => S === mine && !mine.ready && !linked;
     try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(l => { mine.wl = l; }).catch(() => { }); } catch (e) { }
+
     const onSig = async (m) => {
-      if (S !== mine || mine.ready) return;
-      if (m.type === 'CLOSED') { if (!linked) reRegister(); return; }
-      if (m.type !== 'OFFER') return;
-      const my = ++attempt; linked = false;               // a fresh offer replaces any attempt that did not finish
+      if (!waiting()) return;
+      if (m.type === 'CLOSED') { reRegister(); return; }
+      if (m.type !== 'OFFER' || !m.payload) return;
+      if (m.payload.probe) { mine.sig.send({ type: 'OFFER', dst: m.payload.probe, payload: { probeBack: 1 } }); return; }   // our own reachability check: answer it
+      if (!m.payload.sdp) return;
+      // the same offer again (the guest retried): repeat the answer, do not start over
+      if (seen && seen.src === m.src && seen.sdp === m.payload.sdp) { if (seen.answer) mine.sig.send({ type: 'ANSWER', dst: m.src, payload: { sdp: seen.answer } }); return; }
+      const my = ++attempt, rec = seen = { src: m.src, sdp: m.payload.sdp, answer: null }; linked = false; quietUntil = Date.now() + 45000;
       try {
         if (pc) { try { pc.close(); } catch (e) { } }
         softReset(); note('A friend is connecting…');
-        pc = new RTCPeerConnection({ iceServers: ICE }); room.bind(pc); const here = pc;
-        pc.ondatachannel = (ev) => { room.attach(ev.channel); ev.channel.addEventListener('open', () => { linked = true; try { mine.sig.close(); } catch (e) { } }); };
-        pc.onconnectionstatechange = () => { if (here === pc && here.connectionState === 'failed' && S === mine && !mine.ready) { linked = false; note('That connection failed. Different networks can block direct connections, so try the same Wi-Fi. The game is still open if they try again.', true); reRegister(); } };
-        await pc.setRemoteDescription({ type: 'offer', sdp: m.payload.sdp }); await pc.setLocalDescription(await pc.createAnswer()); await gather(pc);
-        mine.sig.send({ type: 'ANSWER', dst: m.src, payload: { sdp: pc.localDescription.sdp } });
-        setTimeout(() => { if (S === mine && !mine.ready && !linked && my === attempt) { note('A friend tried to join but the connection did not open. Try again, ideally on the same Wi-Fi.', true); } }, 30000);
-      } catch (e) { note('Could not connect to that player. The game is still open.', true); }
+        const here = pc = new RTCPeerConnection({ iceServers: ICE }); room.bind(here);
+        here.ondatachannel = (ev) => { room.attach(ev.channel); ev.channel.addEventListener('open', () => { linked = true; try { mine.sig.close(); } catch (e) { } try { if (probe) probe.close(); } catch (e) { } }); };
+        here.onconnectionstatechange = () => { if (here === pc && here.connectionState === 'failed' && waiting()) { linked = false; seen = null; note('That connection failed. Different networks can block direct connections, so try the same Wi-Fi. The game is still open if they try again.', true); reRegister(); } };
+        await here.setRemoteDescription({ type: 'offer', sdp: rec.sdp }); if (my !== attempt) return;
+        await here.setLocalDescription(await here.createAnswer()); if (my !== attempt) return;
+        await gather(here); if (my !== attempt || !waiting()) return;
+        rec.answer = here.localDescription.sdp;
+        mine.sig.send({ type: 'ANSWER', dst: rec.src, payload: { sdp: rec.answer } });
+        setTimeout(() => { if (waiting() && my === attempt) { note('A friend tried to join but the connection did not open. Try again, ideally on the same Wi-Fi.', true); seen = null; } }, 30000);
+      } catch (e) { seen = null; note('Could not connect to that player. The game is still open.', true); }
     };
-    sig.on(onSig);
-    // keep the code registered while we wait: reconnect if the socket drops (phones sleep, networks blip)
+    first.on(onSig);
+
+    // keep the code registered while we wait: come back if the socket drops (phones sleep, networks blip) using the same token
     const reRegister = async () => {
-      if (registering || S !== mine || mine.ready) return;
-      registering = true; note('Reconnecting to matchmaking…');
-      for (let i = 0; i < 60 && S === mine && !mine.ready; i++) {
-        try { const n = await openSignal(idFor(code)); if (S !== mine) { n.close(); break; } mine.sig = n; n.on(onSig); note('Waiting for a friend to join…'); registering = false; return; }
-        catch (e) { await new Promise(r => setTimeout(r, 1500 + Math.min(i, 8) * 400)); }
+      if (registering || !waiting()) return;
+      registering = true;
+      const old = mine.sig; if (old) old.close();
+      for (let i = 0; i < 80 && waiting(); i++) {
+        try { const n = await openSignal(id, tok, true); if (!waiting()) { n.close(); break; } mine.sig = n; n.on(onSig); registering = false; setTimeout(verify, 300); return; }
+        catch (e) {
+          if (/already in use/.test(e.message)) { registering = false; note('Someone else is using this code now. Cancel and create the game again.', true); return; }
+          if (i === 2) note('Reconnecting to matchmaking…', true);
+          await sleep(1200 + Math.min(i, 8) * 400);
+        }
       }
-      registering = false; if (S === mine && !mine.ready) note('Lost the matchmaking connection. Cancel and create the game again.', true);
+      registering = false; if (waiting()) note('Lost the matchmaking connection. Cancel and create the game again.', true);
     };
-    const vis = () => { if (document.visibilityState === 'visible' && S === mine && !mine.ready && mine.sig && mine.sig.ws.readyState > 1) reRegister(); };
-    document.addEventListener('visibilitychange', vis); mine.vis = vis;
+
+    // check from the outside that the code really is reachable: a second connection sends our own code an offer
+    const probeFail = () => {
+      clearTimeout(probeTimer); probeTimer = null; if (!waiting() || registering) return;
+      strikes++; live = false; if (strikes >= 2) note('Lost contact with matchmaking. Reconnecting…', true);
+      reRegister();
+    };
+    const verify = async () => {
+      if (!waiting() || registering || probeTimer || checking || Date.now() < quietUntil) return;
+      checking = true;
+      try {
+        if (!probe || probe.closed || probe.ws.readyState > 1) {
+          if (probe) probe.close();
+          const p = await openSignal('bgp-' + rid());
+          p.on((m) => {
+            if (m.type === 'EXPIRE' && probeTimer) { probeFail(); return; }
+            if (m.type === 'OFFER' && m.payload && m.payload.probeBack) { clearTimeout(probeTimer); probeTimer = null; strikes = 0; if (!live) { live = true; note(LIVE); } }
+          });
+          probe = p; mine.probe = p;
+        }
+      } catch (e) { return; } finally { checking = false; }   // cannot tell (the service itself is unreachable): the host socket's own retry covers it
+      if (!waiting()) return;
+      probeTimer = setTimeout(probeFail, 5500);
+      probe.send({ type: 'OFFER', dst: id, payload: { probe: probe.id } });
+    };
+    mine.timers.push(setInterval(verify, 15000), setTimeout(verify, 900));
+    const wake = () => { if (document.visibilityState === 'visible' && waiting()) { if (mine.sig && mine.sig.ws.readyState > 1) reRegister(); else verify(); } };
+    document.addEventListener('visibilitychange', wake); window.addEventListener('online', wake);
+    mine.off = () => { document.removeEventListener('visibilitychange', wake); window.removeEventListener('online', wake); };
     return code;
   }
   async function joinBroker(code, profile, cb) {
@@ -7621,24 +7686,73 @@ const Net = (() => {
     const sig = await openSignal('bgg-' + rid()), room = dcRoom(), pc = new RTCPeerConnection({ iceServers: ICE }), ch = pc.createDataChannel('bg', { ordered: true });
     room.bind(pc); room.attach(ch); ch.addEventListener('open', () => sig.close());
     attach('guest', code, room, null, profile, cb);
-    const mine = S; mine.sig = sig; let answered = false;
+    const mine = S; mine.sig = sig; let answered = false, tries = 0, watch = null;
+    const MAX_TRIES = 4;
     const note = (t) => { if (S === mine && mine.cb.note) mine.cb.note(t); };
     pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed' && S === mine && !mine.ready && mine.cb.fail) { mine.cb.fail(new Error('Could not connect. Different networks can block direct connections: try both devices on the same Wi-Fi, or use the manual codes.')); close(true); } };
+    const sendOffer = () => {
+      if (S !== mine || answered) return;
+      tries++; sig.send({ type: 'OFFER', dst: idFor(code), payload: { sdp: pc.localDescription.sdp } });
+      clearTimeout(watch); watch = setTimeout(missed, 9000);   // a silent relay counts the same as an expiry
+    };
+    const missed = () => {                                  // nobody answered: the host may be reconnecting, so ask again a few times
+      clearTimeout(watch); if (S !== mine || answered) return;
+      if (tries >= MAX_TRIES) { if (mine.cb.fail) mine.cb.fail(new Error(NOT_THERE)); close(true); return; }
+      note('Looking for the game… (try ' + (tries + 1) + ' of ' + MAX_TRIES + ')');
+      watch = setTimeout(sendOffer, 1500);
+    };
+    mine.stop = () => clearTimeout(watch);
     sig.on(async (m) => {
       if (S !== mine) return;
-      if (m.type === 'EXPIRE') { if (mine.cb.fail) mine.cb.fail(new Error(NOT_THERE)); close(true); return; }
+      if (m.type === 'EXPIRE') { if (!answered && (m.src === idFor(code) || !m.src)) missed(); return; }
       if (m.type === 'ANSWER') {
-        answered = true; note('Found the game, connecting…');
+        if (answered) return; answered = true; clearTimeout(watch); note('Found the game, connecting…');
         try { await pc.setRemoteDescription({ type: 'answer', sdp: m.payload.sdp }); } catch (e) { if (mine.cb.fail) mine.cb.fail(new Error('Could not connect to that player.')); close(true); return; }
         setTimeout(() => { if (S === mine && !mine.ready && !mine.peer && mine.cb.fail) { mine.cb.fail(new Error('Found the game but the connection did not open. Different networks can block direct connections: try the same Wi-Fi, or use the manual codes.')); close(true); } }, 30000);
       }
     });
     await pc.setLocalDescription(await pc.createOffer()); await gather(pc);
-    sig.send({ type: 'OFFER', dst: idFor(code), payload: { sdp: pc.localDescription.sdp } });
+    sendOffer();
     send('hello', { name: profile.name, av: profile.av });
-    setTimeout(() => { if (S === mine && !answered && !mine.ready && mine.cb.fail) { mine.cb.fail(new Error(NOT_THERE)); close(true); } }, 20000);
     return code;
   }
+  /* ---------- connection check: says in plain words what works on this device ---------- */
+  function iceProbe() {                                   // which kinds of connection routes this network can find
+    return new Promise((resolve) => {
+      const r = { host: 0, srflx: 0, relay: 0 }; let pc, done = false;
+      const fin = () => { if (done) return; done = true; try { pc.close(); } catch (e) { } resolve(r); };
+      try { pc = new RTCPeerConnection({ iceServers: ICE }); pc.createDataChannel('x'); } catch (e) { resolve(null); return; }
+      pc.onicecandidate = (e) => { if (!e.candidate) { fin(); return; } const t = e.candidate.type || (/ typ (\w+)/.exec(e.candidate.candidate) || [])[1]; if (t && r[t] !== undefined) r[t]++; };
+      pc.createOffer().then(o => pc.setLocalDescription(o)).catch(fin); setTimeout(fin, 6000);
+    });
+  }
+  async function check(step) {
+    const out = [], add = (ok, label, detail) => { const r = { ok, label, detail }; out.push(r); if (step) step(r, out); return r; };
+    const where = (location && location.host) || 'a local file', inClaude = !!(window.claude && window.claude.use);
+    add(null, 'This copy of the game', 'Build ' + BUILD + ' on ' + where + (inClaude ? ' (inside Claude)' : '') + '. Both players need the same copy.');
+    if (!p2pSupported()) { add(false, 'Direct connections', inClaude ? 'This page is running inside Claude, where codes work over the shared Claude link only. Open the game from its own web address on both devices to use direct connections.' : 'This browser does not support direct connections.'); return out; }
+    let a = null, b = null, t0 = Date.now();
+    try { a = await openSignal('bgc-' + rid()); add(true, 'Matchmaking service', 'Reachable (' + (Date.now() - t0) + ' ms).'); }
+    catch (e) { add(false, 'Matchmaking service', 'Could not connect. Something on this network or browser is blocking it (ad blockers, school or work networks, and VPNs often do).'); }
+    if (a) {
+      try {
+        b = await openSignal('bgc-' + rid()); t0 = Date.now();
+        const got = new Promise((res) => { a.on((m) => { if (m.type === 'OFFER' && m.payload && m.payload.probe) res(true); }); setTimeout(() => res(false), 6000); });
+        b.send({ type: 'OFFER', dst: a.id, payload: { probe: 1 } });
+        add(await got, 'Finding a game by its code', (Date.now() - t0 < 6000) ? 'Works (' + (Date.now() - t0) + ' ms).' : 'A message sent to a registered code never arrived. The matchmaking service is accepting connections but not passing messages on.');
+      } catch (e) { add(false, 'Finding a game by its code', 'Could not open a second connection to test with.'); }
+      try { a.close(); if (b) b.close(); } catch (e) { }
+    }
+    const r = await iceProbe();
+    if (!r) add(false, 'Network routes', 'Could not test.');
+    else {
+      add(r.host > 0 || r.srflx > 0, 'Same Wi-Fi', (r.host > 0 || r.srflx > 0) ? 'Should work.' : 'No local address found, so even same-Wi-Fi play may fail. Try another browser.');
+      add(r.srflx > 0, 'Different networks (public address)', r.srflx > 0 ? 'Found. Playing across different networks can work.' : 'Not found. Only players on the same Wi-Fi can connect; use the same network, or the manual codes.');
+      add(r.relay > 0 ? true : null, 'Backup relay', r.relay > 0 ? 'Available, used when a direct route is blocked.' : 'Not reachable. If the two networks cannot link directly, connecting may fail.');
+    }
+    return out;
+  }
+
   async function host(cfg, profile, cb, code) {
     code = cleanCode(code) || newCode(); if (code.length < MIN_CODE) throw new Error('Use at least 5 letters or numbers.');
     await enter('host', code, cfg, profile, cb); return code;
@@ -7654,7 +7768,8 @@ const Net = (() => {
   function close(silent) {
     if (!S) return;
     const s = S; S = null;
-    s.closed = true; s.timers.forEach(clearInterval); if (s.sig) s.sig.close(); try { if (s.wl) s.wl.release(); if (s.vis) document.removeEventListener('visibilitychange', s.vis); } catch (e) { }
+    s.closed = true; s.timers.forEach(clearInterval); if (s.sig) s.sig.close(); if (s.probe) s.probe.close(); if (s.stop) s.stop(); if (s.off) s.off();
+    try { if (s.wl) s.wl.release(); } catch (e) { }
     for (const w of s.waiters) w.res(null);
     try { s.room.leave(); } catch (e) { }
   }
@@ -7665,7 +7780,7 @@ const Net = (() => {
   function voteRematch() { if (!S) return; S.vote.me = true; send('rematch', {}); checkVotes(); }
 
   return {
-    available, host, join, leave, close, send, next, voteRematch, cleanCode, p2pSupported, hostP2P, joinP2P, hostBroker, joinBroker, MIN_CODE, newCode,
+    available, host, join, leave, close, send, next, voteRematch, cleanCode, p2pSupported, hostP2P, joinP2P, hostBroker, joinBroker, check, build: BUILD, MIN_CODE, newCode,
     die: () => (S && S.rng) ? 1 + Math.floor(S.rng() * 6) : 1 + Math.floor(Math.random() * 6),
     rand: () => (S && S.rng) ? S.rng() : Math.random(),
     get active() { return !!(S && !S.closed); },
@@ -10550,9 +10665,10 @@ function openPreview(cat, it) {
 // peer-to-peer connection where the creator is the host and the two players swap one code each.
 async function openOnline() {
   const st = P().settings;
-  let cfg = { matchLen: 3, cube: true, variant: 'classic', gammons: true }, busy = false, api = null, mode = 'none', hostH = null, manual = false, wantCode = Net.newCode();
+  let cfg = { matchLen: 3, cube: true, variant: 'classic', gammons: true }, busy = false, api = null, mode = 'none', hostH = null, manual = false, wantCode = Net.newCode(), checkReport = '';
   const brokered = () => mode === 'p2p' && !manual;
-  const fallbackBtn = () => mode !== 'p2p' ? '' : manual ? '<div class="on-alt"><button class="linkbtn" data-go="short">Use a short code instead</button></div>' : '<div class="on-alt"><button class="linkbtn" data-go="manual">Not connecting? Use manual codes instead</button></div>';
+  const fallbackBtn = () => mode !== 'p2p' ? '' : '<div class="on-alt">' + (manual ? '<button class="linkbtn" data-go="short">Use a short code instead</button>' : '<button class="linkbtn" data-go="manual">Not connecting? Use manual codes instead</button>') + '<button class="linkbtn" data-go="check">Check my connection</button></div>';
+  const buildLine = () => `<div class="on-build">Build ${esc(Net.build)} · ${esc((location && location.host) || 'local file')}</div>`;
   const myName = () => (st.onlineName || 'Player').trim().slice(0, 14) || 'Player';
   const profile = () => { st.onlineName = myName(); Store.save(); return { name: st.onlineName, av: '🎲' }; };
   const body = () => $('#on-body', api.el);
@@ -10566,8 +10682,24 @@ async function openOnline() {
   const home = () => {
     const ok = mode !== 'none';
     body().innerHTML = `<div class="on-name"><label for="on-name"><b>Your name</b></label><input id="on-name" maxlength="14" value="${esc(st.onlineName || 'Player')}" autocomplete="off"></div>
-      ${ok ? (mode === 'p2p' ? '<div class="reward-note" style="margin:10px 0">Connects your two devices directly. Whoever creates the game is the host. Pick any code of 5 or more characters, and your friend types the same one to join.</div>' : '') : '<div class="reward-note" style="margin:10px 0">Online play needs a browser that supports direct connections, or this game opened from its shared Claude link with permission to interact.</div>'}
-      <div class="btns"><button class="btn" data-go="close">Close</button><button class="btn" data-go="join" ${ok ? '' : 'disabled'}>Join a game</button><button class="btn primary" data-go="create" ${ok ? '' : 'disabled'}>Create a game</button></div>`;
+      ${ok ? (mode === 'p2p' ? '<div class="reward-note" style="margin:10px 0">Connects your two devices directly. Whoever creates the game is the host. Pick any code of 5 or more characters, and your friend types the same one to join. You both need to use the same web address.</div>' : '<div class="reward-note" style="margin:10px 0">This copy is running inside Claude, so your friend has to open the same Claude link. They cannot join from a different web address.</div>') : '<div class="reward-note" style="margin:10px 0">Online play needs a browser that supports direct connections, or this game opened from its shared Claude link with permission to interact.</div>'}
+      <div class="btns"><button class="btn" data-go="close">Close</button><button class="btn" data-go="join" ${ok ? '' : 'disabled'}>Join a game</button><button class="btn primary" data-go="create" ${ok ? '' : 'disabled'}>Create a game</button></div>${mode === 'p2p' ? '<div class="on-alt"><button class="linkbtn" data-go="check">Check my connection</button></div>' : ''}${buildLine()}`;
+  };
+  const checkView = async () => {
+    const ic = (ok) => ok === true ? '<span class="chk-ic ok">✓</span>' : ok === false ? '<span class="chk-ic bad">✗</span>' : '<span class="chk-ic">•</span>';
+    const row = (r) => `<div class="chk-row">${ic(r.ok)}<div><b>${esc(r.label)}</b><br><small>${esc(r.detail)}</small></div></div>`;
+    let rows = [];
+    const draw = (done) => { body().innerHTML = `<div class="chk">${rows.map(row).join('') || ''}${done ? '' : '<div class="msg-line" id="on-status">Checking…</div>'}</div>
+      <div class="btns"><button class="btn" data-go="home">Back</button><button class="btn" data-go="copyreport" ${done ? '' : 'disabled'}>Copy report</button></div>`; };
+    draw(false);
+    const res = await Net.check((r, all) => { rows = all.slice(); draw(false); });
+    rows = res; checkReport = res.map(r => (r.ok === true ? '[ok] ' : r.ok === false ? '[FAIL] ' : '[i] ') + r.label + ': ' + r.detail).join('\n');
+    const bad = res.filter(r => r.ok === false), core = bad.filter(r => !/^Different networks/.test(r.label));
+    draw(true);
+    const sum = !bad.length ? 'This device looks fine. If joining still fails, run this check on the other device too, and make sure you are both on the same web address.'
+      : core.length ? 'Something on this device or network is getting in the way (see the crosses above). Send a screenshot of this report and I can tell you what to change.'
+      : 'Playing with someone on the same Wi-Fi should work, but this network cannot connect to players on other networks.';
+    const box = $('.chk', api.el); if (box) box.insertAdjacentHTML('beforeend', `<div class="msg-line" style="text-align:left">${esc(sum)}</div>`);
   };
   const create = () => {
     body().innerHTML = `<div class="on-name"><b>Match length</b><span class="seg" id="on-len">${[1, 3, 5, 7].map(n => chip(n, n === 1 ? 'Single game' : 'First to ' + n, cfg.matchLen === n)).join('')}</span></div>
@@ -10581,7 +10713,7 @@ async function openOnline() {
     body().innerHTML = `<p class="lead" style="margin-top:0">Tell your friend this code. They choose <b>Join a game</b> and type it in.</p>
       <div class="on-code" id="on-code" style="font-size:${Math.max(26, Math.min(64, Math.floor(330 / (code.length * 0.95))))}px">${esc(code)}</div>
       <div class="msg-line" id="on-status">Waiting for a friend to join…</div>
-      <div class="btns"><button class="btn" data-go="copy" data-from="on-code">Copy code</button><button class="btn danger" data-go="cancel">Cancel</button></div>`;
+      <div class="btns"><button class="btn" data-go="copy" data-from="on-code">Copy code</button><button class="btn danger" data-go="cancel">Cancel</button></div>${buildLine()}`;
   };
   const waitingP2P = (code) => {
     body().innerHTML = `<p class="lead" style="margin:0 0 6px"><b>1.</b> Send this code to your friend, in any message.</p>
@@ -10596,7 +10728,7 @@ async function openOnline() {
     body().innerHTML = `<p class="lead" style="margin-top:0">Type the code your friend chose.</p>
       <input id="on-join" class="on-join" maxlength="16" placeholder="GAMECODE" autocomplete="off" autocapitalize="characters" spellcheck="false">
       <div class="msg-line" id="on-status"></div>
-      <div class="btns"><button class="btn" data-go="home">Back</button><button class="btn primary" data-go="doJoin">Join</button></div>${fallbackBtn()}`;
+      <div class="btns"><button class="btn" data-go="home">Back</button><button class="btn primary" data-go="doJoin">Join</button></div>${fallbackBtn()}${buildLine()}`;
     setTimeout(() => { const i = $('#on-join', api.el); if (i) i.focus(); }, 40);
   };
   const joinP2PView = () => {
@@ -10630,6 +10762,8 @@ async function openOnline() {
         if (go === 'close') { api.close(); return; }
         if (go === 'home' || go === 'cancel') { Net.close(); hostH = null; home(); return; }
         if (go === 'create') { create(); return; }
+        if (go === 'check') { Net.close(); checkView(); return; }
+        if (go === 'copyreport') { try { await navigator.clipboard.writeText('Backgammon Legacy connection check\nBuild ' + Net.build + ' on ' + ((location && location.host) || 'local file') + '\n' + checkReport); toast('Copied'); } catch (err) { toast('Could not copy. A screenshot works too.'); } return; }
         if (go === 'join') { (mode === 'p2p' && manual) ? joinP2PView() : joinRoomView(); return; }
         if (go === 'rand') { wantCode = Net.newCode(); const i = $('#on-codein', api.el); if (i) i.value = wantCode; return; }
         if (go === 'manual' || go === 'short') { manual = go === 'manual'; if ($('#on-join', api.el)) (manual ? joinP2PView : joinRoomView)(); else create(); return; }
