@@ -364,7 +364,7 @@ i.opp, .st-legend i.opp { background: var(--opp); }
 @media (max-width: 520px) { .st-grid { grid-template-columns: 1fr; } .vs-row { grid-template-columns: 1fr; gap: 4px; } }
 
 /* ---------- wild mode ---------- */
-.perk-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.perk-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; max-height: 56vh; overflow-y: auto; }
 .perk-card { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; text-align: left; padding: 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel); transition: transform .12s, border-color .15s; }
 .perk-card:hover { border-color: var(--brass); transform: translateY(-2px); }
 .perk-card.on { border-color: var(--brass); background: rgba(217,172,78,0.14); box-shadow: inset 0 0 0 1px var(--brass); }
@@ -376,6 +376,19 @@ i.opp, .st-legend i.opp { background: var(--opp); }
 .perk-side { display: flex; gap: 8px; align-items: center; }
 .perk { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--brass); background: rgba(217,172,78,0.14); font-weight: 700; font-size: 13px; color: var(--ink); min-height: 36px; }
 .perk .pk-ico { font-size: 16px; line-height: 1; }
+.perk .pk-c { display: inline-grid; place-items: center; min-width: 20px; height: 20px; border-radius: 50%; background: #2b7fd8; color: #fff; font-size: 12px; font-weight: 800; }
+.perk.ready { box-shadow: 0 0 0 1px rgba(255,225,120,0.5), 0 0 12px rgba(255,215,90,0.25); }
+.perk.short .pk-c { background: #555; }
+.energy { display: inline-flex; gap: 4px; align-items: center; padding: 0 4px; }
+.energy i { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.35); display: block; }
+.energy i.on { background: #4aa3ff; border-color: #4aa3ff; box-shadow: 0 0 6px rgba(74,163,255,0.7); }
+.energy.opp i.on { background: #ff8f6a; border-color: #ff8f6a; box-shadow: 0 0 6px rgba(255,143,106,0.6); }
+.energy-n { display: none; font-size: 13px; font-weight: 800; color: #4aa3ff; }
+.energy.opp .energy-n { color: #ff8f6a; }
+@media (max-width: 760px) { .energy i { display: none; } .energy-n { display: inline; } .perk-opp { display: none; } }
+.energy-lbl { color: var(--mute); font-size: 12px; font-weight: 700; margin-right: 2px; }
+.perk-card { position: relative; }
+.perk-card .pk-cost { position: absolute; top: 8px; right: 8px; min-width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: #2b7fd8; color: #fff; font-weight: 800; font-size: 13px; }
 .perk:disabled { opacity: .45; border-color: var(--line); background: rgba(255,255,255,0.04); cursor: not-allowed; }
 .perk.spent { opacity: .3; text-decoration: line-through; }
 .perk:not(:disabled):hover { background: rgba(217,172,78,0.28); }
@@ -387,7 +400,7 @@ body.compact .perkbar { padding-top: 2px; padding-bottom: 2px; }
 body.compact .perk { padding: 2px 9px; min-height: 30px; }
 body.compact .perk .pk-name { display: none; }
 body.compact .perk-opp { width: 24px; height: 24px; font-size: 12px; }
-@media (max-width: 520px) { .perk .pk-name { display: none; } .perk { padding: 6px 12px; } .perk-side.opp small { display: none; } }
+@media (max-width: 520px) { .energy-lbl { display: none; } .perk .pk-name { display: none; } .perk { padding: 6px 12px; } .perk-side.opp small { display: none; } }
 
 /* ---------- chapter scenes ---------- */
 .scene { width: 100%; height: 100%; display: block; }
@@ -578,7 +591,7 @@ body.compact .shop-filters { padding-top: 4px; padding-bottom: 4px; }
       <div class="menu-btns">
         <button class="menu-btn hero" id="m-campaign"><span class="ico"><svg viewBox="0 0 24 24"><path d="M4 21V4m0 0h12l-2 4 2 4H4"/></svg></span><span><b>Campaign</b><small>25 opponents across five chapters</small></span></button>
         <button class="menu-btn" title="Five difficulties, six play styles" id="m-quick"><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.2"/><circle cx="15.5" cy="15.5" r="1.2"/><circle cx="12" cy="12" r="1.2"/></svg></span><span><b>Play the Computer</b><small>Five difficulties, six play styles</small></span></button>
-        <button class="menu-btn" title="Draft perks and bend the dice" id="m-wild"><span class="ico"><svg viewBox="0 0 24 24"><path d="M12 3l1.900 5.100L19 10l-5.100 1.900L12 17l-1.900-5.100L5 10l5.100-1.900L12 3ZM18 15l.8 2.200L21 18l-2.200.8L18 21l-.8-2.200L15 18l2.200-.8L18 15Z"/></svg></span><span><b>Wild Mode</b><small>Draft perks and bend the dice</small></span></button>
+        <button class="menu-btn" title="Draft powers, spend energy and bend the rules" id="m-wild"><span class="ico"><svg viewBox="0 0 24 24"><path d="M12 3l1.900 5.100L19 10l-5.100 1.900L12 17l-1.900-5.100L5 10l5.100-1.900L12 3ZM18 15l.8 2.200L21 18l-2.200.8L18 21l-.8-2.200L15 18l2.200-.8L18 15Z"/></svg></span><span><b>Wild Mode</b><small>Draft powers and spend energy</small></span></button>
         <button class="menu-btn" title="Pass and play on one screen" id="m-two"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3.2"/><circle cx="16.5" cy="9" r="2.6"/><path d="M2.5 20c.6-3.6 3-5.4 5.5-5.4S12.900 16.400 13.500 20M14 15c2.600-.6 5.800.6 6.500 5"/></svg></span><span><b>Two Players</b><small>Pass and play on one screen</small></span></button>
         <button class="menu-btn" title="Play a friend on another device with a room code" id="m-online"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg></span><span><b>Play online</b><small>Challenge a friend with a room code</small></span></button>
         <button class="menu-btn" title="Boss trophies and your star map" id="m-trophy"><span class="ico"><svg viewBox="0 0 24 24"><path d="M7 4h10v5a5 5 0 0 1-10 0V4ZM7 6H4v1.500A3.500 3.500 0 0 0 7 11M17 6h3v1.500A3.500 3.500 0 0 1 17 11M12 14v4M8 20h8"/></svg></span><span><b>Trophy Room</b><small>Boss trophies and your star map</small></span></button>
@@ -664,7 +677,9 @@ const BG = (() => {
 
   const emptyPos = () => ({ pts: new Array(24).fill(0), bar: [0, 0], off: [0, 0] });
   // shield[p] (Wild mode, Safe Harbor): while set, player p's lone checkers cannot be hit. The array is replaced, never mutated.
-  const clone = (p) => ({ pts: p.pts.slice(), bar: p.bar.slice(), off: p.off.slice(), shield: p.shield });
+  // walls (Wild, Wall): { [point]: { by, left } } stops the other side landing on a point; pins (Wild, Lock): { pt, victim, by } stops that player's checkers on pt moving.
+  // Both are replaced, never mutated, like shield.
+  const clone = (p) => ({ pts: p.pts.slice(), bar: p.bar.slice(), off: p.off.slice(), shield: p.shield, walls: p.walls, pins: p.pins });
 
   // spec: { pointNumber(own perspective): count, bar: n }
   function placeSide(pos, p, spec) {
@@ -722,11 +737,12 @@ const BG = (() => {
 
   function movesFor(pos, p, d) {
     const out = [];
-    const opp = 1 - p, sh = !!(pos.shield && pos.shield[opp]);
+    const opp = 1 - p, sh = !!(pos.shield && pos.shield[opp]), wl = pos.walls, pin = pos.pins && pos.pins.victim === p ? pos.pins.pt : -1;
+    const open = (to, oc) => oc < 2 && !(oc === 1 && sh) && !(wl && wl[to] && wl[to].by !== p);
     if (pos.bar[p] > 0) {
       const to = p === 0 ? 24 - d : d - 1;
       const oc = cnt(pos, opp, to);
-      if (oc < 2 && !(oc === 1 && sh)) out.push({ from: BAR, to, die: d, hit: oc === 1 });
+      if (open(to, oc)) out.push({ from: BAR, to, die: d, hit: oc === 1 });
       return out;
     }
     const bo = allHome(pos, p);
@@ -736,7 +752,7 @@ const BG = (() => {
       else { for (let i = 18; i < 24; i++) if (pos.pts[i] < 0) { maxDist = 24 - i; break; } }
     }
     for (let i = 0; i < 24; i++) {
-      if (cnt(pos, p, i) === 0) continue;
+      if (cnt(pos, p, i) === 0 || i === pin) continue;
       const to = p === 0 ? i - d : i + d;
       if (to < 0 || to > 23) {
         if (!bo) continue;
@@ -744,10 +760,65 @@ const BG = (() => {
         if (d === dist || (d > dist && dist === maxDist)) out.push({ from: i, to: OFF, die: d, hit: false });
       } else {
         const oc = cnt(pos, opp, to);
-        if (oc < 2 && !(oc === 1 && sh)) out.push({ from: i, to, die: d, hit: oc === 1 });
+        if (open(to, oc)) out.push({ from: i, to, die: d, hit: oc === 1 });
       }
     }
     return out;
+  }
+
+  /* ----- Wild mode powers: rules that act on the position directly (no dice) ----- */
+  const sgn = (p) => (p === 0 ? 1 : -1);
+  const canLand = (pos, p, to) => {
+    if (to < 0 || to > 23) return false;
+    const oc = cnt(pos, 1 - p, to);
+    if (oc >= 2 || (oc === 1 && pos.shield && pos.shield[1 - p])) return false;
+    return !(pos.walls && pos.walls[to] && pos.walls[to].by !== p);
+  };
+  const isPinned = (pos, p, i) => !!(pos.pins && pos.pins.victim === p && pos.pins.pt === i);
+  function freeMove(pos, p, from, to) {   // move one checker with no die; a lone enemy checker on the target is hit
+    const n = clone(pos); n.total = pos.total; const s = sgn(p), opp = 1 - p, hit = cnt(pos, opp, to) === 1;
+    if (from === BAR) n.bar[p]--; else n.pts[from] -= s;
+    if (hit) { n.pts[to] = 0; n.bar[opp]++; }
+    n.pts[to] += s;
+    return { pos: n, hit };
+  }
+  function dashTargets(pos, p) {            // Dash: one checker one pip forward
+    const out = [];
+    if (pos.bar[p] > 0) return out;
+    for (let i = 0; i < 24; i++) {
+      if (cnt(pos, p, i) === 0 || isPinned(pos, p, i)) continue;
+      const to = p === 0 ? i - 1 : i + 1;
+      if (canLand(pos, p, to)) out.push({ from: i, to, hit: cnt(pos, 1 - p, to) === 1 });
+    }
+    return out;
+  }
+  function sanctuaryTargets(pos, p) {       // Sanctuary: enter from the bar on any open point
+    const out = [];
+    if (pos.bar[p] === 0) return out;
+    for (let k = 0; k < 6; k++) { const i = p === 0 ? 18 + k : k; if (canLand(pos, p, i)) out.push({ from: BAR, to: i, hit: cnt(pos, 1 - p, i) === 1 }); }   // the six points a checker enters on, whatever the dice
+    return out;
+  }
+  function exchangePairs(pos, p) {          // Exchange: swap one of your lone checkers with one of theirs
+    const out = [], opp = 1 - p, wl = pos.walls;
+    if (pos.bar[p] > 0 || (pos.shield && pos.shield[opp])) return out;
+    for (let a = 0; a < 24; a++) {
+      if (cnt(pos, p, a) !== 1 || cnt(pos, opp, a) !== 0 || isPinned(pos, p, a)) continue;
+      for (let b = 0; b < 24; b++) if (b !== a && cnt(pos, opp, b) === 1 && cnt(pos, p, b) === 0 && !(wl && wl[a] && wl[a].by !== p) && !(wl && wl[b] && wl[b].by !== p)) out.push({ a, b });
+    }
+    return out;
+  }
+  function exchange(pos, a, b) { const n = clone(pos); n.total = pos.total; n.pts[a] = -n.pts[a]; n.pts[b] = -n.pts[b]; return n; }
+  const wallTargets = (pos, p) => { const out = []; for (let i = 0; i < 24; i++) if (cnt(pos, 1 - p, i) === 0 && !(pos.walls && pos.walls[i])) out.push(i); return out; };
+  const lockTargets = (pos, p) => { const out = []; if (pos.pins) return out; for (let i = 0; i < 24; i++) if (cnt(pos, 1 - p, i) > 0) out.push(i); return out; };
+  function setWall(pos, p, pt, left) { const n = clone(pos); n.total = pos.total; n.walls = Object.assign({}, pos.walls || {}); n.walls[pt] = { by: p, left: left || 2 }; return n; }
+  function setPin(pos, p, pt) { const n = clone(pos); n.total = pos.total; n.pins = { pt, victim: 1 - p, by: p }; return n; }
+  // called when player `ended` finishes a turn: walls that blocked them wear down, a pin on them is lifted
+  function tickTurn(pos, ended) {
+    if (!pos.walls && !pos.pins) return pos;
+    const n = clone(pos); n.total = pos.total;
+    if (pos.walls) { const w = {}; let any = false; for (const k in pos.walls) { const e = pos.walls[k]; if (e.by !== ended) { if (e.left > 1) { w[k] = { by: e.by, left: e.left - 1 }; any = true; } } else { w[k] = e; any = true; } } n.walls = any ? w : undefined; }
+    if (pos.pins && pos.pins.victim === ended) n.pins = undefined;
+    return n;
   }
 
   function applyMove(pos, p, m) {
@@ -903,6 +974,7 @@ const BG = (() => {
 
   return {
     BAR, OFF, VARIANTS, emptyPos, clone, startPos, cnt, allHome, movesFor, applyMove, key, diceToList,
+    freeMove, dashTargets, sanctuaryTargets, exchangePairs, exchange, wallTargets, lockTargets, setWall, setPin, tickTurn, canLand, isPinned,
     genTurns, maxPlay, legalNext, winnerOf, gameValue, pips, onBoard, inContact, rollDie, total,
   };
 })();
@@ -4494,7 +4566,7 @@ Object.assign(BoardView.prototype, {
   fxDraw(ctx, phase) {
     const ps = this.parts;
     if (phase === 'ground') { for (const p of ps) if (p.ground) this.fxPart(ctx, p); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; return; }
-    if (phase !== 'over') { this.fxTrails(ctx); this.fxAuras(ctx); for (const p of ps) if (p.under && (phase === 'all' || !p.ground)) this.fxPart(ctx, p); }
+    if (phase !== 'over') { this.fxMarks(ctx); this.fxTrails(ctx); this.fxAuras(ctx); for (const p of ps) if (p.under && (phase === 'all' || !p.ground)) this.fxPart(ctx, p); }
     if (phase !== 'under') for (const p of ps) if (!p.under) this.fxPart(ctx, p);
     ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
   },
@@ -5654,6 +5726,103 @@ Object.assign(BoardView.prototype, {
     },
   });
   function i0(d) { return d.end.x.toFixed(0); }
+})();
+
+/* ============================================================
+   Wild mode visuals: what you point at, walls and locks on the board, and the cast effect of each power.
+   ============================================================ */
+(() => {
+  const V = BoardView.prototype;
+  const dieSide = (side) => (side === 0 ? (GEO.xr + GEO.xEnd) / 2 : (GEO.x0 + GEO.xbar) / 2);
+  const tri = (i) => { const x = GEO.ptX(i), base = GEO.ptBase(i), dir = GEO.ptIsTop(i) ? 1 : -1; return [[x - GEO.pw / 2 + 2, base], [x + GEO.pw / 2 - 2, base], [x, base + dir * (GEO.L - 6)]]; };
+  const mid = (i) => { const x = GEO.ptX(i), base = GEO.ptBase(i), dir = GEO.ptIsTop(i) ? 1 : -1; return [x, base + dir * GEO.L * 0.42]; };
+
+  Object.assign(V, {
+    // translucent point shapes: walls, locks, and the points you can pick
+    fxMarks(ctx) {
+      const pos = this.pos, t = this.targets;
+      if (!pos || (!pos.walls && !pos.pins && !t)) return;
+      const now = performance.now();
+      const shape = (i, fill, stroke, lw) => {
+        const c = tri(i).map(q => this.fxProj(q[0], q[1], 1));
+        ctx.beginPath(); c.forEach((q, k) => (k ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]))); ctx.closePath();
+        if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+        if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 2; ctx.stroke(); }
+      };
+      const glyph = (i, ch, size) => { const m = mid(i), q = this.fxProj(m[0], m[1], 8); ctx.save(); ctx.font = Math.max(10, size * q[2]) + 'px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.globalAlpha = 0.95; ctx.fillText(ch, q[0], q[1]); ctx.restore(); };
+      ctx.save();
+      if (pos.walls) for (const k in pos.walls) {
+        const w = pos.walls[k], i = +k, pu = 0.5 + 0.5 * Math.sin(now / 280 + i);
+        shape(i, 'rgba(130,205,255,' + (0.16 + 0.1 * pu) + ')', 'rgba(175,228,255,0.95)', 2.5);
+        const c = tri(i), a = this.fxProj(c[0][0] + (c[2][0] - c[0][0]) * 0.35, c[0][1] + (c[2][1] - c[0][1]) * 0.35, 6), b = this.fxProj(c[1][0] + (c[2][0] - c[1][0]) * 0.35, c[1][1] + (c[2][1] - c[1][1]) * 0.35, 6);
+        ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgba(160,220,255,' + (0.5 + 0.3 * pu) + ')'; ctx.lineWidth = 5 * a[2]; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); ctx.globalCompositeOperation = 'source-over';
+        glyph(i, w.left > 1 ? '\u{1F9F1}' : '\u{1F9F1}', 26);
+      }
+      if (pos.pins) { const i = pos.pins.pt, pu = 0.5 + 0.5 * Math.sin(now / 200); shape(i, 'rgba(255,90,90,' + (0.12 + 0.08 * pu) + ')', 'rgba(255,130,130,0.95)', 2.5); glyph(i, '\u{1F512}', 28); }
+      if (t) {
+        const pu = 0.5 + 0.5 * Math.sin(now / 240);
+        for (const i of t.valid) shape(i, 'rgba(255,215,90,' + (0.14 + 0.14 * pu) + ')', 'rgba(255,225,120,' + (0.6 + 0.35 * pu) + ')', 2.5);
+        for (const i of t.picked) shape(i, 'rgba(255,255,255,0.22)', '#ffffff', 3);
+      }
+      ctx.restore();
+    },
+
+    // the cast effect of a power: a flash and particles where it happens
+    castFx(id, o) {
+      const p = o.p, opp = 1 - p, arg = o.arg || {}, snd = (n, a) => this.snd && this.snd(n, a);
+      const at = (x, y, col, n, size) => { this.shockAt(x, y, col, 130, 0.55, 9); this.put('disc', x, y, 6, { size: size || 80, color: col, life: 0.4, a: 0.9 }); this.starBurst(x, y, 20, n || 16, [col, '#ffffff'], 170); };
+      const dx = dieSide(p), ox = dieSide(opp), my = GEO.mid;
+      switch (id) {
+        case 'nudge': case 'reroll': case 'twin': case 'bonus': case 'loaded': at(dx, my, '#ffd75a'); break;
+        case 'peek': at(ox, my, '#b784ff'); break;
+        case 'hex':
+          at(ox, my, '#a86bff', 20, 100);
+          for (let k = 0; k < 18 * this.fxQ(); k++) { const a = Math.random() * TAU, s = rnd(20, 90); this.put('smoke', ox + Math.cos(a) * 20, my + Math.sin(a) * 14, 12, { vx: Math.cos(a) * s, vy: Math.sin(a) * s * 0.7, vz: rnd(15, 50), size: rnd(14, 24), grow: 22, life: rnd(0.9, 1.4), color: Math.random() < 0.5 ? '#7a3ae0' : '#c8a0ff', alpha: 0.5, fin: 0.1, drag: 0.5 }); }
+          snd('sparkle'); break;
+        case 'freeze':
+          at(ox, my, '#9fd8ff', 22, 100);
+          for (let k = 0; k < 14; k++) { const a = k / 14 * TAU; this.put('crystal', ox, my, 6, { ang: a, len: rnd(16, 30), size: rnd(4, 7), color: k % 2 ? '#dff4ff' : '#9fd8ff', life: 1.1, a: 1 }); }
+          snd('freeze'); break;
+        case 'shield':
+          for (let i = 0; i < 24; i++) if (this.pos.pts[i] * (p === 0 ? 1 : -1) === 1) { const s = this.slot(i, 0, 1); this.shockAt(s.x, s.y, '#ffd75a', 62, 0.8, 6); this.put('disc', s.x, s.y, 8, { size: 56, color: '#ffe9a8', life: 0.7, a: 0.7 }); }
+          snd('chime'); break;
+        case 'wall': {
+          const i = arg.pt, m = mid(i), x = GEO.ptX(i);
+          for (let k = -1; k <= 1; k++) this.put('beam', x + k * 24, m[1] + (GEO.ptIsTop(i) ? -30 : 30), 0, { z0: 0, z1: 110, size: 14, color: '#9fd8ff', life: 1.0, a: 0.7 });
+          this.shockAt(x, m[1], '#9fd8ff', 90, 0.6, 8); this.starBurst(x, m[1], 20, 18, ['#9fd8ff', '#ffffff'], 140); snd('chime'); break;
+        }
+        case 'lock': {
+          const i = arg.pt, m = mid(i), c = tri(i);
+          at(m[0], m[1], '#ff7a7a', 14, 70);
+          this.boltBetween(c[0][0], c[0][1], 10, c[1][0], c[1][1], 10, 5, 6, { color: '#ff7a7a', life: 0.5, size: 1.6 }); this.boltBetween(m[0], c[0][1], 10, m[0], c[2][1], 10, 6, 6, { color: '#ff7a7a', life: 0.5, size: 1.6 });
+          snd('slam'); break;
+        }
+        case 'sanctuary': { const x = GEO.ptX(arg.to), base = GEO.ptBase(arg.to); this.put('beam', x, base + (GEO.ptIsTop(arg.to) ? 40 : -40), 0, { z0: 0, z1: 160, size: 24, color: '#fff2b0', life: 1.0, a: 0.7 }); this.starBurst(x, base, 20, 20, ['#fff2b0', '#ffffff'], 150); snd('chime'); break; }
+        case 'dash': { const s = this.slot(arg.from, 0, 1); at(s.x, s.y, '#ffe14a', 8, 50); break; }
+        case 'exchange': { const A = this.slot(arg.a, 0, 1), B = this.slot(arg.b, 0, 1); at(A.x, A.y, '#ff8fd0', 10, 55); at(B.x, B.y, '#ff8fd0', 10, 55); snd('sparkle'); break; }
+      }
+    },
+
+    // two lone checkers trade places
+    async castExchange(a, b, p) {
+      const pos = this.pos, s = p === 0 ? 1 : -1, A = this.slot(a, 0, 1), B = this.slot(b, 0, 1);
+      pos.pts[a] -= s; pos.pts[b] += s;
+      const mk = (S, who) => ({ x: S.x, y: S.y, z: 0, p: who, scale: 1, sx: 1, alpha: 1, zb: S.h || 0, u: 0, rot: 0, trails: [] });
+      const f1 = mk(A, p), f2 = mk(B, 1 - p), trs = [f1, f2].map((f, k) => this.fxTrail(f, { color: k ? '#ff8fd0' : '#ffd0f0', w: GEO.r * 0.7, life: 0.35, a: 0.55 }));
+      this.flights.push(f1, f2); this.snd && this.snd('whoosh');
+      await this.tween(640, (u) => {
+        const e = E.inOut(u);
+        f1.x = A.x + (B.x - A.x) * e; f1.y = A.y + (B.y - A.y) * e; f1.z = Math.sin(Math.PI * u) * 110;
+        f2.x = B.x + (A.x - B.x) * e; f2.y = B.y + (A.y - B.y) * e; f2.z = Math.sin(Math.PI * u) * 60;
+        this.fxPush(trs[0], f1); this.fxPush(trs[1], f2);
+        this.rate('exS', 70, () => { for (const f of [f1, f2]) { const q = this.onDisc(f, 1); this.put('star', q[0], q[1], q[2], { vz: rnd(0, 30), life: 0.5, size: rnd(1.4, 2.6), color: '#ffd0f0', tw: true, vr: 6 }); } });
+      });
+      for (const t of trs) t.end = true;
+      this.flights.splice(this.flights.indexOf(f1), 1); this.flights.splice(this.flights.indexOf(f2), 1);
+      pos.pts[b] += s; pos.pts[a] -= s;
+      this.snd && this.snd('checker'); this.shockAt(A.x, A.y, '#ff8fd0', 60, 0.4, 6); this.shockAt(B.x, B.y, '#ff8fd0', 60, 0.4, 6);
+    },
+  });
 })();
 
 /* ============================================================
@@ -8161,35 +8330,45 @@ const Stats = (() => {
 
 Nav.onShow.stats = () => Stats.renderScreen();
 
-/* ---------- Wild mode: perks, the pre-match draft, and how the computer uses them ----------
-   Every perk has one charge per game. Only one perk may be played per turn. */
+/* ---------- Wild mode: powers, energy, the pre-match draft, and how the computer uses them ----------
+   Each side gains energy every turn and spends it on powers from a hand of four. Only one power may be played per turn. */
 const Wild = (() => {
-  // when: 'dice' = after you have rolled and before your first move; 'any' = before you roll or while you move
+  // cost: energy to play it. when: 'dice' = right after you roll, before your first move; 'any' = before you roll, or between moves.
+  // target: what the player points at on the board ('own' a checker of theirs, 'entry' a landing point, 'open' an empty point, 'enemy' a point with enemy checkers).
   const PERKS = [
-    { id: 'reroll', icon: '🎲', name: 'Reroll', blurb: 'Throw both dice again.', when: 'dice', ai: true },
-    { id: 'nudge', icon: '±1', name: 'Nudge', blurb: 'Move one die up or down by one pip.', when: 'dice', ai: true },
-    { id: 'twin', icon: '👯', name: 'Twin', blurb: 'Make the second die match the first. A double!', when: 'dice', ai: true },
-    { id: 'bonus', icon: '➕', name: 'Bonus Die', blurb: 'Roll a third die and play it too. Not on doubles.', when: 'dice', ai: true },
-    { id: 'peek', icon: '🔮', name: 'Foresight', blurb: "See the opponent's next roll before they throw it.", when: 'any', ai: false },
-    { id: 'hex', icon: '🧿', name: 'Hex', blurb: 'The opponent rolls twice next turn and keeps the lower total.', when: 'any', ai: true },
-    { id: 'shield', icon: '🛡️', name: 'Safe Harbor', blurb: 'Your lone checkers cannot be hit until your next turn.', when: 'any', ai: true },
+    { id: 'nudge', icon: '±1', name: 'Nudge', cost: 7, blurb: 'Move one die up or down by one pip.', when: 'dice', ai: true },
+    { id: 'reroll', icon: '🎲', name: 'Reroll', cost: 5, blurb: 'Throw both dice again.', when: 'dice', ai: true },
+    { id: 'twin', icon: '👯', name: 'Twin', cost: 8, blurb: 'Make the second die match the first. A double!', when: 'dice', ai: true },
+    { id: 'bonus', icon: '➕', name: 'Bonus Die', cost: 7, blurb: 'Roll a third die and play it too. Not on doubles.', when: 'dice', ai: true },
+    { id: 'loaded', icon: '🎯', name: 'Loaded Die', cost: 9, blurb: 'Set one die to any number you like.', when: 'dice', ai: true },
+    { id: 'peek', icon: '🔮', name: 'Foresight', cost: 3, blurb: "See the opponent's next roll before they throw it.", when: 'any', ai: false },
+    { id: 'hex', icon: '🧿', name: 'Hex', cost: 3, blurb: 'The opponent rolls twice next turn and keeps the lower total.', when: 'any', ai: true },
+    { id: 'freeze', icon: '❄️', name: 'Freeze', cost: 6, blurb: 'The opponent loses their lower die next turn.', when: 'any', ai: true },
+    { id: 'shield', icon: '🛡️', name: 'Safe Harbor', cost: 5, blurb: 'Your lone checkers cannot be hit until your next turn.', when: 'any', ai: true },
+    { id: 'dash', icon: '⚡', name: 'Dash', cost: 4, blurb: 'Move one of your checkers one pip forward, no die needed. It can hit.', when: 'any', target: 'own', ai: true },
+    { id: 'exchange', icon: '🔁', name: 'Exchange', cost: 3, blurb: 'Swap one of your lone checkers with one of theirs.', when: 'any', target: 'own', ai: true },
+    { id: 'sanctuary', icon: '⛪', name: 'Sanctuary', cost: 6, blurb: 'Bring a checker in from the bar onto any open point of their home board, whatever the dice.', when: 'any', target: 'entry', ai: true },
+    { id: 'wall', icon: '🧱', name: 'Wall', cost: 5, blurb: 'Block an empty point. The opponent cannot land on it for two turns.', when: 'any', target: 'open', ai: true },
+    { id: 'lock', icon: '🔒', name: 'Lock', cost: 3, blurb: "Pin one of the opponent's points. Its checkers cannot move next turn.", when: 'any', target: 'enemy', ai: true },
   ];
   const byId = (id) => PERKS.find(p => p.id === id);
-  const DRAFT_SIZE = 6, PICKS = 3;
+  // energy: you start with a little, gain one at the start of each of your turns, two more when one of your checkers is hit
+  const ENERGY = { start: 3, perTurn: 1, whenHit: 2, max: 10 };
+  const DRAFT_SIZE = 8, PICKS = 4;
 
   const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const offer = () => shuffle(PERKS.map(p => p.id)).slice(0, DRAFT_SIZE);
   const pickForAI = () => shuffle(PERKS.filter(p => p.ai).map(p => p.id)).slice(0, PICKS);
 
-  /* ----- the draft: pick three of six ----- */
+  /* ----- the draft: pick four of eight ----- */
   function draft(opts) {
     opts = opts || {};
     return new Promise((resolve) => {
       const ids = offer(), chosen = [];
-      const card = (id) => { const p = byId(id); return `<button type="button" class="perk-card" data-pk="${id}"><span class="pk-ico">${p.icon}</span><b>${p.name}</b><small>${p.blurb}</small></button>`; };
+      const card = (id) => { const p = byId(id); return `<button type="button" class="perk-card" data-pk="${id}"><span class="pk-cost" title="Energy cost">${p.cost}</span><span class="pk-ico">${p.icon}</span><b>${p.name}</b><small>${p.blurb}</small></button>`; };
       const api = modal({
         dismiss: false, wide: true,
-        html: `<h2>Choose your perks</h2><p class="lead">Pick three. Each can be played once per game, and only one perk per turn. ${opts.opp ? esc(opts.opp) + ' draws three of their own.' : ''}</p>
+        html: `<h2>Choose your powers</h2><p class="lead">Pick four for your hand. You gain 1 energy at the start of each of your turns, and 2 more when one of your checkers is hit. A power costs the energy shown, and you can play one power per turn, as often as you can afford. ${opts.opp ? esc(opts.opp) + ' draws four of their own.' : ''}</p>
           <div class="perk-grid">${ids.map(card).join('')}</div>
           <div class="btns"><button class="btn" data-act="rand">Surprise me</button><button class="btn primary" data-act="go" disabled>Start match</button></div>`,
         actions: {
@@ -8216,55 +8395,69 @@ const Wild = (() => {
   /* ----- computer decisions ----- */
   const scoreRoll = (pos, p, dice) => { const r = AI.chooseTurn(pos, p, dice, { exact: true }); return r.moves && r.moves.length ? AI.evalPos(r.pos, p) : AI.evalPos(pos, p) - 4; };
   const sumOf = (d) => d.length === 4 ? 4 * d[0] : d.reduce((a, b) => a + b, 0);
+  const afford = (hand, energy, id) => hand.includes(id) && byId(id).cost <= energy;
+  // the more a power costs the bigger the gain it must promise; a full energy meter makes the computer readier to spend
+  const TUNE = { needK: 2 };
+  const needed = (level, cost, energy) => TUNE.needK * (level >= 4 ? 7 : level >= 3 ? 9 : 12) * (0.5 + cost * 0.16) * (energy >= ENERGY.max ? 0.75 : 1);
+  const idxOf = (p, n) => (p === 0 ? n - 1 : 24 - n);
 
-  // Dice perks, decided after the AI has rolled. `dice` is [a,b] or [a,a,a,a]. Returns {id, dice} or null.
-  function decideDice(pos, p, dice, have, level, turnNo) {
-    if (!have.length || (turnNo !== undefined && turnNo < 3)) return null;   // save perks for the middle game
-    const base = scoreRoll(pos, p, dice);
-    let best = null, bestGain = 0;
-    const consider = (id, gain, nd) => { if (have.includes(id) && gain > bestGain) { bestGain = gain; best = { id, dice: nd }; } };
-    const pairOf = (d) => d.length === 4 ? [d[0], d[0]] : d.slice();
-    const [a, b] = pairOf(dice);
-    const mk = (x, y) => BG.diceToList(x, y);
-    if (have.includes('reroll')) {
-      let tot = 0, n = 0;
-      for (let x = 1; x <= 6; x++) for (let y = x; y <= 6; y++) { const w = x === y ? 1 : 2; tot += w * scoreRoll(pos, p, mk(x, y)); n += w; }
-      const avg = tot / n;
-      consider('reroll', avg - base - 3, null);   // needs a clear shortfall, since the new roll is a gamble
-    }
-    if (have.includes('nudge')) {
-      for (const [i, d] of [[0, a], [1, b]]) for (const dv of [-1, 1]) {
-        const v = d + dv; if (v < 1 || v > 6) continue;
-        const nd = i === 0 ? [v, b] : [a, v];
-        consider('nudge', scoreRoll(pos, p, mk(nd[0], nd[1])) - base - 1, mk(nd[0], nd[1]));
+  // What the computer plays, if anything. phase: 'pre' (about to roll), 'dice' (rolled, not yet moved; o.dice is the roll), 'post' (moved).
+  // Returns { id, arg } or null. arg: new dice for nudge / twin / loaded, 'bonus', or { to } / { from, to } / { a, b } / { pt } for the board powers.
+  function decide(pos, p, hand, energy, phase, o) {
+    o = o || {};
+    const level = o.level || 3, turnNo = o.turnNo === undefined ? 9 : o.turnNo;
+    if (!hand.length || turnNo < 2 || !hand.some(id => byId(id).cost <= energy)) return null;
+    let best = null, bestScore = 0;
+    const consider = (id, gain, arg) => { if (!afford(hand, energy, id)) return; const sc = gain - needed(level, byId(id).cost, energy); if (sc > bestScore) { bestScore = sc; best = { id, arg }; } };
+    const base = AI.evalPos(pos, p), view = AI.view(pos, p), contact = AI.contactOf(view);
+
+    if (phase === 'dice') {
+      const dice = o.dice, rolled = scoreRoll(pos, p, dice), pairOf = (d) => d.length === 4 ? [d[0], d[0]] : d.slice();
+      const [a, b] = pairOf(dice), mk = (x, y) => BG.diceToList(x, y);
+      if (afford(hand, energy, 'reroll')) {
+        let tot = 0, n = 0;
+        for (let x = 1; x <= 6; x++) for (let y = x; y <= 6; y++) { const w = x === y ? 1 : 2; tot += w * scoreRoll(pos, p, mk(x, y)); n += w; }
+        consider('reroll', tot / n - rolled - 3, null);   // a reroll is a gamble: it needs a clear shortfall
       }
+      if (afford(hand, energy, 'nudge')) for (const [i, d] of [[0, a], [1, b]]) for (const dv of [-1, 1]) {
+        const v = d + dv; if (v < 1 || v > 6) continue;
+        const nd = i === 0 ? [v, b] : [a, v]; consider('nudge', scoreRoll(pos, p, mk(nd[0], nd[1])) - rolled - 1, mk(nd[0], nd[1]));
+      }
+      if (afford(hand, energy, 'loaded')) for (const [i, d] of [[0, a], [1, b]]) for (let v = 1; v <= 6; v++) {
+        if (v === d) continue; const nd = i === 0 ? [v, b] : [a, v]; consider('loaded', scoreRoll(pos, p, mk(nd[0], nd[1])) - rolled - 1, mk(nd[0], nd[1]));
+      }
+      if (afford(hand, energy, 'twin') && a !== b) for (const v of [a, b]) consider('twin', scoreRoll(pos, p, mk(v, v)) - rolled - 2, mk(v, v));
+      if (afford(hand, energy, 'bonus') && dice.length === 2) { let tot = 0; for (let v = 1; v <= 6; v++) tot += scoreRoll(pos, p, dice.concat([v])); consider('bonus', tot / 6 - rolled - 2, 'bonus'); }
+      return best;
     }
-    if (have.includes('twin') && a !== b) {
-      for (const v of [a, b]) consider('twin', scoreRoll(pos, p, mk(v, v)) - base - 2, mk(v, v));
+
+    if (phase === 'pre') {
+      if (pos.bar[p] > 0 && afford(hand, energy, 'sanctuary')) for (const t of BG.sanctuaryTargets(pos, p)) consider('sanctuary', AI.evalPos(BG.freeMove(pos, p, BG.BAR, t.to).pos, p) - base + 7, { to: t.to });
+      if (contact && turnNo >= 3) {
+        consider('hex', 6 + Math.random() * 8, null);
+        consider('freeze', 12 + Math.random() * 12, null);
+        if (afford(hand, energy, 'lock')) {
+          // pin the checker furthest back: it is the one that has to escape
+          const ts = BG.lockTargets(pos, p);
+          if (ts.length) { const pt = p === 0 ? Math.min(...ts) : Math.max(...ts); consider('lock', 5 + Math.random() * 8, { pt }); }
+        }
+      }
+      return best;
     }
-    if (have.includes('bonus') && dice.length === 2) {
-      let tot = 0;
-      for (let v = 1; v <= 6; v++) tot += scoreRoll(pos, p, dice.concat([v]));
-      consider('bonus', tot / 6 - base - 2, 'bonus');
+
+    // after the moves
+    if (pos.bar[p] === 0) {
+      if (afford(hand, energy, 'dash')) for (const t of BG.dashTargets(pos, p)) consider('dash', AI.evalPos(BG.freeMove(pos, p, t.from, t.to).pos, p) - base, { from: t.from, to: t.to });
+      if (afford(hand, energy, 'exchange')) for (const t of BG.exchangePairs(pos, p)) consider('exchange', AI.evalPos(BG.exchange(pos, t.a, t.b), p) - base, { a: t.a, b: t.b });
     }
-    // the stronger the opponent's profile, the more demanding the threshold
-    const thr = level >= 4 ? 7 : level >= 3 ? 9 : 12;
-    return best && bestGain >= thr ? best : null;
+    let exposure = 0, worst = null, worstE = 0;
+    for (let n = 1; n <= 24; n++) if (view.a[n] === 1) { const e = (AI.shots(view, n) / 36) * ((25 - n) + 8); exposure += e; if (e > worstE) { worstE = e; worst = idxOf(p, n); } }
+    if (afford(hand, energy, 'shield') && !(pos.shield && pos.shield[p])) consider('shield', exposure * 2.2, null);
+    if (afford(hand, energy, 'wall') && worst !== null && BG.wallTargets(pos, p).includes(worst)) consider('wall', worstE * 2.4 - 1, { pt: worst });
+    return best;
   }
 
-  // Perks that do not depend on the dice. phase: 'pre' (about to roll) or 'post' (turn finished its moves).
-  function decideAny(pos, p, have, phase, turnNo) {
-    const view = AI.view(pos, p);
-    if (phase === 'post' && have.includes('shield')) {
-      let exposure = 0;
-      for (let n = 1; n <= 24; n++) if (view.a[n] === 1) exposure += (AI.shots(view, n) / 36) * ((25 - n) + 8);
-      if (exposure >= 5) return { id: 'shield' };
-    }
-    if (phase === 'pre' && have.includes('hex') && turnNo >= 3 && AI.contactOf(view) && Math.random() < 0.4) return { id: 'hex' };
-    return null;
-  }
-
-  return { PERKS, byId, draft, pickForAI, decideDice, decideAny, PICKS, sumOf };
+  return { PERKS, byId, draft, pickForAI, decide, PICKS, ENERGY, TUNE, sumOf };
 })();
 
 /* ---------- generated character portraits (flat vector busts, no images) ----------
@@ -9008,7 +9201,7 @@ const Game = (() => {
     G.stats = { hits: 0, hurt: 0, turns: 0, gammons: 0, backgammons: 0, cubeWin: 0, oppLeft: 0, games: 0, pointsWon: 0 };
     G.levelAtStart = DATA.levelInfo(P().xp).level; G.gameXP = 0; G.gameCoins = 0; G.gamesWon = 0; G.gamesLost = 0; G.cheated = false; G.cheat = { roll: null, doubles: false, aiPass: false };
     G.waiter = null; G.busy = false; G.history = []; G.ptr = null; G.active = true; G.phase = 'idle'; G.track = Stats.newMatch(cfg); G.turnStart = null;
-    G.perkIds = [[], []]; G.charges = [new Set(), new Set()]; G.hex = [false, false]; G.peek = [null, null]; G.perkTurn = false;
+    G.perkIds = [[], []]; G.energy = [0, 0]; G.freeze = [false, false]; G.hex = [false, false]; G.peek = [null, null]; G.perkTurn = false; G.target = null;
     G.pos = BG.startPos(cfg.variant); G.turn = 0; G.cube = { value: 1, owner: -1 }; G.rem = [];
     show('game');
     $('#g-emote').hidden = cfg.mode !== 'online';
@@ -9099,7 +9292,7 @@ const Game = (() => {
     if (c.cube && m > 1 && !G.crawfordUsed && (G.score[0] === m - 1 || G.score[1] === m - 1)) { G.crawford = true; G.crawfordUsed = true; }
     G.pos = BG.startPos(c.variant, online() ? Net.rand : undefined); G.turn = 0; G.cube = { value: 1, owner: -1 }; G.rem = []; G.history = [];
     G.track.newGame(); G.shieldNow = undefined;
-    G.charges = [new Set(G.perkIds[0]), new Set(G.perkIds[1])]; G.hex = [false, false]; G.peek = [null, null]; G.perkTurn = false; renderPerks();
+    G.energy = [Wild.ENERGY.start, Wild.ENERGY.start]; G.freeze = [false, false]; G.hex = [false, false]; G.peek = [null, null]; G.perkTurn = false; G.target = null; renderPerks();
     resetBoardView(); view.setPos(G.pos);
     view.setCube({ show: !!c.cube, value: 1, owner: -1, glow: false }); view.cubePos = null;
     G.phase = 'opening'; updateHUD(); updateActions();
@@ -9133,6 +9326,7 @@ const Game = (() => {
     while (alive(id)) {
       if (!skipRoll) {
         G.perkTurn = false;
+        if (c.wild) gainEnergy(G.turn, Wild.ENERGY.perTurn);
         G.phase = 'preroll'; G.history = []; view.turnPlayer = G.turn; view.sel = null; view.dests = []; view.movable = []; view.hint = null;
         updateHUD(); updateActions();
         // doubling
@@ -9192,6 +9386,7 @@ const Game = (() => {
         G.busy = false;
         G.track.roll(G.turn, d1, d2);
         G.rem = BG.diceToList(d1, d2);
+        if (G.freeze[G.turn]) { G.freeze[G.turn] = false; G.rem = freezeRoll(G.rem); banner('Frozen: lower die lost'); renderPerks(); }
         view.setDiceRemaining(G.rem);
       }
       skipRoll = false;
@@ -9214,6 +9409,7 @@ const Game = (() => {
       if (G.turnStart) { G.track.turn(G.turnStart.p, G.turnStart.pos, G.turnStart.dice, G.pos); G.turnStart = null; }
       const w = BG.winnerOf(G.pos);
       if (w >= 0) return finishGame(id, w, 'normal');
+      if (G.pos.walls || G.pos.pins) { G.pos = BG.tickTurn(G.pos, G.turn); view.setPos(G.pos); }
       G.turn = 1 - G.turn;
       if (G.pos.shield && G.pos.shield[G.turn]) { setShield(G.turn, false); }
       await view.wait(350);
@@ -9249,9 +9445,8 @@ const Game = (() => {
     await view.wait(450 + Math.random() * 350);
     if (!alive(id)) return;
     if (c.wild && !G.perkTurn) {
-      const have = Array.from(G.charges[G.turn]).filter(x => Wild.byId(x).when === 'dice');
-      const dec = Wild.decideDice(G.pos, G.turn, G.rem.slice(), have, c.level, G.track.cur ? G.track.cur.pl[G.turn].turns : 9);
-      if (dec) { await perkApply(G.turn, dec.id, dec.dice); if (!alive(id)) return; }
+      const dec = Wild.decide(G.pos, G.turn, G.perkIds[G.turn], G.energy[G.turn], 'dice', { dice: G.rem.slice(), level: c.level, turnNo: aiTurnNo() });
+      if (dec) { await perkApply(G.turn, dec.id, dec.arg); if (!alive(id)) return; }
     }
     const r = AI.chooseTurn(G.pos, G.turn, G.rem.slice(), { level: c.level, style: c.style });
     for (const m of r.moves) {
@@ -9261,15 +9456,15 @@ const Game = (() => {
     }
     if (!alive(id)) return;
     if (c.wild && !G.perkTurn && BG.winnerOf(G.pos) < 0) {
-      const dec = Wild.decideAny(G.pos, G.turn, Array.from(G.charges[G.turn]), 'post', G.track.cur ? G.track.cur.turns : 0);
-      if (dec) { await perkApply(G.turn, dec.id); if (!alive(id)) return; }
+      const dec = Wild.decide(G.pos, G.turn, G.perkIds[G.turn], G.energy[G.turn], 'post', { level: c.level, turnNo: aiTurnNo() });
+      if (dec) { await perkApply(G.turn, dec.id, dec.arg); if (!alive(id)) return; }
     }
     say(esc(c.names[G.turn]) + ' played.');
   }
 
   function maybeAssist() {
     if (!P().settings.assist || G.legal.length !== 1) return;
-    if (G.cfg.wild && G.turn === 0 && !G.perkTurn && !G.history.length && Array.from(G.charges[0]).some(x => Wild.byId(x).when === 'dice')) return;
+    if (G.cfg.wild && G.turn === 0 && !G.perkTurn && !G.history.length && G.perkIds[0].some(x => Wild.byId(x).when === 'dice' && Wild.byId(x).cost <= G.energy[0])) return;
     const id = G.runId, m = G.legal[0];
     setTimeout(() => { if (alive(id) && G.phase === 'moving' && !G.busy && G.legal.length === 1 && G.legal[0] === m) { view.sel = null; doMove(m, {}); } }, 520);
   }
@@ -9356,6 +9551,7 @@ const Game = (() => {
     G.pos = BG.applyMove(G.pos, G.turn, m);
     G.rem.splice(G.rem.indexOf(m.die), 1);
     if (m.hit && G.cfg.mode !== '2p') { if (G.turn === 0) G.stats.hits++; else G.stats.hurt++; }
+    if (m.hit && G.cfg.wild) gainEnergy(1 - G.turn, Wild.ENERGY.whenHit);
     view.sel = null; view.dests = []; view.movable = []; view.hint = null;
     G.dests = []; G.movable = new Set();
     updateHUD(); updateActions();
@@ -9451,6 +9647,7 @@ const Game = (() => {
     SFX.resume();
     if (!G.active || G.busy) return;
     const { x, y } = ptPos(e), h = view.hitTest(x, y);
+    if (G.target) { const i = h && h.type === 'point' ? h.i : null; endTarget(i !== null && G.target.valid.has(i) ? i : null); G.ptr = null; return; }
     G.ptr = { x, y, h, dragging: false, from: null, wasSel: false };
     if (!isHuman(G.turn)) { G.ptr = null; return; }
     if (G.phase === 'preroll' || G.phase === 'opening') {
@@ -9522,10 +9719,19 @@ const Game = (() => {
     G.pos = Object.assign(BG.clone(G.pos), { total: G.pos.total, shield: G.shieldNow });
     if (view) view.setPos(G.pos);
   }
+  const aiTurnNo = () => (G.track.cur && G.track.cur.pl ? G.track.cur.pl[G.turn].turns : 9);
+  function gainEnergy(p, n) {
+    const before = G.energy[p]; G.energy[p] = Math.min(Wild.ENERGY.max, before + n);
+    if (G.energy[p] !== before) { renderPerks(); if (p === 0 && view) view.snd && view.snd('coin', 0.5); }
+  }
+  // Freeze: the lower die is lost (half of a double)
+  const freezeRoll = (rem) => (rem.length === 4 ? rem.slice(0, 2) : [Math.max(rem[0], rem[1])]);
+  const hitFxFor = (p) => (isHuman(p) ? {} : { hitFx: 'knock' });
+
   function perkState(p, id) {
     const pk = Wild.byId(id);
-    if (!G.charges[p].has(id)) return { ok: false, why: 'Used this game' };
-    if (G.perkTurn) return { ok: false, why: 'One perk per turn' };
+    if (G.energy[p] < pk.cost) return { ok: false, why: 'Needs ' + pk.cost + ' energy' };
+    if (G.perkTurn) return { ok: false, why: 'One power per turn' };
     if (!G.active || G.turn !== p || G.busy) return { ok: false, why: 'Not now' };
     const opp = 1 - p;
     if (pk.when === 'dice') {
@@ -9533,46 +9739,58 @@ const Game = (() => {
       const d = G.turnStart.dice;
       if (id === 'twin' && (d.length === 4 || d[0] === d[1])) return { ok: false, why: 'You already rolled a double' };
       if (id === 'bonus' && d.length !== 2) return { ok: false, why: 'Not on doubles' };
-      if (id === 'twin' || id === 'nudge') return { ok: true };
       return { ok: true };
     }
     if (G.phase !== 'preroll' && G.phase !== 'moving') return { ok: false, why: 'Not now' };
-    if (id === 'peek' && (G.peek[opp] || G.hex[opp])) return { ok: false, why: 'Already set for their next roll' };
-    if (id === 'hex' && (G.hex[opp] || G.peek[opp])) return { ok: false, why: 'Already set for their next roll' };
+    if (id === 'peek' && (G.peek[opp] || G.hex[opp] || G.freeze[opp])) return { ok: false, why: 'Already set for their next roll' };
+    if (id === 'hex' && (G.hex[opp] || G.peek[opp] || G.freeze[opp])) return { ok: false, why: 'Already set for their next roll' };
+    if (id === 'freeze' && (G.hex[opp] || G.peek[opp] || G.freeze[opp])) return { ok: false, why: 'Already set for their next roll' };
     if (id === 'shield' && G.pos.shield && G.pos.shield[p]) return { ok: false, why: 'Already active' };
+    if (id === 'dash' && !BG.dashTargets(G.pos, p).length) return { ok: false, why: 'No checker can step forward' };
+    if (id === 'exchange' && !BG.exchangePairs(G.pos, p).length) return { ok: false, why: 'Needs a lone checker of yours and one of theirs' };
+    if (id === 'sanctuary' && !BG.sanctuaryTargets(G.pos, p).length) return { ok: false, why: 'Only with a checker on the bar' };
+    if (id === 'wall' && !BG.wallTargets(G.pos, p).length) return { ok: false, why: 'No empty point to block' };
+    if (id === 'lock' && !BG.lockTargets(G.pos, p).length) return { ok: false, why: G.pos.pins ? 'A lock is already active' : 'Nothing to lock' };
     return { ok: true };
   }
+  const pips = (n, max, cls) => { let h = ''; for (let i = 0; i < max; i++) h += `<i class="${i < n ? 'on' : ''}"></i>`; return `<span class="energy ${cls || ''}" title="${n} of ${max} energy">${h}<b class="energy-n">${n}/${max}</b></span>`; };
   function renderPerks() {
     const bar = $('#perkbar'); if (!bar) return;
     if (!G.cfg || !G.cfg.wild) { if (!bar.hidden) { bar.hidden = true; bar._h = ''; } return; }
+    const mx = Wild.ENERGY.max;
     const mine = G.perkIds[0].map(id => {
-      const pk = Wild.byId(id), st = perkState(0, id), spent = !G.charges[0].has(id);
-      return `<button type="button" class="perk ${spent ? 'spent' : ''}" data-perk="${id}" ${st.ok ? '' : 'disabled'} title="${esc(pk.name + ': ' + pk.blurb + (st.why && !spent ? ' (' + st.why + ')' : ''))}"><span class="pk-ico">${pk.icon}</span><span class="pk-name">${pk.name}</span></button>`;
+      const pk = Wild.byId(id), st = perkState(0, id), short = G.energy[0] < pk.cost;
+      return `<button type="button" class="perk ${st.ok ? 'ready' : ''} ${short ? 'short' : ''}" data-perk="${id}" ${st.ok ? '' : 'disabled'} title="${esc(pk.name + ' (' + pk.cost + ' energy): ' + pk.blurb + (st.why ? ' [' + st.why + ']' : ''))}"><span class="pk-ico">${pk.icon}</span><span class="pk-name">${pk.name}</span><span class="pk-c">${pk.cost}</span></button>`;
     }).join('');
-    const theirs = G.perkIds[1].map(id => { const spent = !G.charges[1].has(id), pk = Wild.byId(id); return `<span class="perk-opp ${spent ? 'spent' : ''}" title="${spent ? esc(pk.name) + ' (used)' : 'Hidden perk'}">${spent ? pk.icon : '?'}</span>`; }).join('');
+    const theirs = G.perkIds[1].map(() => `<span class="perk-opp" title="Hidden power">?</span>`).join('');
     let note = '';
-    if (G.peek[1]) note = `Their next roll: ${G.peek[1][0]} and ${G.peek[1][1]}`;
+    if (G.target) note = 'Tap a highlighted point, or anywhere else to cancel';
+    else if (G.peek[1]) note = `Their next roll: ${G.peek[1][0]} and ${G.peek[1][1]}`;
     else if (G.hex[1]) note = 'Hex set on ' + G.cfg.names[1];
+    else if (G.freeze[1]) note = 'Freeze set on ' + G.cfg.names[1];
     else if (G.hex[0]) note = 'You are hexed: you roll twice and keep the lower';
-    const h = `<div class="perk-side">${mine}</div>${note ? `<span class="perk-note">${esc(note)}</span>` : ''}<div class="perk-side opp"><small>${esc(G.cfg.names[1])}</small>${theirs}</div>`;
+    else if (G.freeze[0]) note = 'You are frozen: you lose your lower die';
+    const h = `<div class="perk-side"><span class="energy-lbl">Energy</span>${pips(G.energy[0], mx)}${mine}</div>${note ? `<span class="perk-note">${esc(note)}</span>` : '<span class="perk-note"></span>'}<div class="perk-side opp"><small>${esc(G.cfg.names[1])}</small>${pips(G.energy[1], mx, 'opp')}${theirs}</div>`;
     if (bar._h !== h) { bar._h = h; bar.innerHTML = h; }
     bar.hidden = false;
   }
 
-  // apply a perk for player p. For nudge/twin, `arg` is the new pair of dice.
+  // apply a power for player p. arg: the new dice for nudge / twin / loaded; { from, to } dash; { to } sanctuary; { a, b } exchange; { pt } wall / lock
   async function perkApply(p, id, arg) {
     const rid = G.runId, pk = Wild.byId(id), name = G.cfg.names[p], opp = 1 - p;
-    G.busy = true; G.perkTurn = true; G.charges[p].delete(id); updateActions();
+    G.busy = true; G.perkTurn = true; G.energy[p] -= pk.cost; renderPerks(); updateActions();
+    if (pk.when === 'any') G.history = [];
     SFX.cube(); banner(pk.icon + ' ' + pk.name);
     say(esc(name) + ' plays <b>' + esc(pk.name) + '</b>. <small>' + esc(pk.blurb) + '</small>');
     const dice = G.turnStart ? G.turnStart.dice : [];
     const pair = dice.length === 4 ? [dice[0], dice[0]] : dice.slice(0, 2);
     const refit = () => { if (G.turnStart) G.turnStart.dice = G.rem.slice(); view.setDiceRemaining(G.rem); };
+    view.castFx && view.castFx(id, { p, arg });
     if (id === 'reroll') {
       const a = BG.rollDie(), b = BG.rollDie();
       await view.throwDice([{ value: a, side: p }, { value: b, side: p }]); if (!alive(rid)) return;
       G.rem = BG.diceToList(a, b); refit();
-    } else if (id === 'nudge' || id === 'twin') {
+    } else if (id === 'nudge' || id === 'twin' || id === 'loaded') {
       const nv = arg || pair;
       for (let i = 0; i < 2; i++) if (view.dice[i] && view.dice[i].value !== nv[i]) view.setDieValue(i, nv[i]);
       await view.wait(450); if (!alive(rid)) return;
@@ -9582,35 +9800,90 @@ const Game = (() => {
       await view.throwDice([{ value: pair[0], side: p }, { value: pair[1], side: p }, { value: v, side: p }]); if (!alive(rid)) return;
       G.rem = [pair[0], pair[1], v]; refit();
     } else if (id === 'hex') {
-      G.hex[opp] = true; await view.wait(500);
+      G.hex[opp] = true; await view.wait(700);
+    } else if (id === 'freeze') {
+      G.freeze[opp] = true; await view.wait(700);
     } else if (id === 'peek') {
       G.peek[opp] = [BG.rollDie(), BG.rollDie()]; await view.wait(500);
       say(esc(G.cfg.names[opp]) + ' will roll <b>' + G.peek[opp][0] + '</b> and <b>' + G.peek[opp][1] + '</b>.');
     } else if (id === 'shield') {
-      setShield(p, true); await view.wait(500);
+      setShield(p, true); await view.wait(600);
+    } else if (id === 'dash' || id === 'sanctuary') {
+      const from = id === 'dash' ? arg.from : BG.BAR, r = BG.freeMove(G.pos, p, from, arg.to);
+      G.pos = r.pos;
+      await view.moveChecker({ from, to: arg.to, die: 0, hit: r.hit }, p, 'glide', hitFxFor(p));
+      if (r.hit) { if (G.cfg.mode !== '2p') { if (p === 0) G.stats.hits++; else G.stats.hurt++; } gainEnergy(opp, Wild.ENERGY.whenHit); }
+    } else if (id === 'exchange') {
+      G.pos = BG.exchange(G.pos, arg.a, arg.b);
+      await view.castExchange(arg.a, arg.b, p);
+    } else if (id === 'wall') {
+      G.pos = BG.setWall(G.pos, p, arg.pt, 2); view.setPos(G.pos); await view.wait(650);
+    } else if (id === 'lock') {
+      G.pos = BG.setPin(G.pos, p, arg.pt); view.setPos(G.pos); await view.wait(650);
     }
     if (!alive(rid)) return;
-    G.busy = false; updateActions();
+    G.busy = false; updateActions(); renderPerks();
     if (isHuman(p) && G.phase === 'moving') {
-      if (['reroll', 'nudge', 'twin', 'bonus'].includes(id)) {
-        if (!BG.legalNext(G.pos, G.turn, G.rem).length) { say('No legal move with those dice.'); G.phase = 'ending'; view.movable = []; G.movable = new Set(); updateActions(); signal('moves'); }
-        else { refreshHighlights(); maybeAssist(); }
-      }
+      if (!BG.legalNext(G.pos, G.turn, G.rem).length) { say('No legal move with those dice.'); G.phase = 'ending'; view.movable = []; G.movable = new Set(); updateActions(); signal('moves'); }
+      else { refreshHighlights(); maybeAssist(); }
     }
   }
   async function aiPerksPre(id) {
-    const have = Array.from(G.charges[G.turn]);
-    const dec = Wild.decideAny(G.pos, G.turn, have, 'pre', G.track.cur ? G.track.cur.turns : 0);
-    if (dec) await perkApply(G.turn, dec.id);
+    const dec = Wild.decide(G.pos, G.turn, G.perkIds[G.turn], G.energy[G.turn], 'pre', { level: G.cfg.level, turnNo: aiTurnNo() });
+    if (dec) await perkApply(G.turn, dec.id, dec.arg);
+  }
+
+  // ----- pointing at the board (Dash, Exchange, Sanctuary, Wall, Lock) -----
+  function pickPoint(valid, prompt, picked) {
+    return new Promise((res) => {
+      G.target = { valid: new Set(valid), res };
+      view.targets = { valid: valid.slice(), picked: picked || [] };
+      say(prompt); renderPerks();
+    });
+  }
+  function endTarget(val) { const t = G.target; if (!t) return; G.target = null; view.targets = null; renderPerks(); t.res(val); }
+  async function targetFlow(id) {
+    const p = 0;
+    if (id === 'dash') {
+      const ts = BG.dashTargets(G.pos, p), from = await pickPoint(Array.from(new Set(ts.map(t => t.from))), 'Dash: tap the checker to step forward one pip.');
+      return from === null ? null : ts.find(t => t.from === from);
+    }
+    if (id === 'sanctuary') {
+      const ts = BG.sanctuaryTargets(G.pos, p), to = await pickPoint(ts.map(t => t.to), 'Sanctuary: tap where your checker comes in.');
+      return to === null ? null : { to };
+    }
+    if (id === 'exchange') {
+      const ps = BG.exchangePairs(G.pos, p), a = await pickPoint(Array.from(new Set(ps.map(x => x.a))), 'Exchange: tap your lone checker.');
+      if (a === null) return null;
+      const b = await pickPoint(ps.filter(x => x.a === a).map(x => x.b), 'Exchange: now tap their lone checker to swap with.', [a]);
+      return b === null ? null : { a, b };
+    }
+    if (id === 'wall') { const pt = await pickPoint(BG.wallTargets(G.pos, p), 'Wall: tap an empty point to block for two turns.'); return pt === null ? null : { pt }; }
+    if (id === 'lock') { const pt = await pickPoint(BG.lockTargets(G.pos, p), "Lock: tap one of their points. Its checkers can't move next turn."); return pt === null ? null : { pt }; }
+    return undefined;
   }
   async function usePerkUI(id) {
+    if (G.target) { endTarget(null); return; }
     const st = perkState(0, id); if (!st.ok) { if (st.why) toast(st.why); return; }
-    const d = G.turnStart ? G.turnStart.dice : [], pair = d.length === 4 ? [d[0], d[0]] : d.slice(0, 2);
+    const d = G.turnStart ? G.turnStart.dice : [], pair = d.length === 4 ? [d[0], d[0]] : d.slice(0, 2), pk = Wild.byId(id);
+    if (pk.target) {
+      const arg = await targetFlow(id);
+      if (!arg) { say(G.phase === 'preroll' ? 'Roll the dice.' : 'Your move.'); return; }
+      if (perkState(0, id).ok === false) return;
+      return perkApply(0, id, arg);
+    }
     if (id === 'nudge') {
       const opts = [];
       [0, 1].forEach(i => [-1, 1].forEach(dv => { const v = pair[i] + dv; if (v >= 1 && v <= 6) opts.push({ label: pair[i] + ' to ' + v + (pair[0] === pair[1] ? '' : ' (die ' + (i + 1) + ')'), value: i === 0 ? [v, pair[1]] : [pair[0], v], key: i + ':' + v }); }));
       const uniq = opts.filter((o, i) => opts.findIndex(q => q.value.join() === o.value.join()) === i);
       const r = await ask({ title: 'Nudge a die', text: 'Your roll is <b>' + pair[0] + '</b> and <b>' + pair[1] + '</b>. Move one die by a single pip.', buttons: [{ label: 'Cancel', value: null }].concat(uniq.map(o => ({ label: o.label, value: o.value, cls: 'primary' }))) });
+      if (!r) return; return perkApply(0, id, r);
+    }
+    if (id === 'loaded') {
+      const opts = [];
+      [0, 1].forEach(i => { for (let v = 1; v <= 6; v++) if (v !== pair[i]) opts.push({ label: (pair[0] === pair[1] ? '' : 'Die ' + (i + 1) + ': ') + pair[i] + ' to ' + v, value: i === 0 ? [v, pair[1]] : [pair[0], v] }); });
+      const uniq = opts.filter((o, i) => opts.findIndex(q => q.value.join() === o.value.join()) === i);
+      const r = await ask({ title: 'Loaded Die', text: 'Your roll is <b>' + pair[0] + '</b> and <b>' + pair[1] + '</b>. Set one die to any number.', buttons: [{ label: 'Cancel', value: null }].concat(uniq.map(o => ({ label: o.label, value: o.value, cls: 'primary' }))) });
       if (!r) return; return perkApply(0, id, r);
     }
     if (id === 'twin') {
@@ -9837,7 +10110,7 @@ const Game = (() => {
   }
 
   return {
-    start, leaveBoard, syncViewMode, usePerk: usePerkUI, get view() { return view; }, get G() { return G; }, get cheat() { return G.cheat; }, get active() { return G.active; }, fit,
+    start, leaveBoard, syncViewMode, usePerk: usePerkUI, renderPerks, get view() { return view; }, get G() { return G; }, get cheat() { return G.cheat; }, get active() { return G.active; }, fit,
     startStage: (s) => startStage(s),
   };
 })();
@@ -9881,7 +10154,7 @@ function renderSetup() {
   const seg = (key, items, cur) => `<div class="seg">${items.map(([v, l, s]) => `<button data-k="${key}" data-v="${v}" class="${String(cur) === String(v) ? 'on' : ''}">${l}${s ? `<small>${s}</small>` : ''}</button>`).join('')}</div>`;
   const tog = (key, t, s) => `<div class="toggle ${q[key] ? 'on' : ''}" data-tk="${key}" role="switch" aria-checked="${!!q[key]}" tabindex="0"><span class="sw"></span><span><b>${t}</b><small>${s}</small></span></div>`;
   let h = '<div class="setup-grid">';
-  if (Setup.mode === 'wild') h += `<div class="reward-note" style="border-style:solid"><span><b>How it works</b></span><span>Before the match you pick three perks from six. Each can be played once per game, one per turn: reroll the dice, nudge a die, make a double, add a third die, see or hex your opponent's roll, or shield your blots. The computer drafts its own, hidden until used. Pays the same as a quick match.</span></div>`;
+  if (Setup.mode === 'wild') h += `<div class="reward-note" style="border-style:solid"><span><b>How it works</b></span><span>Before the match you pick four powers from eight. You gain 1 energy at the start of each of your turns and 2 more when one of your checkers is hit, and each power costs energy. Play one power per turn: bend the dice, build a wall, lock down a point, dash or swap checkers, freeze or hex your opponent, or shield your blots. The computer drafts its own, hidden until used. Pays the same as a quick match.</span></div>`;
   if (!two) {
     h += `<div class="field"><div class="lbl">Opponent strength</div>${seg('level', [1, 2, 3, 4, 5].map(i => [i, AI.LEVELS[i].name, LEVEL_INFO[i].blurb]), q.level)}</div>`;
     h += `<div class="field"><div class="lbl">Play style</div>${seg('style', Object.keys(AI.STYLES).map(k => [k, AI.STYLES[k].name, STYLE_INFO[k]]), q.style)}</div>`;
