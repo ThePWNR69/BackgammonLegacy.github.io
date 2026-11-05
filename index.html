@@ -586,6 +586,34 @@ body.compact .shop-filters { padding-top: 4px; padding-bottom: 4px; }
 .on-code { overflow-wrap: anywhere; letter-spacing: .1em; padding-left: .1em; }
 .on-join { font-size: 28px; letter-spacing: .1em; }
 
+/* public games lobby */
+.pub { margin: 14px 0 4px; border-top: 1px solid var(--line); padding-top: 10px; }
+.pub-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.pub-list { display: flex; flex-direction: column; gap: 6px; max-height: min(320px, 42vh); overflow-y: auto; }
+.pub-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.pub-av { font-size: 24px; width: 34px; text-align: center; flex: none; }
+.pub-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pub-info b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pub-info small { color: var(--mute); font-size: 12px; }
+.pub-empty { color: var(--mute); text-align: center; padding: 12px 8px; }
+.pub-empty.small { font-size: 12px; padding: 4px 8px; }
+.pub-state { text-align: center; font-size: 13px; color: var(--mute); margin: -4px 0 8px; }
+.pub-state.ok { color: #8fe3a9; }
+
+/* live games list: open games to join, games in progress to watch, and Quick game */
+.btn.quick { width: 100%; font-size: 16px; padding: 12px 14px; margin: 8px 0 2px; }
+.quick-sub { color: var(--mute); font-size: 12px; text-align: center; margin-bottom: 6px; }
+.pub .btn.quick { margin-top: 0; }
+.pub-sec { color: var(--mute); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; padding: 6px 2px 0; }
+.pub-sec:first-child { padding-top: 0; }
+.pub-row.playing { background: transparent; }
+.pub-row .btn.small { flex: none; }
+#screen-game.watching #g-roll, #screen-game.watching #g-double, #screen-game.watching #g-undo, #screen-game.watching #g-hint, #screen-game.watching #g-emote { display: none !important; }
+.join-lbl { font-weight: 600; margin: 4px 0 6px; }
+.join-row { display: flex; gap: 8px; align-items: stretch; }
+.join-row .on-join { flex: 1; min-width: 0; width: auto; font-size: 22px; padding: 10px 12px; }
+.join-row .btn { flex: none; min-width: 84px; }
+
 </style>
 </head>
 <body>
@@ -1710,7 +1738,7 @@ const DATA = (() => {
     equipped: { board: 'club', checkers: 'classic', dice: 'ivory', moveFx: 'glide', throwFx: 'toss', hitFx: 'knock', trim: 'none', inlay: 'none', mat: 'none', cube: 'ivory' },
     campaign: {}, cheats: { unlockStages: false }, career: blankCareer(),
     stats: { played: 0, won: 0, gammons: 0, hits: 0, coinsEarned: 0, bestStreak: 0, streak: 0 },
-    settings: { sound: true, volume: 0.7, autoRoll: false, assist: true, legal: true, numbers: true, fast: false, pipDisplay: true, haptics: true, wakeLock: true, compact: 'auto', landscapeLock: false, quality: 'auto', board3d: true },
+    settings: { sound: true, volume: 0.7, autoRoll: false, assist: true, legal: true, numbers: true, fast: false, pipDisplay: true, haptics: true, wakeLock: true, compact: 'auto', landscapeLock: false, quality: 'auto', board3d: true, fps: 'max', powerSaver: false },
     quick: { level: 3, style: 'balanced', matchLen: 1, cube: false, variant: 'classic', gammons: true },
   });
 
@@ -2927,8 +2955,20 @@ const GFX = (() => {
     },
   };
   // a profile for phones and low-memory devices: keeps graphics memory well inside what a phone GPU can hold
+  // frame pacing. fps 0 = draw on every display refresh (the default). Settings can cap it, and Power saver caps it at 30.
+  const perf = {
+    fps: 0, saver: false,
+    // true when the caller (any object that keeps its own _due clock) should draw on this animation frame
+    due(o, t) {
+      const iv = this.fps ? 1000 / this.fps : 0;
+      if (!iv) { o._due = 0; return true; }
+      if (t < (o._due || 0) - 1) return false;
+      o._due = (o._due && t - o._due < iv * 2) ? o._due + iv : t + iv;
+      return true;
+    },
+  };
   quality.profiles.phone = { tex3d: 1.4, dprMin: 1.5, dprCap: 2, shadow: 2048, taps: 8, bias: -0.15, adaptive: true, mult2d: 1, cap2d: 2 };
-  return { flushCheckerSprites, quality, ext, hex2rgb, rgba, shade, lighten, mixHex, mulberry32, hashStr, mkCanvas, rr, renderBoard, checkerSprite, SPR, drawDie3D, drawCube, dieShadow, rotFinal, rotAxis, matmul, clamp, paintTexture, paintDeco, insetShadow, noiseTile, pat, drawCheckerPattern, PIPS };
+  return { flushCheckerSprites, quality, perf, ext, hex2rgb, rgba, shade, lighten, mixHex, mulberry32, hashStr, mkCanvas, rr, renderBoard, checkerSprite, SPR, drawDie3D, drawCube, dieShadow, rotFinal, rotAxis, matmul, clamp, paintTexture, paintDeco, insetShadow, noiseTile, pat, drawCheckerPattern, PIPS };
 })();
 
 /* ---------- extra painters: board textures, checker engravings, border trims, inlays, roll mats, cube skins ----------
@@ -3744,14 +3784,15 @@ class BoardView {
     this.boardImg = null; this.boardKey = ''; this.boardScale = 1;
     this.snd = () => { };
     this.running = false; this.lastT = 0; this.frameCount = 0;
-    this._loop = (t) => { this.frame(t); if (this.running) this._raf = requestAnimationFrame(this._loop); };
+    this._loop = (t) => { if (!this.running) return; this._raf = requestAnimationFrame(this._loop); this.tick(t); };
+    this._sig = null; this._drawT = 0;
     this.small = !!opts.small; this.zScale = 1;
   }
 
   /* ----- setup ----- */
   setCosmetics(c) { Object.assign(this.cos, c); this._sprites = {}; }
   setPos(p) { this.pos = BG.clone(p); this.pos.total = p.total || 15; }
-  start() { if (this.running) return; this.running = true; this._raf = requestAnimationFrame(this._loop); }
+  start() { if (this.running) return; this.running = true; this._sig = null; this._due = 0; this._raf = requestAnimationFrame(this._loop); }
   stop() { this.running = false; cancelAnimationFrame(this._raf); }
   setRotated(r) { if (this.rot !== r) { this.rot = r; } }
 
@@ -3763,7 +3804,7 @@ class BoardView {
     this.dpr = Math.min(window.devicePixelRatio || 1, 2);
     this.cssW = w; this.cssH = h;
     this.cv.style.width = w + 'px'; this.cv.style.height = h + 'px';
-    this.cv.width = Math.round(w * this.dpr); this.cv.height = Math.round(h * this.dpr);
+    this.cv.width = Math.round(w * this.dpr); this.cv.height = Math.round(h * this.dpr); this._sig = null;
     this.s = w / (this.rot ? GEO.H : GEO.W);   // css px per logical unit
     this.k = this.s * this.dpr;
     const Q = GFX.quality.get(), want = Math.min(Q.cap2d, Math.max(0.5, Math.ceil(this.k * 2 * Q.mult2d) / 2));
@@ -3917,6 +3958,44 @@ class BoardView {
     ctx.restore();
   }
 
+  /* ----- when to draw -----
+     The loop runs on every display refresh, but a frame is only drawn when something on the board can look different:
+     it is moving (tweens, flights, particles, drag), it is pulsing (move highlights, hints, Wild marks), or its state changed.
+     A completely still board is redrawn only a few times a second, so late textures still appear. Nothing that animates is ever slowed. */
+  motion() {
+    return this.tweens.length > 0 || this.flights.length > 0 || this.parts.length > 0 || (this.trails && this.trails.length > 0) || !!this.drag || this.shake > 0 || !!(this.cup && this.cup.alpha > 0.02) || this.cubeMoving();
+  }
+  cubeMoving() {
+    if (!this.cube.show) return false;
+    const t = this.cubeTarget(), c = this.cubePos;
+    return !c || Math.abs(t.x - c.x) > 0.05 || Math.abs(t.y - c.y) > 0.05;
+  }
+  pulsing() {
+    const p = this.pos || {};
+    return !!((this.legalHints && this.movable.length) || this.dests.length || this.hint || this.targets || (this.cube.show && this.cube.glow) || (p.shield && (p.shield[0] || p.shield[1])) || p.pins || (p.walls && Object.keys(p.walls).length) || this.dice.some(d => d.visible && d.aura && d.aura.pulse));
+  }
+  diceSig() { let s = ''; for (const d of this.dice) s += d.value + ',' + d.side + ',' + (d.visible ? 1 : 0) + (d.used ? 1 : 0) + ',' + d.x + ',' + d.y + ',' + d.z + ',' + d.scale + ',' + d.alpha + ',' + (d.R && d.R.join ? d.R.join() : '') + ';'; return s; }
+  // everything the scene (not the highlights) is drawn from
+  sceneSig() {
+    const c = this.cube, o = this.cos;
+    try {
+      return JSON.stringify(this.pos) + '|' + this.sel + '|' + this.turnPlayer + '|' + this.rot + '|' + this.numbers + '|' + this.cssW + 'x' + this.cssH + '@' + this.dpr + '|' + this.boardKey + '|' + c.show + c.value + c.owner + '|' + this.dblLeft + '|' + Object.values(o).join() + '|' + this.diceSig();
+    } catch (e) { return Math.random() + ''; }
+  }
+  sig() {
+    try { return this.sceneSig() + '|' + JSON.stringify([this.movable, this.dests, this.hint, this.legalHints, this.cube.glow, this.targets]); } catch (e) { return Math.random() + ''; }
+  }
+  tick(t) {
+    if (!GFX.perf.due(this, t)) return;                       // frame-rate limit from Settings (off by default)
+    if (!this.motion() && !this.pulsing()) {
+      const s = this.sig();
+      if (s === this._sig && t - this._drawT < 500) { this.lastT = t; return; }
+      this._sig = s;
+    }
+    this._drawT = t;
+    this.frame(t);
+  }
+
   /* ----- main draw ----- */
   frame(now) {
     const dt = Math.max(0, Math.min(0.05, (now - (this.lastT || now)) / 1000));
@@ -3935,8 +4014,10 @@ class BoardView {
     if (this.cube.show) {
       const t = this.cubeTarget();
       if (!this.cubePos) this.cubePos = { x: t.x, y: t.y };
-      this.cubePos.x += (t.x - this.cubePos.x) * 0.22; this.cubePos.y += (t.y - this.cubePos.y) * 0.22;
+      const ck = 1 - Math.pow(0.78, dt * 60);   // 0.22 per frame at 60 fps, the same speed at any frame rate
+      this.cubePos.x += (t.x - this.cubePos.x) * ck; this.cubePos.y += (t.y - this.cubePos.y) * ck;
     }
+    this.dt60 = dt * 60;
     this.draw(now);
   }
 
@@ -3945,7 +4026,7 @@ class BoardView {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.cv.width, this.cv.height);
     if (this.rot) ctx.setTransform(0, k, -k, 0, G.H * k, 0); else ctx.setTransform(k, 0, 0, k, 0, 0);
-    if (this.shake > 0.2) { ctx.translate((Math.random() - 0.5) * this.shake, (Math.random() - 0.5) * this.shake); this.shake *= 0.88; } else this.shake = 0;
+    if (this.shake > 0.2) { ctx.translate((Math.random() - 0.5) * this.shake, (Math.random() - 0.5) * this.shake); this.shake *= Math.pow(0.88, this.dt60 || 1); } else this.shake = 0;
     ctx.drawImage(this.boardImage(), 0, 0, G.W, G.H);
     const th = DATA.find('boards', this.cos.board);
     if (this.numbers && !this.small && !this.rot) this.drawNumbers(ctx, th);
@@ -4503,7 +4584,7 @@ Object.assign(BoardView.prototype, {
   fxProj(x, y, z) { return [x, y - (z || 0) * 0.55, 1]; },
   fxMat(x, y, z) { return [1, 0, 0, 1, x, y - (z || 0) * 0.55]; },
   trailSkip() { return 0; },
-  fxQ() { return this.small ? 0.7 : 1; },
+  fxQ() { return (this.small ? 0.7 : 1) * (GFX.perf.saver ? 0.6 : 1); },
 
   /* ----- emission helpers ----- */
   rate(key, perSec, fn) {
@@ -4550,7 +4631,7 @@ Object.assign(BoardView.prototype, {
       if (p.delay > 0) { p.delay -= dt; continue; }
       p.life -= dt; if (p.life <= 0) { if (p.onEnd) p.onEnd(p); ps.splice(i, 1); continue; }
       if (p.drag !== undefined) { const k = Math.pow(p.drag, dt); p.vx *= k; p.vy *= k; p.vz *= k; }
-      else if (p.kind === 'spark') { p.vx *= 0.97; p.vy *= 0.97; }
+      else if (p.kind === 'spark') { const k = Math.pow(0.97, dt * 60); p.vx *= k; p.vy *= k; }
       if (p.orb) { const o = p.orb; o.a += o.w * dt; o.r = Math.max(0, o.r - o.dr * dt); p.x = o.cx + Math.cos(o.a) * o.r; p.y = o.cy + Math.sin(o.a) * o.r * (o.sq || 1); }
       else { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += p.g * dt; }
       if (p.z !== undefined) {
@@ -6923,6 +7004,7 @@ class BoardView3D extends BoardView {
     this.glr.resize(w, h, this.dpr);
     this.glr.canvas.style.left = '0'; this.glr.canvas.style.top = '0';
     this.fitCamera(w, h);
+    this._ss = null; this._glT = 0; this._sig = null;   // resizing clears the canvas: draw the scene again
   }
   fitCamera(w, h) {
     const aspect = w / h, hz = this.rot ? [1, 0] : [0, 1];
@@ -7071,18 +7153,27 @@ class BoardView3D extends BoardView {
   }
 
   /* ----- main draw ----- */
+  // the 3D scene itself changes only when something moves or the board state changes; the highlights are a separate 2D layer
+  sceneSig() { return super.sceneSig() + '|' + this.boardLod + '|' + this.quality; }
+  sceneMotion() { return this.tweens.length > 0 || this.flights.length > 0 || !!this.drag || !!(this.cup && this.cup.alpha > 0.02) || this.cubeMoving(); }
   draw(now) {
     if (!this.cssW) return;
     if (this.stack && this.glr.canvas.parentNode !== this.stack) this.stack.insertBefore(this.glr.canvas, this.cv);
     const gw = Math.round(this.cssW * this.dpr), gh = Math.round(this.cssH * this.dpr);
-    if (this.glr.canvas.width !== gw || this.glr.canvas.height !== gh) this.glr.resize(this.cssW, this.cssH, this.dpr);
-    const dt = (now - (this._lastDraw || now)) / 1000; this._lastDraw = now;
-    if (dt > 0 && dt < 0.25 && !this.small) {
-      this.perf.avg = this.perf.avg * 0.93 + dt * 0.07; this.perf.n++;
-      if (this.perf.n > 120 && this.perf.avg > 0.045 && this.quality < 2 && GFX.quality.get().adaptive) { this.quality++; this.perf.n = 0; this.perf.avg = 0.016; this.fit(this.cssW, this.cssH); }
+    let redo = false;
+    if (this.glr.canvas.width !== gw || this.glr.canvas.height !== gh) { this.glr.resize(this.cssW, this.cssH, this.dpr); redo = true; }
+    const moving = this.sceneMotion(), ss = moving ? '' : this.sceneSig();
+    if (moving || redo || ss !== this._ss || !this._glT || now - this._glT > 500) {
+      // measure the frame time only while the scene is animating continuously, to lower quality on slow devices
+      const dt = (now - (this._glT || now)) / 1000;
+      if (moving && dt > 0 && dt < 0.1 && !this.small) {
+        this.perf.avg = this.perf.avg * 0.93 + dt * 0.07; this.perf.n++;
+        if (this.perf.n > 120 && this.perf.avg > 0.045 && this.quality < 2 && GFX.quality.get().adaptive) { this.quality++; this.perf.n = 0; this.perf.avg = 0.016; this.fit(this.cssW, this.cssH); }
+      }
+      this._glT = now; this._ss = ss;
+      const items = this.buildItems(now);
+      this.glr.render({ eye: this.eye, vp: this.vp, light: this.light, exposure: 1.18, amb: 1.0, spec: 1.0, items, ground: A3.board(DATA.themeFor(this.cos), this.boardLod).ground });
     }
-    const items = this.buildItems(now);
-    this.glr.render({ eye: this.eye, vp: this.vp, light: this.light, exposure: 1.18, amb: 1.0, spec: 1.0, items, ground: A3.board(DATA.themeFor(this.cos), this.boardLod).ground });
     this.drawOverlay(now);
   }
 
@@ -7351,7 +7442,7 @@ const SFX = (() => {
    and rolls never need to be sent for trust, only for animation.
    ============================================================ */
 const Net = (() => {
-  const BUILD = '20261104-1001';
+  const BUILD = '20261105-0633';
   const TOPIC = 'm', ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const HEARTBEAT = 2500, RESEND = 1400, LOST_AFTER = 14000;
   let ns = null, nsTried = false, S = null;
@@ -7382,7 +7473,7 @@ const Net = (() => {
     return {
       cid: rid(), role, code, room, peer: null, seq: 0, log: [], peerAck: 0, recv: 0, buf: new Map(), inbox: [], waiters: [],
       closed: false, lastHeard: Date.now(), lost: false, timers: [], seedA: 0, seedB: 0, salt: rid(), peerCommit: null, myReveal: false, peerReveal: null,
-      rng: null, ready: false, cb: {}, vote: { me: false, peer: false }, profile: null, info: null,
+      rng: null, ready: false, cb: {}, vote: { me: false, peer: false }, profile: null, info: null, liveQ: 0, lastSc: null, fin: false,
     };
   }
   function raw(env) { try { const r = S.room.emit(TOPIC, env); if (r && r.catch) r.catch(() => { }); } catch (e) { } }
@@ -7699,6 +7790,229 @@ const Net = (() => {
       es.onerror = () => { if (!done) { fail(NO_SERVICE); return; } if (es.readyState === 2 && !L.closed) L.emit({ type: 'CLOSED' }); };   // otherwise the browser reconnects by itself
     });
   }
+
+  /* ---------- public games lobby ----------
+     An open public game is advertised on a separate lobby channel of the same relays; a listing is only the code plus a few details,
+     and joining from the list works exactly like typing the code.
+       MQTT : one retained message per game on bglegacy-lobby/<CODE>. A "last will" clears it if the host vanishes, and the host repeats it every 45 s.
+       ntfy : the host posts the same JSON to one topic about once a minute (and a 'gone' note when it leaves); browsers read the last two minutes. */
+  const LOBBY = 'bglegacy-lobby', LIVE = 'bglegacy-live', LOBBY_TTL = 130000, LOBBY_AGE = 240000;
+  const lobbyTxt = (s, n) => String(s == null ? '' : s).replace(/<[^>]*>?/g, '').replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, n);
+  const int = (x, lo, hi, d) => { x = Math.trunc(+x); return isFinite(x) && x >= lo && x <= hi ? x : d; };
+  function lobbyClean(o) {                                 // anyone can publish here, so every field is checked before it reaches the screen
+    if (!o || typeof o !== 'object' || o.v !== 1 || typeof o.c !== 'string') return null;
+    const c = cleanCode(o.c); if (!c || c !== o.c || c.length < MIN_CODE || c.length > 16) return null;
+    const t = +o.t; if (!isFinite(t) || Math.abs(Date.now() - t) > LOBBY_AGE) return null;
+    const playing = o.st === 'p', watch = !!o.sp;
+    if (playing && !watch) return null;                    // a game in progress is only listed when the host lets people watch
+    const sc = Array.isArray(o.sc) ? [int(o.sc[0], 0, 99, 0), int(o.sc[1], 0, 99, 0)] : [0, 0];
+    return { code: c, name: lobbyTxt(o.n, 14) || 'Player', av: lobbyTxt(o.av, 4) || '🎲', build: lobbyTxt(o.b, 24), len: Math.min(9, Math.max(1, (o.m | 0) || 1)), cube: !!o.cu, variant: lobbyTxt(o.va, 16) || 'classic', t,
+      playing, opp: playing ? (lobbyTxt(o.o, 14) || 'Player') : '', oppAv: playing ? (lobbyTxt(o.oa, 4) || '🎲') : '', score: sc, watchers: int(o.w, 0, 99, 0), finished: !!o.f };
+  }
+  /* ---------- live games ----------
+     The host of a public game also publishes a snapshot of the match after every roll, turn and cube action, on bglegacy-live/<CODE>
+     (the newest one is kept by the broker, so someone arriving mid-game sees the board straight away). Spectators only listen: they
+     replay what happened, they can never send anything that reaches the game. Every field is checked before it is used. */
+  const SNAP_KINDS = ['new', 'open', 'roll', 'moves', 'dbl', 'rep', 'end', 'match', 'abort'], SNAP_PHASES = ['opening', 'preroll', 'moving', 'doubling', 'over'];
+  function posClean(p) {
+    if (!p || !Array.isArray(p.pts) || p.pts.length !== 24 || !Array.isArray(p.bar) || p.bar.length !== 2 || !Array.isArray(p.off) || p.off.length !== 2) return null;
+    const pts = p.pts.map((x) => int(x, -15, 15, NaN)), bar = p.bar.map((x) => int(x, 0, 15, NaN)), off = p.off.map((x) => int(x, 0, 15, NaN));
+    if ([...pts, ...bar, ...off].some(isNaN)) return null;
+    return { pts, bar, off, total: int(p.total, 1, 15, 15) };
+  }
+  const diceClean = (a, n) => Array.isArray(a) && a.length >= 1 && a.length <= n && a.every((d) => d >= 1 && d <= 6 && d === (d | 0)) ? a.slice() : null;
+  function snapClean(o, variants) {
+    if (!o || typeof o !== 'object' || o.v !== 1) return null;
+    const q = int(o.q, 1, 1e9, 0), pos = posClean(o.pos), h = o.h, e = o.ev; if (!q || !pos || !h || typeof h !== 'object' || !e || typeof e !== 'object' || !SNAP_KINDS.includes(e.k)) return null;
+    const pair = (a, f) => (Array.isArray(a) && a.length === 2 ? [f(a[0]), f(a[1])] : null);
+    const names = pair(h.n, (x) => lobbyTxt(x, 14)) || ['Host', 'Guest'], avs = pair(h.a, (x) => lobbyTxt(x, 4)) || ['🎲', '🎲'], cos = {};
+    if (h.cos && typeof h.cos === 'object') for (const k of Object.keys(h.cos).slice(0, 20)) { const v = h.cos[k]; if (/^[a-z][A-Za-z0-9]{0,15}$/.test(k) && typeof v === 'string' && /^[A-Za-z0-9_\-]{1,32}$/.test(v)) cos[k] = v; }
+    const va = lobbyTxt(h.va, 16), cv = o.cube || {}, cubeV = int(cv.value, 1, 64, 1);
+    const ev = { k: e.k, p: int(e.p, 0, 1, 0), v: int(e.v, 1, 64, 1), take: !!e.take, w: int(e.w, 0, 1, 0), base: int(e.base, 1, 3, 1), pts: int(e.pts, 1, 999, 1), dice: diceClean(e.dice, 2), mv: [] };
+    if (Array.isArray(e.mv)) for (const m of e.mv.slice(0, 4)) { if (!m || typeof m !== 'object') return null; const f = int(m.from, 0, 25, -1), t = int(m.to, 0, 26, -1), d = int(m.die, 1, 6, 0); if (f < 0 || t < 0 || !d) return null; ev.mv.push({ from: f, to: t, die: d, hit: !!m.hit }); }
+    return {
+      q, t: +o.t || 0, ev, pos, gn: int(o.gn, 1, 99, 1), turn: int(o.turn, 0, 1, 0), ph: SNAP_PHASES.includes(o.ph) ? o.ph : 'preroll', rem: diceClean(o.rem, 4) || [], dice: diceClean(o.dice, 2),
+      cube: { value: [1, 2, 4, 8, 16, 32, 64].includes(cubeV) ? cubeV : 1, owner: int(cv.owner, -1, 1, -1) },
+      sc: pair(o.sc, (x) => int(x, 0, 99, 0)) || [0, 0],
+      h: { n: [names[0] || 'Host', names[1] || 'Guest'], a: [avs[0] || '🎲', avs[1] || '🎲'], len: int(h.len, 1, 9, 3), cu: !!h.cu, va: variants && variants.includes(va) ? va : 'classic', cos },
+    };
+  }
+  // a small MQTT session: optional last will, optional subscription. Resolves once it is ready to use.
+  function mqttSession(url, o) {
+    return new Promise((resolve, reject) => {
+      let ws; try { ws = new WebSocket(url, 'mqtt'); ws.binaryType = 'arraybuffer'; } catch (e) { reject(new Error(NO_SERVICE)); return; }
+      const enc = (t) => new TextEncoder().encode(t); let buf = new Uint8Array(0), done = false, pingT = null;
+      const put = (u8) => { try { if (ws.readyState === 1) ws.send(u8); } catch (e) { } };
+      const api = {
+        closed: false, alive: () => done && !api.closed && ws.readyState === 1,
+        publish(topic, text, retain) { put(mqttFrame(0x30 | (retain ? 1 : 0), new Uint8Array([...mqttStr(topic), ...enc(text)]))); },
+        close() { api.closed = true; clearInterval(pingT); try { put(new Uint8Array([0xE0, 0])); ws.close(); } catch (e) { } },
+      };
+      const fail = (msg) => { if (done) return; done = true; clearTimeout(timer); try { ws.close(); } catch (e) { } reject(new Error(msg)); };
+      const win = () => { if (done) return; done = true; clearTimeout(timer); pingT = setInterval(() => put(new Uint8Array([0xC0, 0])), 15000); resolve(api); };
+      const timer = setTimeout(() => fail(NO_SERVICE), 9000);
+      ws.onopen = () => {
+        const will = o.will ? [...mqttStr(o.will), 0, 0] : [];                          // empty retained message: removes the listing
+        put(mqttFrame(0x10, new Uint8Array([0, 4, 0x4D, 0x51, 0x54, 0x54, 4, o.will ? 0x26 : 2, 0, 30, ...mqttStr('bgl' + rid()), ...will])));
+      };
+      ws.onmessage = (e) => {
+        const c = new Uint8Array(e.data), n = new Uint8Array(buf.length + c.length); n.set(buf); n.set(c, buf.length); buf = n;
+        for (;;) {
+          if (buf.length < 2) return;
+          let mul = 1, len = 0, i = 1, b; do { if (i >= buf.length) return; b = buf[i++]; len += (b & 127) * mul; mul *= 128; } while (b & 128);
+          if (buf.length < i + len) return;
+          const t = buf[0] >> 4, f = buf[0] & 15, body = buf.slice(i, i + len); buf = buf.slice(i + len);
+          if (t === 2) { if (body[1] !== 0) fail('The matchmaking service refused the connection.'); else if (o.sub) put(mqttFrame(0x82, new Uint8Array([0, 1, ...[].concat(o.sub).flatMap((s) => [...mqttStr(s), 0])]))); else win(); }
+          else if (t === 9) win();
+          else if (t === 3 && o.onPub) { const tl = (body[0] << 8) | body[1], off = 2 + tl + (((f >> 1) & 3) > 0 ? 2 : 0); try { o.onPub(new TextDecoder().decode(body.slice(2, 2 + tl)), new TextDecoder().decode(body.slice(off)), f & 1); } catch (er) { } }
+        }
+      };
+      ws.onerror = () => fail(NO_SERVICE);
+      ws.onclose = () => { if (!done) fail(NO_SERVICE); else if (!api.closed) { clearInterval(pingT); if (o.onClose) o.onClose(); } };
+    });
+  }
+  const lobbyBase = (r) => r.url.replace(/\/$/, '') + '/' + LOBBY;
+  // Host side: keep one listing alive on every MQTT / ntfy relay until stop(). onState(listedOn, of) says how many relays carry it.
+  // entryOf(viewers) builds the listing (it changes when the game starts); update() pushes a change now; feed(text) publishes the live snapshot.
+  function lobbyHost(code, entryOf, onState) {
+    const rels = relayList().filter(r => r.kind === 'mqtt' || r.kind === 'ntfy'), live = new Set(), conns = new Map(), last = new Map(), watchers = new Map(); let stopped = false, lastFeed = '', lastVc = 0;
+    const note = () => { try { if (onState) onState(live.size, rels.length); } catch (e) { } };
+    const topic = LOBBY + '/' + code, feedTopic = LIVE + '/' + code;
+    const viewers = () => { const now = Date.now(); let n = 0; for (const [k, t] of watchers) { if (now - t > 50000) watchers.delete(k); else n++; } return Math.min(99, n); };
+    const post = (r) => {
+      last.set(r, Date.now()); const txt = JSON.stringify(entryOf(viewers()));
+      if (r.kind === 'mqtt') { const s = conns.get(r); if (s && s.alive()) { s.publish(topic, txt, true); if (!live.has(r)) { live.add(r); note(); } } return; }
+      try { fetch(lobbyBase(r), { method: 'POST', body: txt }).then((res) => { if (stopped) return; if (res.ok) live.add(r); else live.delete(r); note(); }).catch(() => { live.delete(r); note(); }); } catch (e) { }
+    };
+    const heard = (tp, text) => { try { const o = JSON.parse(text); if (o && typeof o.i === 'string' && o.i.length <= 40) watchers.set(o.i, Date.now()); } catch (e) { } };   // spectators say hello every 20 s
+    const openMqtt = async (r, wait) => {
+      if (stopped) return;
+      let s = null;
+      try {
+        s = await mqttSession(r.url, { will: topic, sub: feedTopic + '/w', onPub: heard, onClose: () => { if (conns.get(r) === s) { conns.delete(r); live.delete(r); note(); if (!stopped) setTimeout(() => openMqtt(r, 5000), 5000); } } });
+        if (stopped) { s.close(); return; }
+        conns.set(r, s); post(r); if (lastFeed) s.publish(feedTopic, lastFeed, true);
+      } catch (e) { if (!stopped) setTimeout(() => openMqtt(r, Math.min(30000, (wait || 4000) * 2)), wait || 4000); }
+    };
+    rels.forEach((r) => { if (r.kind === 'mqtt') openMqtt(r); else post(r); });
+    const tick = setInterval(() => {
+      const vc = viewers(), changed = vc !== lastVc; lastVc = vc;
+      rels.forEach((r) => { if ((changed && r.kind === 'mqtt') || Date.now() - (last.get(r) || 0) >= (r.kind === 'mqtt' ? 45000 : 60000)) post(r); });
+    }, 5000);
+    const gone = () => api.stop();
+    window.addEventListener('pagehide', gone);              // closing the tab withdraws the listing straight away
+    const api = {
+      viewers,
+      update(urgent) { if (stopped) return; rels.forEach((r) => { if (r.kind === 'mqtt' || urgent || Date.now() - (last.get(r) || 0) > 20000) post(r); }); },
+      feed(text) { if (stopped) return; lastFeed = text; conns.forEach((s) => { if (s.alive()) s.publish(feedTopic, text, true); }); },
+      stop() {
+        if (stopped) return; stopped = true; clearInterval(tick); window.removeEventListener('pagehide', gone);
+        rels.forEach((r) => {
+          if (r.kind === 'mqtt') {
+            const s = conns.get(r); if (!s) return;
+            if (lastFeed) { s.publish(feedTopic, JSON.stringify({ end: 1 }), false); s.publish(feedTopic, '', true); }   // tell anyone watching, then clear the kept snapshot
+            s.publish(topic, '', true); s.close();
+          } else { try { fetch(lobbyBase(r), { method: 'POST', body: JSON.stringify({ v: 1, c: code, gone: 1, t: Date.now() }), keepalive: true }).catch(() => { }); } catch (e) { } }
+        });
+        conns.clear(); live.clear();
+      },
+    };
+    return api;
+  }
+  // Browser side: collects the games listed right now. onChange(list, {up, failed, total}) runs whenever anything changes.
+  function lobbyBrowse(onChange) {
+    const rels = relayList().filter(r => r.kind === 'mqtt' || r.kind === 'ntfy'), games = new Map(), conns = [], timers = []; let stopped = false, up = 0, failed = 0;
+    const emit = () => {
+      if (stopped) return; const now = Date.now();
+      for (const [c, g] of games) { for (const [k, t] of g.via) if (now - t > LOBBY_TTL) g.via.delete(k); if (!g.via.size) games.delete(c); }
+      try { onChange([...games.values()].map(g => g.e).sort((a, b) => b.t - a.t).slice(0, 40), { up, failed, total: rels.length }); } catch (e) { }
+    };
+    const add = (o, key) => { const e = lobbyClean(o); if (!e) return; const g = games.get(e.code) || { e, via: new Map() }; if (e.t >= g.e.t) g.e = e; g.via.set(key, Date.now()); games.set(e.code, g); };
+    const drop = (code, key) => { const g = games.get(code); if (g) { g.via.delete(key); if (!g.via.size) games.delete(code); } };
+    const ok = () => { up++; emit(); }, bad = () => { failed++; emit(); };
+    rels.forEach((r) => {
+      const key = r.kind + ':' + r.url;
+      if (r.kind === 'mqtt') {
+        let again = 1;
+        const open = () => {
+          mqttSession(r.url, {
+            sub: LOBBY + '/#',
+            onPub: (tp, text) => { const code = tp.slice(LOBBY.length + 1); if (!text) { drop(code, key); emit(); return; } let o; try { o = JSON.parse(text); } catch (e) { return; } add(o, key); emit(); },
+            onClose: () => { if (!stopped && again-- > 0) setTimeout(open, 3000); },
+          }).then((s) => { if (stopped) { s.close(); return; } conns.push(s); ok(); }, bad);
+        };
+        open();
+      } else {
+        let first = true;
+        const poll = async () => {
+          if (stopped) return;
+          try {
+            const res = await fetch(lobbyBase(r) + '/json?poll=1&since=2m'); if (!res.ok) throw new Error('x');
+            const latest = new Map();
+            for (const line of (await res.text()).split('\n')) {
+              if (!line.trim()) continue; let ev, o; try { ev = JSON.parse(line); if (ev.event !== 'message' || !ev.message) continue; o = JSON.parse(ev.message); } catch (e) { continue; }
+              if (!o || typeof o.c !== 'string') continue; const p = latest.get(o.c); if (!p || ev.time >= p.time) latest.set(o.c, { time: ev.time, o });
+            }
+            for (const [code, x] of latest) { if (x.o.gone) drop(code, key); else add(x.o, key); }
+            for (const [code, g] of games) if (g.via.has(key) && !latest.has(code)) drop(code, key);
+            if (first) { first = false; up++; } emit();
+          } catch (e) { if (first) { first = false; failed++; emit(); } }
+        };
+        poll(); timers.push(setInterval(poll, 10000));
+      }
+    });
+    timers.push(setInterval(emit, 5000));
+    if (!rels.length) setTimeout(() => { failed = 1; emit(); }, 0);
+    return { stop() { stopped = true; timers.forEach(clearInterval); conns.forEach(s => s.close()); } };
+  }
+  // Spectator side: listens to a public game's live feed on every MQTT relay at once. The handle's cb can be swapped (the board takes over from the list).
+  // cb.snap(s) gets each checked snapshot once, in order; cb.ended(why) when the host leaves; cb.status({up, failed, total}) says how many relays answered.
+  function watch(code, cb) {
+    code = cleanCode(code);
+    const rels = relayList().filter(r => r.kind === 'mqtt'), conns = [], timers = [], me = rid(), liveT = LIVE + '/' + code, lobT = LOBBY + '/' + code, variants = Object.keys(BG.VARIANTS);
+    let stopped = false, lastQ = 0, up = 0, failed = 0, gotAny = false, goneT = null;
+    const h = {
+      cb: cb || {}, started: Date.now(),
+      stop() { if (stopped) return; stopped = true; clearTimeout(goneT); timers.forEach(clearInterval); conns.forEach(s => s.close()); },
+    };
+    const report = () => { if (!stopped && h.cb.status) h.cb.status({ up, failed, total: rels.length }); };
+    const finish = (why) => { if (stopped) return; if (h.cb.ended) h.cb.ended(why); };
+    const onPub = (tp, text) => {
+      if (stopped) return;
+      if (tp === lobT) {                                    // the listing vanished: the host closed the game or lost its connection. Give it a moment to come back.
+        if (!text) { if (gotAny && !goneT) goneT = setTimeout(() => { goneT = null; finish('gone'); }, 20000); } else { clearTimeout(goneT); goneT = null; }
+        return;
+      }
+      if (!text) return;
+      let o; try { o = JSON.parse(text); } catch (e) { return; }
+      if (o && o.end) { finish('left'); return; }
+      const sn = snapClean(o, variants); if (!sn || sn.q <= lastQ) return;
+      lastQ = sn.q; gotAny = true; clearTimeout(goneT); goneT = null;
+      if (h.cb.snap) h.cb.snap(sn);
+    };
+    rels.forEach((r) => {
+      let again = 1;
+      const open = () => {
+        mqttSession(r.url, { sub: [liveT, lobT], onPub, onClose: () => { if (!stopped && again-- > 0) setTimeout(open, 3000); } }).then((s) => {
+          if (stopped) { s.close(); return; }
+          conns.push(s); up++; report();
+          const beat = () => { if (s.alive()) s.publish(liveT + '/w', JSON.stringify({ i: me }), false); };
+          beat(); timers.push(setInterval(beat, 20000));
+        }, () => { failed++; report(); });
+      };
+      open();
+    });
+    if (!rels.length) setTimeout(() => { failed = 1; report(); }, 0);
+    return h;
+  }
+  // Host side: the game calls this with a snapshot after each step; it is numbered and sent to everyone watching.
+  function live(snap) {
+    const s = S; if (!s || s.closed || s.role !== 'host' || !s.lobby || !s.cfg || !s.cfg.watch) return;
+    const fin = snap.ev.k === 'match' || snap.ev.k === 'abort', was = !!s.fin, sc0 = s.lastSc ? s.lastSc.join() : '';
+    snap.v = 1; snap.q = ++s.liveQ; snap.t = Date.now(); s.fin = fin; s.lastSc = (snap.sc || [0, 0]).slice();
+    s.lobby.feed(JSON.stringify(snap));
+    if (fin !== was) s.lobby.update(true); else if (s.lastSc.join() !== sc0) s.lobby.update(false);
+  }
   const openRelay = async (r, id, tok, reuse) => { const l = r.kind === 'mqtt' ? await mqttLink(r, id) : r.kind === 'ntfy' ? await ntfyLink(r, id) : await peerLink(r, id, tok, reuse); return l; };
   // open every relay at once; settle as soon as one works and the others have had a moment. Relays that open later are handed to onLate.
   function openMany(id, tok, onLate) {
@@ -7728,7 +8042,8 @@ const Net = (() => {
     const note = (t, bad) => { if (S === mine && mine.cb.note) mine.cb.note(t, bad); };
     const waiting = () => S === mine && !mine.ready && !linked;
     try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(l => { mine.wl = l; }).catch(() => { }); } catch (e) { }
-    mine.closeLinks = () => E.forEach(e => e.l.close());
+    mine.closeLinks = () => { E.forEach(e => e.l.close()); };
+    mine.endLobby = () => { if (mine.lobby) { mine.lobby.stop(); mine.lobby = null; } };
     const refresh = () => {
       if (!waiting() || Date.now() < quietUntil) return;
       const up = E.filter(e => e.live).length;
@@ -7747,7 +8062,7 @@ const Net = (() => {
         if (pc) { try { pc.close(); } catch (er) { } }
         softReset(); note('A friend is connecting…');
         const here = pc = new RTCPeerConnection({ iceServers: ICE }); room.bind(here);
-        here.ondatachannel = (ev) => { room.attach(ev.channel); ev.channel.addEventListener('open', () => { linked = true; mine.closeLinks(); }); };
+        here.ondatachannel = (ev) => { room.attach(ev.channel); ev.channel.addEventListener('open', () => { linked = true; mine.closeLinks(); if (mine.lobby) { if (cfg.watch) mine.lobby.update(true); else mine.endLobby(); } }); };
         here.onconnectionstatechange = () => { if (here === pc && here.connectionState === 'failed' && waiting()) { linked = false; seen = null; quietUntil = 0; note('That connection failed. Different networks can block direct connections, so try the same Wi-Fi. The game is still open if they try again.', true); E.forEach(x => { if (!x.l.alive()) reRegister(x); }); } };
         await here.setRemoteDescription({ type: 'offer', sdp: rec.sdp }); if (my !== attempt) return;
         await here.setLocalDescription(await here.createAnswer()); if (my !== attempt) return;
@@ -7777,6 +8092,14 @@ const Net = (() => {
       if (e.strikes < 3) reRegister(e);                   // after that keep what we have: it may be a relay that never forwards
     };
     first.forEach(entry);
+    if (cfg && cfg.pub) {                                  // list this game publicly, with the same code
+      const ent = (vw) => {
+        const e = { v: 1, c: code, n: lobbyTxt(profile.name, 14), av: lobbyTxt(profile.av, 4), b: BUILD, m: cfg.matchLen | 0, cu: cfg.cube ? 1 : 0, va: lobbyTxt(cfg.variant, 16), t: Date.now(), sp: cfg.watch ? 1 : 0, w: vw | 0 };
+        if (linked || mine.ready) { const p = mine.peerProfile || {}; e.st = 'p'; e.o = lobbyTxt(p.name, 14); e.oa = lobbyTxt(p.av, 4); e.sc = mine.lastSc || [0, 0]; if (mine.fin) e.f = 1; }   // once someone has joined it is a game in progress
+        return e;
+      };
+      mine.lobby = lobbyHost(code, ent, (n, of) => { if (S === mine && mine.cb.pub) mine.cb.pub(n, of); });
+    }
     adopt = (l) => { if (!waiting()) { l.close(); return; } const e = entry(l); setTimeout(() => verify(e), 400); };
     mine.timers.push(setInterval(() => E.forEach(e => { if (Date.now() - e.last >= e.l.every) verify(e); }), 5000), setTimeout(() => E.forEach(verify), 900));
     const wake = () => { if (document.visibilityState === 'visible' && waiting()) E.forEach(e => { if (!e.l.alive()) reRegister(e); else verify(e); }); };
@@ -7784,7 +8107,7 @@ const Net = (() => {
     mine.off = () => { document.removeEventListener('visibilitychange', wake); window.removeEventListener('online', wake); };
     return code;
   }
-  async function joinBroker(code, profile, cb) {
+  async function joinBroker(code, profile, cb, opts) {
     code = cleanCode(code); if (code.length < MIN_CODE) throw new Error('Codes have at least 5 letters or numbers.');
     const me = 'bgg-' + rid(), dst = idFor(code), links = []; let lateHook = () => { };
     links.push(...await openMany(me, token(), (l) => lateHook(l)));
@@ -7792,7 +8115,7 @@ const Net = (() => {
     room.bind(pc); room.attach(ch); ch.addEventListener('open', () => links.forEach(l => l.close()));
     attach('guest', code, room, null, profile, cb);
     const mine = S; mine.closeLinks = () => links.forEach(l => l.close()); let answered = false, tries = 0, watch = null;
-    const MAX_TRIES = 3;
+    const MAX_TRIES = (opts && opts.tries) || 3;
     const note = (t) => { if (S === mine && mine.cb.note) mine.cb.note(t); };
     pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed' && S === mine && !mine.ready && mine.cb.fail) { mine.cb.fail(new Error('Could not connect. Different networks can block direct connections: try both devices on the same Wi-Fi, or use the manual codes.')); close(true); } };
     const offer = () => ({ type: 'OFFER', dst, payload: { sdp: pc.localDescription.sdp } });
@@ -7882,7 +8205,7 @@ const Net = (() => {
   function close(silent) {
     if (!S) return;
     const s = S; S = null;
-    s.closed = true; s.timers.forEach(clearInterval); if (s.closeLinks) s.closeLinks(); if (s.stop) s.stop(); if (s.off) s.off();
+    s.closed = true; s.timers.forEach(clearInterval); if (s.closeLinks) s.closeLinks(); if (s.endLobby) s.endLobby(); if (s.stop) s.stop(); if (s.off) s.off();
     try { if (s.wl) s.wl.release(); } catch (e) { }
     for (const w of s.waiters) w.res(null);
     try { s.room.leave(); } catch (e) { }
@@ -7894,7 +8217,7 @@ const Net = (() => {
   function voteRematch() { if (!S) return; S.vote.me = true; send('rematch', {}); checkVotes(); }
 
   return {
-    available, host, join, leave, close, send, next, voteRematch, cleanCode, p2pSupported, hostP2P, joinP2P, hostBroker, joinBroker, check, build: BUILD, MIN_CODE, newCode,
+    available, host, join, leave, close, send, next, voteRematch, cleanCode, p2pSupported, hostP2P, joinP2P, hostBroker, joinBroker, lobbyBrowse, watch, live, check, build: BUILD, MIN_CODE, newCode,
     die: () => (S && S.rng) ? 1 + Math.floor(S.rng() * 6) : 1 + Math.floor(Math.random() * 6),
     rand: () => (S && S.rng) ? S.rng() : Math.random(),
     get active() { return !!(S && !S.closed); },
@@ -7905,6 +8228,7 @@ const Net = (() => {
     get lost() { return !!(S && S.lost); },
     on(cb) { if (S) Object.assign(S.cb, cb); },
     voted: () => S ? S.vote.peer : false,
+    get watchers() { return S && S.lobby ? S.lobby.viewers() : 0; },
   };
 })();
 
@@ -8133,8 +8457,18 @@ Nav.onShow.menu = () => { renderMenuProfile(); startAttract(); };
 
 /* ---------- settings & help ---------- */
 const QUALITY_LEVELS = [['auto', 'Auto'], ['low', 'Low'], ['medium', 'Medium'], ['high', 'High'], ['ultra', 'Ultra']];
+/* Power saver is a one-tap preset: it caps the frame rate at 30, uses the Low graphics profile and thins out particles.
+   It never changes the saved quality / frame-rate choices; the stricter of the two always wins. */
+function effQuality() { const s = P().settings, q = GFX.quality.profiles[s.quality] ? s.quality : 'auto'; return s.powerSaver ? 'low' : q; }
+function applyPerf() {
+  const s = P().settings, caps = [];
+  if (+s.fps > 0) caps.push(+s.fps);
+  if (s.powerSaver) caps.push(30);
+  GFX.perf.fps = caps.length ? Math.min.apply(null, caps) : 0;
+  GFX.perf.saver = !!s.powerSaver;
+}
 function applyQuality() {
-  const s = P().settings; GFX.quality.level = GFX.quality.profiles[s.quality] ? s.quality : 'auto';
+  const s = P().settings; GFX.quality.level = effQuality();
   if (!Game.view) return;
   try { if (typeof A3 !== 'undefined') A3.flushBoards(); Game.view.boardKey = ''; Game.view.fit(Game.view.cssW, Game.view.cssH); } catch (e) { }
 }
@@ -8156,7 +8490,8 @@ function onGlRestored(n) {
 function applySettings() {
   const s = P().settings;
   if (Game.syncViewMode) Game.syncViewMode();
-  if (GFX.quality.level !== (GFX.quality.profiles[s.quality] ? s.quality : 'auto')) applyQuality();
+  applyPerf();
+  if (GFX.quality.level !== effQuality()) applyQuality();
   SFX.setEnabled(s.sound); SFX.setVolume(s.volume);
   if (Game.view) { Game.view.numbers = s.numbers; Game.view.legalHints = s.legal; Game.view.fast = s.fast; }
   $$('.stats .chip').forEach(c => { c.style.display = s.pipDisplay ? '' : 'none'; });
@@ -8182,7 +8517,9 @@ function openSettings() {
         ${row('haptics', 'Vibration', 'Short buzzes for hits, dice and wins on phones that support it')}
         ${row('wakeLock', 'Keep screen on during a match', 'Stops the phone dimming while you play')}
         ${row('landscapeLock', 'Lock to landscape in fullscreen', 'Only works when fullscreen is allowed')}
-        <div class="toggle stack" style="cursor:default"><span style="flex:1"><b>Graphics quality</b><small>Sharper board textures, shadows and edges. Auto adapts to your device; Ultra needs a strong GPU.</small></span><span class="seg" id="seg-quality">${QUALITY_LEVELS.map(([v, n]) => `<button data-q="${v}" class="${(s.quality || 'auto') === v ? 'on' : ''}">${n}</button>`).join('')}</span></div>
+        ${row('powerSaver', 'Power saver', 'Saves battery and keeps your phone cooler: 30 frames a second, Low graphics quality and lighter particle effects. Animations keep their normal speed.')}
+        <div class="toggle stack" style="cursor:default"><span style="flex:1"><b>Graphics quality</b><small>Sharper board textures, shadows and edges. Auto adapts to your device; Ultra needs a strong GPU.</small><small class="ps-note" style="color:var(--gold,#e3b94e);margin-top:6px;display:${s.powerSaver ? 'block' : 'none'}">Power saver is on, so Low is used for now. Your choice here comes back when you switch it off.</small></span><span class="seg" id="seg-quality">${QUALITY_LEVELS.map(([v, n]) => `<button data-q="${v}" class="${(s.quality || 'auto') === v ? 'on' : ''}">${n}</button>`).join('')}</span></div>
+        <div class="toggle stack" style="cursor:default"><span style="flex:1"><b>Frame rate limit</b><small>Max follows your screen, which is the smoothest. 60 or 30 uses less battery. The board only redraws when something changes, whatever you pick.</small><small class="ps-note" style="color:var(--gold,#e3b94e);margin-top:6px;display:${s.powerSaver ? 'block' : 'none'}">Power saver is on, so 30 fps is used for now. Your choice here comes back when you switch it off.</small></span><span class="seg" id="seg-fps">${[['max', 'Max'], ['60', '60'], ['30', '30']].map(([v, n]) => `<button data-f="${v}" class="${String(s.fps || 'max') === v ? 'on' : ''}">${n}</button>`).join('')}</span></div>
         <div class="toggle" style="cursor:default"><span style="flex:1"><b>Compact layout</b><small>Slimmer bars for phones held sideways</small></span><span class="seg" id="seg-compact">${['auto', 'on', 'off'].map(v => `<button data-cv="${v}" class="${s.compact === v ? 'on' : ''}" style="padding:6px 12px">${v[0].toUpperCase() + v.slice(1)}</button>`).join('')}</span></div>
       </div>
       <div class="btns"><button class="btn danger" data-act="reset" data-keep>Reset progress</button><button class="btn" data-act="cheats">Cheat menu</button><button class="btn primary" data-act="close">Done</button></div>`,
@@ -8199,11 +8536,13 @@ function openSettings() {
       api.el.addEventListener('click', (e) => {
         const t = e.target.closest('.toggle[data-key]'); if (!t) return;
         const k = t.dataset.key; s[k] = !s[k]; t.classList.toggle('on', s[k]); t.setAttribute('aria-checked', s[k]);
+        if (k === 'powerSaver') $$('.ps-note', api.el).forEach(n => { n.style.display = s.powerSaver ? 'block' : 'none'; });
         Store.save(); applySettings(); SFX.click();
       });
       api.el.addEventListener('keydown', (e) => { if ((e.key === ' ' || e.key === 'Enter') && e.target.classList.contains('toggle')) { e.preventDefault(); e.target.click(); } });
       api.el.addEventListener('click', (e) => { const b = e.target.closest('button[data-cv]'); if (!b) return; s.compact = b.dataset.cv; $$('#seg-compact button', api.el).forEach(x => x.classList.toggle('on', x === b)); Store.save(); applySettings(); SFX.click(); });
       api.el.addEventListener('click', (e) => { const b = e.target.closest('button[data-q]'); if (!b) return; s.quality = b.dataset.q; $$('#seg-quality button', api.el).forEach(x => x.classList.toggle('on', x === b)); Store.save(); applyQuality(); SFX.click(); });
+      api.el.addEventListener('click', (e) => { const b = e.target.closest('button[data-f]'); if (!b) return; s.fps = b.dataset.f; $$('#seg-fps button', api.el).forEach(x => x.classList.toggle('on', x === b)); Store.save(); applyPerf(); SFX.click(); });
       $('#set-vol', api.el).addEventListener('input', (e) => { s.volume = +e.target.value; SFX.setVolume(s.volume); });
       $('#set-vol', api.el).addEventListener('change', () => { Store.save(); SFX.checker(); });
     },
@@ -9067,7 +9406,7 @@ const Trophy = (() => {
     { id: 's20', kind: 'goblet', emoji: '🏆' }, { id: 's25', kind: 'crown', emoji: '👑' },
   ];
   const SPACING = 250;
-  let roomCache = null, st = null, raf = 0, sel = 0, spin = 0, yaw = 0, drag = null, size = [0, 0], last = 0, cam = { x: 0, y: 150, d: 1350 };
+  let roomCache = null, st = null, raf = 0, sel = 0, spin = 0, yaw = 0, drag = null, size = [0, 0], last = 0, cam = { x: 0, y: 150, d: 1350 }; const pace = {};
 
   /* ----- small geometry helpers ----- */
   function boxGeo(w, h, d) {
@@ -9210,6 +9549,7 @@ const Trophy = (() => {
 
   function frame(now) {
     raf = requestAnimationFrame(frame);
+    if (!GFX.perf.due(pace, now)) return;   // frame-rate limit from Settings
     const cv = st.canvas, r = cv.getBoundingClientRect(); if (r.width < 10 || r.height < 10) return;
     const dt = Math.max(0.001, Math.min(0.05, (now - last) / 1000 || 0.016)); last = now; spin += dt;
     const w = Math.round(r.width), h = Math.round(r.height), dpr = Math.min(2, window.devicePixelRatio || 1) * (st.lowQ ? 0.75 : 1);
@@ -9333,9 +9673,12 @@ const Game = (() => {
   const G = { runId: 0, active: false, cfg: null, phase: 'idle', waiter: null, busy: false, turn: 0, rem: [], pos: null, history: [], legal: [], movable: new Set(), dests: [], ptr: null, cube: { value: 1, owner: -1 }, score: [0, 0], stats: {}, lastTap: null };
   let view = null;
   const wrap = () => $('#board-wrap');
-  const isHuman = (p) => G.cfg.mode === '2p' || p === 0;
+  const isHuman = (p) => G.cfg.mode === '2p' || (p === 0 && G.cfg.mode !== 'watch');
   const alive = (id) => id === G.runId;
   const online = () => !!(G.cfg && G.cfg.mode === 'online');
+  const watching = () => !!(G.cfg && G.cfg.mode === 'watch');
+  const W = { q: [], busy: false, last: null, h: null, done: false };      // spectating: queued snapshots, the last one applied, the feed handle
+  const liveOn = () => online() && Net.role === 'host' && !!G.cfg.watch;
   const dieRoll = () => online() ? Net.die() : BG.rollDie();
   const openingPair = () => { if (!online()) return [BG.rollDie(), BG.rollDie()]; const x = Net.die(), y = Net.die(); return Net.role === 'host' ? [x, y] : [y, x]; };
   const EMOTES = ['Good luck!', 'Nice move!', 'Well played!', 'Oops…', 'Your turn!', 'Thanks!', 'Rematch?'];
@@ -9353,7 +9696,7 @@ const Game = (() => {
     new ResizeObserver(fit).observe(wrap());
     window.addEventListener('resize', fit);
     window.addEventListener('keydown', onKey);
-    $('#g-roll').addEventListener('click', () => { SFX.resume(); if (G.phase === 'preroll' || G.phase === 'opening') signal('preroll', 'roll'); });
+    $('#g-roll').addEventListener('click', () => { SFX.resume(); if (G.phase === 'preroll' || G.phase === 'opening') signal('preroll', 'roll'); else if (G.confirming) endTurn(); });
     $('#g-double').addEventListener('click', () => { if (canDouble(G.turn) && G.phase === 'preroll') signal('preroll', 'double'); });
     $('#g-undo').addEventListener('click', undo);
     $('#g-hint').addEventListener('click', hint);
@@ -9410,9 +9753,18 @@ const Game = (() => {
     view.setRotated(w / h < 0.9);
     view.fit(w, h);
   }
+  // What the board is dressed in. Online, the host's equipped items are used by both players for that match only
+  // (nothing is saved to the guest's own equipment). Anything this copy does not know falls back to the player's own.
+  function matchCosmetics() {
+    const e = P().equipped, host = G.cfg && (G.cfg.mode === 'online' || G.cfg.mode === 'watch') && G.cfg.cos, out = {};
+    for (const cat of Object.keys(DATA.CATS)) {
+      const slot = DATA.CATS[cat].slot, id = host && host[slot];
+      out[slot] = (typeof id === 'string' && (id === 'none' || DATA.CATS[cat].items.some(x => x.id === id))) ? id : e[slot];
+    }
+    return out;
+  }
   function applyCosmetics() {
-    const e = P().equipped;
-    view.setCosmetics({ board: e.board, checkers: e.checkers, dice: e.dice, moveFx: e.moveFx, throwFx: e.throwFx, hitFx: e.hitFx, trim: e.trim, inlay: e.inlay, mat: e.mat, cube: e.cube });
+    view.setCosmetics(matchCosmetics());
     view._sprites = {};
   }
   function resetBoardView() {
@@ -9432,7 +9784,7 @@ const Game = (() => {
     G.waiter = null; G.busy = false; G.history = []; G.ptr = null; G.active = true; G.phase = 'idle'; G.track = Stats.newMatch(cfg); G.turnStart = null;
     G.perkIds = [[], []]; G.energy = [0, 0]; G.freeze = [false, false]; G.hex = [false, false]; G.peek = [null, null]; G.perkTurn = false; G.target = null;
     G.pos = BG.startPos(cfg.variant); G.turn = 0; G.cube = { value: 1, owner: -1 }; G.rem = [];
-    show('game');
+    show('game'); $('#screen-game').classList.remove('watching');
     $('#g-emote').hidden = cfg.mode !== 'online';
     if (cfg.mode === 'online') wireOnline();
     const sb = $('#scene-bg'); sb.innerHTML = cfg.scene ? Scenes.svg(cfg.scene) : ''; sb.hidden = !cfg.scene;
@@ -9440,10 +9792,11 @@ const Game = (() => {
     resetBoardView();
     view.setPos(G.pos);
     setupHUD();
+    if (cfg.mode === 'online' && cfg.cos && Net.role === 'guest') toast('Playing with ' + cfg.names[1] + '\'s board and pieces' + (cfg.watch ? '. This is a public game: others can watch.' : ''));
     requestAnimationFrame(() => { fit(); view.start(); });
     runMatch(id);
   }
-  function leaveBoard() { if (!G.active) return; if (online()) Net.leave(); clearTimeout(G.lostTimer); G.active = false; G.runId++; G.waiter = null; if (view) view.stop(); }
+  function leaveBoard() { if (!G.active) return; if (online()) Net.leave(); if (watching() && W.h) { W.h.stop(); W.h = null; } $('#screen-game').classList.remove('watching'); clearTimeout(G.lostTimer); G.active = false; G.runId++; G.waiter = null; if (view) view.stop(); }
 
   /* ---------- waiting for the player ---------- */
   function waitFor(kind) { return new Promise((res) => { G.waiter = { kind, res }; }); }
@@ -9454,6 +9807,7 @@ const Game = (() => {
     const c = G.cfg, li = DATA.levelInfo(P().xp);
     const subs = [c.mode === '2p' ? 'Bottom · light' : c.mode === 'online' ? 'You' : 'Level ' + li.level + ' · ' + DATA.rankFor(li.level), c.subs ? c.subs[1] : ''];
     if (c.mode === '2p') subs[1] = 'Top · dark';
+    if (c.mode === 'watch') { subs[0] = 'Host'; subs[1] = 'Guest'; }
     for (const p of [0, 1]) {
       $('#hud-n' + p).textContent = c.names[p];
       if (c.faces && c.faces[p]) $('#hud-av' + p).innerHTML = Portraits.svg(c.faces[p], { crop: true, label: c.names[p] }); else $('#hud-av' + p).textContent = c.avs ? c.avs[p] : '';
@@ -9471,6 +9825,8 @@ const Game = (() => {
     let info = c.matchLen === 1 ? 'Single game' : 'First to ' + c.matchLen + ' · Game ' + G.gameNo;
     info += ' · ' + BG.VARIANTS[c.variant].name;
     if (c.wild) info += ' · Wild';
+    if (c.mode === 'watch') info = 'Watching · ' + info;                                                                    // first, so it is not cut off on a narrow screen
+    else if (c.mode === 'online' && c.watch && Net.role === 'host' && Net.watchers) info = '👁 ' + Net.watchers + ' · ' + info;
     if (c.cube) info += G.crawford ? ' · Crawford game' : ' · Cube ' + (G.cube.owner === -1 ? 'centred' : G.cube.value);
     $('#hud-info').textContent = info;
   }
@@ -9488,13 +9844,15 @@ const Game = (() => {
     const ph = G.phase;
     const roll = $('#g-roll'), dbl = $('#g-double'), und = $('#g-undo'), hnt = $('#g-hint');
     const canRoll = human && (ph === 'preroll' || ph === 'opening') && !G.busy;
-    roll.disabled = !canRoll; roll.textContent = ph === 'opening' ? 'Roll to start' : 'Roll dice'; roll.classList.toggle('pulse', canRoll);
+    // online, the same button is "End turn" while you are moving: nothing goes to your opponent until you press it
+    const endMode = online() && human && ph === 'moving', canEnd = endMode && !!G.confirming && !G.busy;
+    roll.disabled = !(canRoll || canEnd); roll.textContent = endMode ? 'End turn' : ph === 'opening' ? 'Roll to start' : 'Roll dice'; roll.classList.toggle('pulse', canRoll || canEnd);
     dbl.style.display = G.cfg.cube ? '' : 'none';
     const cd = human && canDouble(G.turn);
     dbl.disabled = !cd; dbl.textContent = 'Double to ' + Math.min(64, G.cube.value * 2);
     und.disabled = !(human && ph === 'moving' && !G.busy && G.history.length);
     hnt.disabled = !(human && ph === 'moving' && !G.busy);
-    und.style.display = hnt.style.display = online() ? 'none' : '';
+    hnt.style.display = online() ? 'none' : '';
     if (view) view.setCube({ show: !!G.cfg.cube, value: G.cube.value, owner: G.cube.owner, glow: cd });
     renderPerks();
   }
@@ -9510,7 +9868,7 @@ const Game = (() => {
       const out = await runGame(id);
       if (!alive(id)) return;
       if (out === 'gone') return;
-      if (out === 'match') { await showMatchResult(id); return; }
+      if (out === 'match') { liveSnap({ k: 'match', w: G.score[0] > G.score[1] ? 0 : 1 }, { ph: 'over' }); await showMatchResult(id); return; }
     }
   }
 
@@ -9519,12 +9877,13 @@ const Game = (() => {
     G.gameNo++;
     G.crawford = false;
     if (c.cube && m > 1 && !G.crawfordUsed && (G.score[0] === m - 1 || G.score[1] === m - 1)) { G.crawford = true; G.crawfordUsed = true; }
-    G.pos = BG.startPos(c.variant, online() ? Net.rand : undefined); G.turn = 0; G.cube = { value: 1, owner: -1 }; G.rem = []; G.history = [];
+    G.confirming = false; G.pos = BG.startPos(c.variant, online() ? Net.rand : undefined); G.turn = 0; G.cube = { value: 1, owner: -1 }; G.rem = []; G.history = [];
     G.track.newGame(); G.shieldNow = undefined;
     G.energy = [Wild.ENERGY.start, Wild.ENERGY.start]; G.freeze = [false, false]; G.hex = [false, false]; G.peek = [null, null]; G.perkTurn = false; G.target = null; renderPerks();
     resetBoardView(); view.setPos(G.pos);
     view.setCube({ show: !!c.cube, value: 1, owner: -1, glow: false }); view.cubePos = null;
     G.phase = 'opening'; updateHUD(); updateActions();
+    liveSnap({ k: 'new' }, { rem: [], ph: 'opening' });
     banner(m === 1 ? 'New game' : 'Game ' + G.gameNo);
     if (G.crawford) say('Crawford game: no doubling this game.');
     else say('Roll the dice to see who moves first.');
@@ -9545,6 +9904,7 @@ const Game = (() => {
     G.busy = false; G.phase = 'settling';
     G.turn = a > b ? 0 : 1; view.turnPlayer = G.turn; updateHUD(); updateActions();
     G.rem = [a, b];
+    liveSnap({ k: 'open' }, { dice: [a, b], ph: 'moving' });
     view.setDiceRemaining(G.rem);
     banner(G.cfg.names[G.turn] + ' ' + (isHuman(G.turn) && G.cfg.mode !== '2p' ? 'start' : 'starts'));
     say(esc(G.cfg.names[G.turn]) + ' ' + (G.cfg.mode !== '2p' && G.turn === 0 ? 'open' : 'opens') + ' with ' + a + ' and ' + b + '.');
@@ -9610,6 +9970,7 @@ const Game = (() => {
           if (G.turn === 0) Net.send('roll', { d: [d1, d2] });
           else if (G.remoteDice && (G.remoteDice[0] !== d1 || G.remoteDice[1] !== d2)) { desync(); return oppGone(id); }
         }
+        liveSnap({ k: 'roll' }, { dice: [d1, d2], rem: BG.diceToList(d1, d2), ph: 'moving' });
         await view.throwDice([{ value: d1, side: G.turn }, { value: d2, side: G.turn }]);
         if (!alive(id)) return;
         G.busy = false;
@@ -9619,7 +9980,7 @@ const Game = (() => {
         view.setDiceRemaining(G.rem);
       }
       skipRoll = false;
-      G.phase = 'moving'; G.history = [];
+      G.phase = 'moving'; G.history = []; G.confirming = false;
       G.turnStart = { p: G.turn, pos: G.pos, dice: G.rem.slice() };
       const legal = BG.legalNext(G.pos, G.turn, G.rem);
       updateHUD(); updateActions();
@@ -9634,6 +9995,7 @@ const Game = (() => {
         await humanMoves(id);
       }
       if (!alive(id)) return;
+      liveSnap({ k: 'moves', p: G.turn, mv: G.history.map(h => h.mv).filter(Boolean) }, { turn: 1 - G.turn, rem: [], ph: 'preroll' });
       if (G.cfg.mode !== '2p' && G.turn === 0) G.stats.turns++;
       if (G.turnStart) { G.track.turn(G.turnStart.p, G.turnStart.pos, G.turnStart.dice, G.pos); G.turnStart = null; }
       const w = BG.winnerOf(G.pos);
@@ -9720,7 +10082,7 @@ const Game = (() => {
   function desync() { G.desync = true; }
   function oppGone(id) {
     if (!alive(id)) return 'gone';
-    const c = G.cfg; G.phase = 'over'; G.busy = false; updateActions();
+    const c = G.cfg; G.phase = 'over'; G.busy = false; updateActions(); liveSnap({ k: 'abort' }, { ph: 'over' });
     modal({
       dismiss: false,
       html: G.desync
@@ -9770,13 +10132,154 @@ const Game = (() => {
     });
   }
 
+
+  /* ---------- live feed (host) and spectating ----------
+     The host of a public game sends a snapshot after each step (new game, roll, finished turn, cube, result). A spectator never takes part:
+     it replays those steps on the same board, or simply jumps to the newest position if it is arriving late or has fallen behind. */
+  function liveSnap(ev, o) {
+    if (!liveOn()) return;
+    o = o || {}; const c = G.cfg;
+    Net.live({ h: { n: c.names, a: c.avs, len: c.matchLen, cu: c.cube ? 1 : 0, va: c.variant, cos: c.cos }, gn: G.gameNo, turn: o.turn !== undefined ? o.turn : G.turn, ph: o.ph || G.phase,
+      pos: G.pos, rem: o.rem || G.rem, dice: o.dice || null, cube: G.cube, sc: G.score, ev });
+  }
+  function watchStart(handle, snap) {
+    initView();
+    G.runId++;
+    const h = snap.h, cfg = { mode: 'watch', variant: h.va, matchLen: h.len, cube: h.cu, gammons: true, cos: h.cos, names: h.n, avs: h.a, subs: ['Host', 'Guest'] };
+    W.q = []; W.busy = false; W.last = null; W.h = handle; W.done = false;
+    G.cfg = cfg; G.score = snap.sc.slice(); G.gameNo = snap.gn; G.crawford = false; G.crawfordUsed = false;
+    G.waiter = null; G.busy = false; G.history = []; G.ptr = null; G.active = true; G.phase = 'watching'; G.turnStart = null; G.confirming = false; G.matchDone = false;
+    G.perkIds = [[], []]; G.energy = [0, 0]; G.freeze = [false, false]; G.hex = [false, false]; G.peek = [null, null]; G.perkTurn = false; G.target = null; G.movable = new Set(); G.dests = []; G.legal = [];
+    G.pos = snap.pos; G.turn = snap.turn; G.cube = snap.cube; G.rem = snap.rem.slice();
+    show('game'); $('#screen-game').classList.add('watching');
+    $('#g-emote').hidden = true;
+    const sb = $('#scene-bg'); sb.innerHTML = ''; sb.hidden = true;
+    applyCosmetics(); applySettings();
+    resetBoardView(); view.setPos(G.pos);
+    setupHUD();
+    requestAnimationFrame(() => { fit(); view.start(); });
+    handle.cb = { snap: watchSnap, ended: watchEnded };
+    watchJump(snap, G.runId);
+  }
+  function watchSnap(s) { if (!watching() || !G.active) return; W.q.push(s); watchPump(); }
+  async function watchPump() {
+    if (W.busy) return;
+    W.busy = true; const id = G.runId;
+    try {
+      while (W.q.length && alive(id)) {
+        let s = W.q.shift();
+        if (W.q.length >= 3) { s = W.q[W.q.length - 1]; W.q.length = 0; await watchJump(s, id); }     // far behind: go straight to the newest position
+        else await watchPlay(s, id);
+      }
+    } catch (e) { console.warn('watch', e); }
+    W.busy = false;
+  }
+  // put the board exactly as the snapshot says, with no animation of how it got there
+  async function watchJump(s, id) {
+    W.last = s;
+    resetBoardView();
+    G.pos = s.pos; G.turn = s.turn; G.cube = s.cube; G.score = s.sc.slice(); G.gameNo = s.gn; G.rem = s.rem.slice(); G.phase = 'watching';
+    view.setPos(G.pos); view.turnPlayer = G.turn;
+    view.setCube({ show: !!G.cfg.cube, value: G.cube.value, owner: G.cube.owner, glow: false }); view.cubePos = null;
+    updateHUD(); updateActions();
+    const nm = G.cfg.names;
+    if (s.ev.k === 'match') say(esc(nm[s.ev.w]) + ' won the match ' + G.score[s.ev.w] + ' to ' + G.score[1 - s.ev.w] + '.');
+    else if (s.ev.k === 'abort') say('This game has ended.');
+    else if (s.ph === 'opening') say('Rolling to see who starts…');
+    else if (s.dice && G.rem.length) say(esc(nm[G.turn]) + ' is playing a ' + s.dice[0] + ' and a ' + s.dice[1] + '.');
+    else say(esc(nm[G.turn]) + ' to roll.');
+    if (s.dice && G.rem.length) {
+      const pair = s.ev.k === 'open' ? [{ value: s.dice[0], side: 0 }, { value: s.dice[1], side: 1 }] : s.dice.map(v => ({ value: v, side: G.turn }));
+      await view.throwDice(pair); if (!alive(id)) return;
+      view.setDiceRemaining(G.rem);
+    }
+  }
+  async function watchPlay(s, id) {
+    const last = W.last, k = s.ev.k, c = G.cfg, nm = c.names, p = s.ev.p;
+    if (k === 'abort') { await watchJump(s, id); watchEnded('abort'); return; }
+    if (!last || s.q !== last.q + 1 || k === 'new') { await watchJump(s, id); if (k === 'new') banner(c.matchLen === 1 ? 'New game' : 'Game ' + s.gn); return; }
+    W.last = s;
+    if (k === 'open') {
+      G.phase = 'watching'; resetBoardView(); view.setPos(G.pos);
+      say('Rolling to see who starts…');
+      await view.throwDice([{ value: s.dice[0], side: 0 }, { value: s.dice[1], side: 1 }]); if (!alive(id)) return;
+      G.turn = s.turn; G.rem = s.rem.slice(); view.turnPlayer = G.turn; updateHUD(); view.setDiceRemaining(G.rem);
+      banner(nm[G.turn] + ' starts'); say(esc(nm[G.turn]) + ' opens with ' + s.dice[0] + ' and ' + s.dice[1] + '.');
+      return;
+    }
+    if (k === 'roll') {
+      G.turn = s.turn; G.rem = s.rem.slice(); view.turnPlayer = G.turn; updateHUD();
+      say(esc(nm[G.turn]) + ' rolls…');
+      await view.throwDice(s.dice.map(v => ({ value: v, side: G.turn }))); if (!alive(id)) return;
+      view.setDiceRemaining(G.rem); say(esc(nm[G.turn]) + ' rolled ' + s.dice[0] + ' and ' + s.dice[1] + '.');
+      return;
+    }
+    if (k === 'moves') {
+      say(esc(nm[p]) + ' is playing…');
+      for (const mv of s.ev.mv) {
+        const m = BG.legalNext(G.pos, p, G.rem).find(l => l.from === mv.from && l.to === mv.to && l.die === mv.die);
+        if (!m) { await watchJump(s, id); return; }
+        G.pos = BG.applyMove(G.pos, p, m); G.rem.splice(G.rem.indexOf(m.die), 1);
+        updateHUD();
+        await view.moveChecker(m, p, undefined, {}); if (!alive(id)) return;
+        view.setDiceRemaining(G.rem);
+        await view.wait(110); if (!alive(id)) return;
+      }
+      if (!s.ev.mv.length) { banner('No move'); view.setDiceRemaining([]); await view.wait(900); if (!alive(id)) return; }
+      if (BG.key(G.pos) !== BG.key(s.pos)) { G.pos = s.pos; view.setPos(G.pos); }
+      G.rem = []; view.setDiceRemaining([]); G.turn = s.turn; view.turnPlayer = G.turn; updateHUD();
+      say(esc(nm[G.turn]) + ' to roll.');
+      await view.wait(250);
+      return;
+    }
+    if (k === 'dbl') {
+      G.turn = s.turn; G.phase = 'doubling'; updateHUD();
+      SFX.cube(); banner(nm[p] + ' doubles to ' + s.ev.v); say(esc(nm[p]) + ' offers the cube at ' + s.ev.v + '.');
+      await view.wait(700);
+      return;
+    }
+    if (k === 'rep') {
+      G.phase = 'watching';
+      if (s.ev.take) { G.cube = s.cube; view.setCube({ value: G.cube.value, owner: G.cube.owner, glow: false }); SFX.cube(); banner(nm[p] + ' takes'); }
+      else banner(nm[p] + ' passes');
+      updateHUD(); await view.wait(700);
+      return;
+    }
+    if (k === 'end') {
+      G.score = s.sc.slice(); G.phase = 'over'; updateHUD();
+      const w = s.ev.w;
+      banner(s.ev.base === 3 ? 'Backgammon!' : s.ev.base === 2 ? 'Gammon!' : nm[w] + ' wins');
+      say(esc(nm[w]) + ' wins the game for ' + s.ev.pts + ' point' + (s.ev.pts > 1 ? 's' : '') + '.');
+      await view.wait(1200);
+      return;
+    }
+    if (k === 'match') {
+      const w = s.ev.w; G.score = s.sc.slice(); G.phase = 'over'; updateHUD(); W.done = true;
+      say(esc(nm[w]) + ' wins the match ' + G.score[w] + ' to ' + G.score[1 - w] + '.');
+      modal({
+        dismiss: false,
+        html: `<h2>${esc(nm[w])} wins the match</h2><p class="lead">${G.score[w]} to ${G.score[1 - w]}. If they play a rematch you can keep watching.</p><div class="btns"><button class="btn" data-act="menu">Leave</button><button class="btn primary" data-act="keep">Keep watching</button></div>`,
+        actions: { menu: () => { show('menu'); }, keep: () => { W.done = false; } },
+      });
+    }
+  }
+  function watchEnded(why) {
+    if (!watching() || !G.active || W.done) return;
+    W.done = true; G.phase = 'over'; updateActions();
+    modal({
+      dismiss: false,
+      html: `<h2>The game has ended</h2><p class="lead">${why === 'abort' ? 'A player left the match.' : esc(G.cfg.names[0]) + ' closed the game' + (why === 'gone' ? ' or lost their connection' : '') + '.'}</p><div class="btns"><button class="btn primary" data-act="menu">Back to menu</button></div>`,
+      actions: { menu: () => { show('menu'); } },
+    });
+  }
+
   /* ---------- moves ---------- */
   async function doMove(m, o) {
     o = o || {};
     const id = G.runId;
-    if (online() && G.turn === 0 && !o.ai) Net.send('move', { mv: { from: m.from, to: m.to, die: m.die, hit: !!m.hit } });
     G.busy = true;
-    G.history.push({ pos: G.pos, rem: G.rem.slice(), stats: Object.assign({}, G.stats) });
+    // online moves are kept here (so they can be undone) and sent together when the player presses End turn
+    G.history.push({ pos: G.pos, rem: G.rem.slice(), stats: Object.assign({}, G.stats), mv: { from: m.from, to: m.to, die: m.die, hit: !!m.hit } });
     G.pos = BG.applyMove(G.pos, G.turn, m);
     G.rem.splice(G.rem.indexOf(m.die), 1);
     if (m.hit && G.cfg.mode !== '2p') { if (G.turn === 0) G.stats.hits++; else G.stats.hurt++; }
@@ -9784,7 +10287,7 @@ const Game = (() => {
     view.sel = null; view.dests = []; view.movable = []; view.hint = null;
     G.dests = []; G.movable = new Set();
     updateHUD(); updateActions();
-    await view.moveChecker(m, G.turn, undefined, Object.assign(o.from ? { from: o.from, fx: 'glide' } : {}, (G.turn === 0 || G.cfg.mode === '2p') ? {} : { hitFx: 'knock' }));
+    await view.moveChecker(m, G.turn, undefined, Object.assign(o.from ? { from: o.from, fx: 'glide' } : {}, (G.turn === 0 || G.cfg.mode === '2p' || online()) ? {} : { hitFx: 'knock' }));
     if (!alive(id)) return;
     view.setDiceRemaining(G.rem);
     G.busy = false;
@@ -9793,6 +10296,11 @@ const Game = (() => {
   function afterHumanMove() {
     if (G.phase !== 'moving') return;
     if (BG.winnerOf(G.pos) >= 0 || G.rem.length === 0 || BG.legalNext(G.pos, G.turn, G.rem).length === 0) {
+      if (online()) {                                  // wait for End turn; Undo still works until then
+        G.confirming = true; view.movable = []; view.dests = []; view.sel = null; G.movable = new Set(); G.dests = [];
+        say(BG.winnerOf(G.pos) >= 0 ? 'That wins the game. Press <b>End turn</b> to finish, or Undo to change it.' : (G.rem.length ? 'No further legal moves. ' : '') + 'Press <b>End turn</b> to send your move, or Undo to change it.');
+        updateActions(); return;
+      }
       if (G.rem.length && BG.winnerOf(G.pos) < 0) say('No further legal moves.');
       G.phase = 'ending'; view.movable = []; G.movable = new Set(); updateActions(); signal('moves');
       return;
@@ -9856,13 +10364,22 @@ const Game = (() => {
     if (ds.length) performDest(ds[0]);
   }
 
+  function endTurn() {
+    if (!online() || !G.confirming || G.busy || G.phase !== 'moving' || !isHuman(G.turn) || !G.active) return;
+    G.confirming = false;
+    for (const h of G.history) if (h.mv) Net.send('move', { mv: h.mv });   // now, and only now, the opponent hears about this turn
+    G.phase = 'ending'; view.movable = []; view.dests = []; view.sel = null; G.movable = new Set(); G.dests = [];
+    SFX.click(); updateActions(); signal('moves');
+  }
   function undo() {
     if (G.busy || G.phase !== 'moving' || !G.history.length || !isHuman(G.turn)) return;
+    const wasConfirming = G.confirming; G.confirming = false;
     const h = G.history.pop();
     G.pos = h.pos; G.rem = h.rem; G.stats = h.stats;
     if (G.pos.shield !== (G.shieldNow || undefined)) { G.pos = Object.assign(BG.clone(G.pos), { total: G.pos.total, shield: G.shieldNow }); }
     view.setPos(G.pos); view.setDiceRemaining(G.rem); view.sel = null; view.dests = []; view.hint = null;
     SFX.click(); updateHUD(); refreshHighlights(); updateActions();
+    if (online() && wasConfirming) say(esc(G.cfg.names[G.turn]) + ': your move. <small>Press End turn when you are happy with it.</small>');
   }
   function hint() {
     if (G.busy || G.phase !== 'moving' || !isHuman(G.turn)) return;
@@ -9935,6 +10452,7 @@ const Game = (() => {
     if (Nav.cur !== 'game' || !G.active || $('#modal-root').children.length) return;
     const k = e.key.toLowerCase();
     if ((k === ' ' || k === 'enter') && (G.phase === 'preroll' || G.phase === 'opening') && isHuman(G.turn)) { e.preventDefault(); signal('preroll', 'roll'); }
+    else if ((k === ' ' || k === 'enter') && G.confirming) { e.preventDefault(); endTurn(); }
     else if (k === 'u') undo();
     else if (k === 'h') hint();
     else if (k === 'd' && canDouble(G.turn) && isHuman(G.turn)) signal('preroll', 'double');
@@ -10128,6 +10646,7 @@ const Game = (() => {
     G.phase = 'doubling'; updateActions();
     G.track.cube(p, 'offer');
     if (online() && p === 0) Net.send('double', { v: newVal });
+    liveSnap({ k: 'dbl', p, v: newVal }, { ph: 'doubling' });
     SFX.cube(); banner(c.names[p] + ' doubles to ' + newVal);
     say(esc(c.names[p]) + ' offers the cube at ' + newVal + '.');
     let take;
@@ -10156,12 +10675,14 @@ const Game = (() => {
     G.track.cube(opp, take ? 'take' : 'pass');
     if (take) {
       G.cube = { value: newVal, owner: opp };
+      liveSnap({ k: 'rep', p: opp, take: true }, { ph: 'preroll' });
       view.setCube({ value: newVal, owner: opp, glow: false });
       SFX.cube(); banner(c.names[opp] + ' takes');
       G.phase = 'preroll'; updateHUD(); updateActions();
       await view.wait(700);
       return 'take';
     }
+    liveSnap({ k: 'rep', p: opp, take: false }, { ph: 'preroll' });
     banner(c.names[opp] + ' passes');
     await view.wait(900);
     return 'pass';
@@ -10183,6 +10704,7 @@ const Game = (() => {
       G.stats.oppLeft = how === 'pass' ? BG.total(G.pos) : BG.total(G.pos) - G.pos.off[1];
     }
     updateHUD(); updateActions();
+    liveSnap({ k: 'end', w, base, pts }, { ph: 'over' });
     const humanWon = c.mode === '2p' ? true : w === 0;
     humanWon ? SFX.win() : SFX.lose();
     if (humanWon) view.celebrate();
@@ -10325,6 +10847,14 @@ const Game = (() => {
   /* ---------- in-game menu ---------- */
   function openGameMenu() {
     if (!G.active) return;
+    if (watching()) {
+      modal({
+        html: `<h2>Watching</h2><p class="lead">${esc(G.cfg.names[0])} vs ${esc(G.cfg.names[1])}. You can leave at any time: it does not affect their game.</p>
+          <div class="btns"><button class="btn danger" data-act="quit">Stop watching</button>${Device.fsOK() ? `<button class="btn" data-act="fs">${Device.isFull() ? 'Exit fullscreen' : 'Fullscreen'}</button>` : ''}<button class="btn" data-act="settings">Settings</button><button class="btn primary" data-act="resume">Resume</button></div>`,
+        actions: { resume: () => { }, fs: () => { Device.toggleFullscreen(); }, settings: () => { setTimeout(openSettings, 0); }, quit: () => { show('menu'); } },
+      });
+      return;
+    }
     modal({
       html: `<h2>Paused</h2><p class="lead">${online() ? 'Leaving ends the match and ' + esc(G.cfg.names[1]) + ' wins. The game keeps running for them while this is open.' : 'Quit now and this match ends with no rewards.'}</p>
         <div class="btns"><button class="btn danger" data-act="quit">Quit match</button>${Device.fsOK() ? `<button class="btn" data-act="fs">${Device.isFull() ? 'Exit fullscreen' : 'Fullscreen'}</button>` : ''}${online() ? '' : '<button class="btn" data-act="cheats">Cheats</button>'}<button class="btn" data-act="settings">Settings</button><button class="btn primary" data-act="resume">Resume</button></div>`,
@@ -10339,7 +10869,7 @@ const Game = (() => {
   }
 
   return {
-    start, leaveBoard, syncViewMode, usePerk: usePerkUI, renderPerks, get view() { return view; }, get G() { return G; }, get cheat() { return G.cheat; }, get active() { return G.active; }, fit,
+    start, watch: watchStart, leaveBoard, syncViewMode, usePerk: usePerkUI, renderPerks, get view() { return view; }, get G() { return G; }, get cheat() { return G.cheat; }, get active() { return G.active; }, fit,
     startStage: (s) => startStage(s),
   };
 })();
@@ -10779,25 +11309,93 @@ function openPreview(cat, it) {
 // peer-to-peer connection where the creator is the host and the two players swap one code each.
 async function openOnline() {
   const st = P().settings;
-  let cfg = { matchLen: 3, cube: true, variant: 'classic', gammons: true }, busy = false, api = null, mode = 'none', hostH = null, manual = false, wantCode = Net.newCode(), checkReport = '';
+  let cfg = { matchLen: 3, cube: true, variant: 'classic', gammons: true, watch: true }, busy = false, api = null, mode = 'none', hostH = null, manual = false, wantCode = Net.newCode(), checkReport = '', browse = null, viaPub = false, pubHtml = '';
   const brokered = () => mode === 'p2p' && !manual;
   const fallbackBtn = () => mode !== 'p2p' ? '' : '<div class="on-alt">' + (manual ? '<button class="linkbtn" data-go="short">Use a short code instead</button>' : '<button class="linkbtn" data-go="manual">Not connecting? Use manual codes instead</button>') + '<button class="linkbtn" data-go="check">Check my connection</button></div>';
   const buildLine = () => `<div class="on-build">Build ${esc(Net.build)} · ${esc((location && location.host) || 'local file')}</div>`;
   const myName = () => (st.onlineName || 'Player').trim().slice(0, 14) || 'Player';
   const profile = () => { st.onlineName = myName(); Store.save(); return { name: st.onlineName, av: '🎲' }; };
-  const body = () => $('#on-body', api.el);
+  const stopBrowse = () => { if (browse) { browse.stop(); browse = null; } };
+  const body = () => { stopBrowse(); return $('#on-body', api.el); };   // every screen starts here, so the public list only runs on the join screen
   const begin = (info) => {
     api.close();
-    Game.start({ mode: 'online', variant: info.cfg.variant, matchLen: info.cfg.matchLen, cube: info.cfg.cube, gammons: true, names: [info.me.name, info.opp.name], avs: ['🎲', info.opp.av || '🎲'], subs: ['', 'Online'] });
+    Game.start({ mode: 'online', variant: info.cfg.variant, matchLen: info.cfg.matchLen, cube: info.cfg.cube, gammons: true, cos: info.cfg.cos, watch: !!(info.cfg.pub && info.cfg.watch), names: [info.me.name, info.opp.name], avs: ['🎲', info.opp.av || '🎲'], subs: ['', 'Online'] });
   };
   const chip = (id, label, on) => `<button class="${on ? 'on' : ''}" data-v="${id}">${label}</button>`;
   const status = (t, bad) => { const e = $('#on-status', api.el); if (e) { e.textContent = t; e.style.color = bad ? '#ff8a8a' : ''; } };
-  const failCb = (er) => { status(er.message, true); busy = false; };
+  const failCb = (er) => { status(viaPub && /No game found/.test(er.message) ? 'That game is no longer available. Pick another from the list.' : er.message, true); busy = false; viaPub = false; if ($('#pub-list', api.el)) startBrowse(); };
+  /* public games: a live list of open games others have listed, shown on the join screen */
+  const variantName = (v) => (BG.VARIANTS[v] && BG.VARIANTS[v].name) || v;
+  const gameLine = (g) => (g.len === 1 ? 'Single game' : 'First to ' + g.len) + ' · cube ' + (g.cube ? 'on' : 'off') + ' · ' + esc(variantName(g.variant));
+  const renderPub = (list, stt) => {
+    const box = $('#pub-list', api.el); if (!box) return;
+    const ok = list.filter(g => g.build === Net.build && !g.finished), other = list.filter(g => g.build !== Net.build).length;
+    const waiting = ok.filter(g => !g.playing), playing = ok.filter(g => g.playing).sort((x, y) => y.watchers - x.watchers || y.t - x.t);
+    let h = '';
+    if (waiting.length) h += `<div class="pub-sec">Waiting for an opponent · ${waiting.length}</div>` + waiting.map(g => `<div class="pub-row"><span class="pub-av">${esc(g.av)}</span><span class="pub-info"><b>${esc(g.name)}</b><small>${gameLine(g)}</small></span><button class="btn small primary" data-go="joinpub" data-code="${esc(g.code)}">Join</button></div>`).join('');
+    if (playing.length) h += `<div class="pub-sec">Being played now · ${playing.length}</div>` + playing.map(g => `<div class="pub-row playing"><span class="pub-av">${esc(g.av)}</span><span class="pub-info"><b>${esc(g.name)} vs ${esc(g.opp)}</b><small>${g.score[0]} – ${g.score[1]} · ${gameLine(g)}${g.watchers ? ' · 👁 ' + g.watchers : ''}</small></span><button class="btn small" data-go="watchpub" data-code="${esc(g.code)}">Watch</button></div>`).join('');
+    if (!h) {
+      if (!stt.up && stt.failed >= stt.total) h = '<div class="pub-empty">Could not reach the live games list from this network. You can still join with a code.</div>';
+      else if (!stt.up) h = '<div class="pub-empty">Looking for games…</div>';
+      else h = '<div class="pub-empty">No public games right now. Create one, or press Quick game to host one and wait for an opponent.</div>';
+    }
+    if (other) h += `<div class="pub-empty small">${other} game${other === 1 ? ' is' : 's are'} hidden because ${other === 1 ? 'it runs' : 'they run'} a different version of the game.</div>`;
+    if (h !== pubHtml) { pubHtml = h; box.innerHTML = h; }
+  };
+  // Quick game: look at the list for a moment, then try open games at random until one connects
+  const findOpen = () => new Promise((res) => {
+    const t0 = Date.now(); let latest = null, fin = false, iv = null, b = null;
+    const done = (v) => { if (fin) return; fin = true; clearInterval(iv); if (b) b.stop(); res(v); };
+    b = Net.lobbyBrowse((list, stt) => { latest = { list, stt }; });
+    iv = setInterval(() => {
+      const age = Date.now() - t0; if (!latest) { if (age > 9000) done({ open: [], unreachable: true }); return; }
+      const open = latest.list.filter(g => g.build === Net.build && !g.playing && !g.finished);
+      if (open.length && age > 1100) done({ open });
+      else if (!latest.stt.up && latest.stt.failed >= latest.stt.total) done({ open: [], unreachable: true });
+      else if (age > 6500) done({ open, unreachable: !latest.stt.up });
+    }, 250);
+  });
+  const tryJoin = (code) => new Promise((res) => {
+    let settled = false; const end = (v) => { if (!settled) { settled = true; res(v); } };
+    Net.joinBroker(code, profile(), { ready: (info) => { end(true); begin(info); }, fail: () => end(false), bye: () => { }, note: () => { } }, { tries: 1 }).catch(() => end(false));
+  });
+  const quickBox = (h) => { const e = $('#on-quickbox', api.el); if (e) e.innerHTML = h; };
+  const quick = async () => {
+    if (!brokered() || busy) return;
+    busy = true; stopBrowse(); quickBox(''); status('Looking for an opponent…');
+    const r = await findOpen();
+    if (!api || api.closed) return;
+    if (r.unreachable) { status('Could not reach the public list from this network. You can still play with a code.', true); busy = false; if ($('#pub-list', api.el)) startBrowse(); return; }
+    const cand = r.open.slice().sort(() => Math.random() - 0.5).slice(0, 3);
+    for (const g of cand) {
+      if (!api || api.closed) return;
+      status('Joining ' + g.name + '…');
+      if (await tryJoin(g.code)) return;
+    }
+    busy = false;
+    if ($('#pub-list', api.el)) startBrowse();
+    if (cand.length) status('Those games had just closed. Try Quick game again.', true);
+    else { status(''); quickBox('<div class="reward-note" style="margin:8px 0">Nobody is hosting a public game right now. Host one and wait? Other players who press Quick game will find you.</div><div class="btns"><button class="btn primary" data-go="quickhost">Host a public game</button></div>'); }
+  };
+  // watch a game in progress: the board opens as soon as the first snapshot arrives
+  const watchGame = (code) => {
+    busy = true; stopBrowse(); status('Joining as a spectator…');
+    let first = true, tm = null, h = null;
+    const back = (msg) => { if (!first) return; first = false; clearTimeout(tm); if (h) h.stop(); busy = false; status(msg, true); if ($('#pub-list', api.el)) startBrowse(); };
+    h = Net.watch(code, {
+      snap: (sn) => { if (!first) return; first = false; clearTimeout(tm); busy = false; api.close(); Game.watch(h, sn); },
+      status: (st) => { if (!st.up && st.failed >= st.total) back('Could not reach the live feed from this network.'); },
+      ended: () => back('That game has just ended. Pick another from the list.'),
+    });
+    tm = setTimeout(() => back('Could not open that game. It may have just ended.'), 10000);
+  };
+  const startBrowse = () => { stopBrowse(); pubHtml = ''; const box = $('#pub-list', api.el); if (box) box.innerHTML = '<div class="pub-empty">Looking for games…</div>'; browse = Net.lobbyBrowse(renderPub); };
   const home = () => {
     const ok = mode !== 'none';
     body().innerHTML = `<div class="on-name"><label for="on-name"><b>Your name</b></label><input id="on-name" maxlength="14" value="${esc(st.onlineName || 'Player')}" autocomplete="off"></div>
       ${ok ? (mode === 'p2p' ? '<div class="reward-note" style="margin:10px 0">Connects your two devices directly. Whoever creates the game is the host. Pick any code of 5 or more characters, and your friend types the same one to join. You both need to use the same web address.</div>' : '<div class="reward-note" style="margin:10px 0">This copy is running inside Claude, so your friend has to open the same Claude link. They cannot join from a different web address.</div>') : '<div class="reward-note" style="margin:10px 0">Online play needs a browser that supports direct connections, or this game opened from its shared Claude link with permission to interact.</div>'}
-      <div class="btns"><button class="btn" data-go="close">Close</button><button class="btn" data-go="join" ${ok ? '' : 'disabled'}>Join a game</button><button class="btn primary" data-go="create" ${ok ? '' : 'disabled'}>Create a game</button></div>${mode === 'p2p' ? '<div class="on-alt"><button class="linkbtn" data-go="check">Check my connection</button></div>' : ''}${buildLine()}`;
+      ${ok && brokered() ? '<button class="btn primary quick" data-go="quick">⚡ Quick game</button><div class="quick-sub">Joins a random open public game</div><div class="msg-line" id="on-status"></div><div id="on-quickbox"></div>' : ''}
+      <div class="btns"><button class="btn" data-go="close">Close</button><button class="btn" data-go="join" ${ok ? '' : 'disabled'}>${brokered() ? 'Join or watch' : 'Join a game'}</button><button class="btn ${ok && brokered() ? '' : 'primary'}" data-go="create" ${ok ? '' : 'disabled'}>Create a game</button></div>${mode === 'p2p' ? '<div class="on-alt"><button class="linkbtn" data-go="check">Check my connection</button></div>' : ''}${buildLine()}`;
   };
   const checkView = async () => {
     const ic = (r) => r.ok === true ? '<span class="chk-ic ok">✓</span>' : r.ok === false ? (r.minor ? '<span class="chk-ic warn">!</span>' : '<span class="chk-ic bad">✗</span>') : '<span class="chk-ic">•</span>';
@@ -10815,18 +11413,24 @@ async function openOnline() {
       : 'Playing with someone on the same Wi-Fi should work, but this network cannot connect to players on other networks.';
     const box = $('.chk', api.el); if (box) box.insertAdjacentHTML('beforeend', `<div class="msg-line" style="text-align:left">${esc(sum)}</div>`);
   };
+  const pubNote = () => cfg.watch !== false ? 'Your game shows in everyone\'s list and stays there as a live game people can watch. Spectators see only the board, dice and names. They cannot play or chat.' : 'Your game shows in everyone\'s list until someone joins it.';
   const create = () => {
     body().innerHTML = `<div class="on-name"><b>Match length</b><span class="seg" id="on-len">${[1, 3, 5, 7].map(n => chip(n, n === 1 ? 'Single game' : 'First to ' + n, cfg.matchLen === n)).join('')}</span></div>
       <div class="on-name"><b>Doubling cube</b><span class="seg" id="on-cube">${chip('1', 'On', cfg.cube)}${chip('0', 'Off', !cfg.cube)}</span></div>
       <div class="on-name"><b>Starting position</b><select id="on-var">${Object.keys(BG.VARIANTS).map(k => `<option value="${k}" ${k === cfg.variant ? 'selected' : ''}>${esc(BG.VARIANTS[k].name)} · ${esc(BG.VARIANTS[k].tag)}</option>`).join('')}</select></div>
-      ${manual ? '' : `<div class="on-name"><b>Game code</b><span class="on-codebox"><input id="on-codein" maxlength="16" value="${esc(wantCode)}" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="5 or more characters"><button class="btn small" data-go="rand">Random</button></span></div>`}
+      ${brokered() ? `<div class="on-name"><b>Who can join</b><span class="seg" id="on-pub">${chip('0', 'Friends with the code', !cfg.pub)}${chip('1', 'Public list', !!cfg.pub)}</span></div>
+      <div class="on-name" id="on-watchrow" style="display:${cfg.pub ? '' : 'none'}"><b>Let others watch</b><span class="seg" id="on-watch">${chip('1', 'Yes', cfg.watch !== false)}${chip('0', 'No', cfg.watch === false)}</span></div>
+      <div class="reward-note" id="on-pubnote" style="margin:0 0 8px;display:${cfg.pub ? '' : 'none'}">${pubNote()}</div>` : ''}
+      ${manual ? '' : `<div class="on-name"><b>Game code</b><span class="on-codebox"><input id="on-codein" maxlength="16" value="${esc(wantCode)}" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="5 or more characters" ${cfg.pub ? 'disabled' : ''}><button class="btn small" data-go="rand" ${cfg.pub ? 'disabled' : ''}>Random</button></span></div>`}
+      <div class="reward-note" style="margin:8px 0">Both of you will play on your equipped board, checkers and dice for this match.</div>
       <div class="msg-line" id="on-status"></div>
       <div class="btns"><button class="btn" data-go="home">Back</button><button class="btn primary" data-go="host">Create game</button></div>${fallbackBtn()}`;
   };
   const waitingRoom = (code) => {
-    body().innerHTML = `<p class="lead" style="margin-top:0">Tell your friend this code. They choose <b>Join a game</b> and type it in.</p>
+    body().innerHTML = `<p class="lead" style="margin-top:0">${cfg.pub && brokered() ? 'Your game is open to everyone: players can join it from the public list, or type this code.' + (cfg.watch !== false ? ' Once it starts, others can watch it.' : '') : 'Tell your friend this code. They choose <b>Join a game</b> and type it in.'}</p>
       <div class="on-code" id="on-code" style="font-size:${Math.max(26, Math.min(64, Math.floor(330 / (code.length * 0.95))))}px">${esc(code)}</div>
       <div class="msg-line" id="on-status">Waiting for a friend to join…</div>
+      ${cfg.pub && brokered() ? '<div class="pub-state" id="on-pubstate">Adding your game to the public list…</div>' : ''}
       <div class="btns"><button class="btn" data-go="copy" data-from="on-code">Copy code</button><button class="btn danger" data-go="cancel">Cancel</button></div>${buildLine()}`;
   };
   const waitingP2P = (code) => {
@@ -10839,10 +11443,19 @@ async function openOnline() {
       <div class="btns"><button class="btn danger" data-go="cancel">Cancel</button><button class="btn primary" data-go="connect">Connect</button></div>`;
   };
   const joinRoomView = () => {
-    body().innerHTML = `<p class="lead" style="margin-top:0">Type the code your friend chose.</p>
+    if (brokered()) {                                       // the live list is the main thing here; the code box is one compact row
+      body().innerHTML = `<div class="join-lbl">Have a friend's code?</div>
+        <div class="join-row"><input id="on-join" class="on-join" maxlength="16" placeholder="GAMECODE" autocomplete="off" autocapitalize="characters" spellcheck="false"><button class="btn primary" data-go="doJoin">Join</button></div>
+        <div class="msg-line" id="on-status"></div>
+        <div class="pub"><button class="btn primary quick" data-go="quick">⚡ Quick game</button><div id="on-quickbox"></div><div class="pub-head"><b>Live games</b><button class="linkbtn" data-go="pubrefresh">Refresh</button></div><div class="pub-list" id="pub-list"></div></div>
+        <div class="btns"><button class="btn" data-go="home">Back</button></div>${fallbackBtn()}${buildLine()}`;
+      startBrowse(); return;
+    }
+    body().innerHTML = `<p class="lead" style="margin-top:0">Type the code your friend chose. <small>The match uses the host's board and pieces.</small></p>
       <input id="on-join" class="on-join" maxlength="16" placeholder="GAMECODE" autocomplete="off" autocapitalize="characters" spellcheck="false">
       <div class="msg-line" id="on-status"></div>
-      <div class="btns"><button class="btn" data-go="home">Back</button><button class="btn primary" data-go="doJoin">Join</button></div>${fallbackBtn()}${buildLine()}`;
+      <div class="btns"><button class="btn" data-go="home">Back</button><button class="btn primary" data-go="doJoin">Join</button></div>
+      ${fallbackBtn()}${buildLine()}`;
     setTimeout(() => { const i = $('#on-join', api.el); if (i) i.focus(); }, 40);
   };
   const joinP2PView = () => {
@@ -10858,10 +11471,28 @@ async function openOnline() {
       <div class="msg-line" id="on-status">Waiting for the host to connect…</div>
       <div class="btns"><button class="btn danger" data-go="cancel">Cancel</button></div>`;
   };
+  const hostNow = async () => {
+    busy = true; cfg.pub = !!cfg.pub && brokered(); cfg.watch = cfg.pub && cfg.watch !== false;
+    cfg.cos = Object.assign({}, P().equipped);        // the host's equipped items dress the board for both players, this match only
+    try {
+      if (brokered()) {
+        status('Setting up the game…');
+        await Net.hostBroker(wantCode, cfg, profile(), { ready: begin, fail: failCb, bye: () => { }, note: (t, bad) => status(t, bad), pub: (n) => { const e = $('#on-pubstate', api.el); if (e) { e.textContent = n ? 'Listed in the public games list ✓' : 'Not in the public list yet. The code still works.'; e.classList.toggle('ok', !!n); } } });
+        waitingRoom(wantCode);
+      } else if (mode === 'p2p') {
+        status('Preparing your code…');
+        hostH = await Net.hostP2P(cfg, profile(), { ready: begin, fail: failCb, bye: () => { } });
+        waitingP2P(hostH.code);
+      } else {
+        waitingRoom(await Net.host(cfg, profile(), { ready: begin, fail: failCb, bye: () => { } }, wantCode));
+      }
+    } catch (er) { status(er.message || 'Could not start a game', true); }
+    busy = false;
+  };
   api = modal({
     dismiss: false,
     html: `<h2>Play online</h2><p class="lead">Play a friend on another device. No account needed.</p><div id="on-body"><div class="msg-line">Checking the connection…</div></div>`,
-    onClose: () => { if (!Net.ready) Net.close(); },
+    onClose: () => { stopBrowse(); if (!Net.ready) Net.close(); },
     actions: {},
     after: (a) => {
       a.el.addEventListener('click', async (e) => {
@@ -10869,16 +11500,27 @@ async function openOnline() {
         if (v) {
           const grp = v.parentNode.id; $$('button', v.parentNode).forEach(x => x.classList.toggle('on', x === v));
           if (grp === 'on-len') cfg.matchLen = +v.dataset.v; if (grp === 'on-cube') cfg.cube = v.dataset.v === '1';
+          if (grp === 'on-watch') { cfg.watch = v.dataset.v === '1'; const n = $('#on-pubnote', api.el); if (n) n.textContent = pubNote(); }
+          if (grp === 'on-pub') {
+            cfg.pub = v.dataset.v === '1'; const n = $('#on-pubnote', api.el); if (n) { n.textContent = pubNote(); n.style.display = cfg.pub ? '' : 'none'; }
+            const wr = $('#on-watchrow', api.el); if (wr) wr.style.display = cfg.pub ? '' : 'none';
+            const ci = $('#on-codein', api.el), rb = $('[data-go="rand"]', api.el); if (ci) { ci.disabled = cfg.pub; if (cfg.pub) { wantCode = Net.newCode(); ci.value = wantCode; } } if (rb) rb.disabled = cfg.pub;   // a public game gets a fresh random code
+          }
           SFX.click(); return;
         }
         if (!g || busy) return;
-        const go = g.dataset.go; SFX.click();
+        let go = g.dataset.go; SFX.click();
         if (go === 'close') { api.close(); return; }
         if (go === 'home' || go === 'cancel') { Net.close(); hostH = null; home(); return; }
         if (go === 'create') { create(); return; }
         if (go === 'check') { Net.close(); checkView(); return; }
         if (go === 'copyreport') { try { await navigator.clipboard.writeText('Backgammon Legacy connection check\nBuild ' + Net.build + ' on ' + ((location && location.host) || 'local file') + '\n' + checkReport); toast('Copied'); } catch (err) { toast('Could not copy. A screenshot works too.'); } return; }
         if (go === 'join') { (mode === 'p2p' && manual) ? joinP2PView() : joinRoomView(); return; }
+        if (go === 'pubrefresh') { startBrowse(); return; }
+        if (go === 'quick') { quick(); return; }
+        if (go === 'watchpub') { watchGame(g.dataset.code); return; }
+        if (go === 'quickhost') { cfg = { matchLen: 3, cube: true, variant: 'classic', gammons: true, pub: true, watch: true }; wantCode = Net.newCode(); await hostNow(); return; }
+        if (go === 'joinpub') { const i = $('#on-join', api.el); if (i) i.value = g.dataset.code; viaPub = true; go = 'doJoin'; }
         if (go === 'rand') { wantCode = Net.newCode(); const i = $('#on-codein', api.el); if (i) i.value = wantCode; return; }
         if (go === 'manual' || go === 'short') { manual = go === 'manual'; if ($('#on-join', api.el)) (manual ? joinP2PView : joinRoomView)(); else create(); return; }
         if (go === 'copy') {
@@ -10887,22 +11529,9 @@ async function openOnline() {
           return;
         }
         if (go === 'host') {
-          cfg.variant = $('#on-var', api.el).value; busy = true;
-          const ci = $('#on-codein', api.el); if (ci) { wantCode = Net.cleanCode(ci.value); if (wantCode.length < Net.MIN_CODE) { status('Use at least 5 letters or numbers for the code.', true); busy = false; return; } }
-          try {
-            if (brokered()) {
-              status('Setting up the game…');
-              await Net.hostBroker(wantCode, cfg, profile(), { ready: begin, fail: failCb, bye: () => { }, note: (t, bad) => status(t, bad) });
-              waitingRoom(wantCode);
-            } else if (mode === 'p2p') {
-              status('Preparing your code…');
-              hostH = await Net.hostP2P(cfg, profile(), { ready: begin, fail: failCb, bye: () => { } });
-              waitingP2P(hostH.code);
-            } else {
-              waitingRoom(await Net.host(cfg, profile(), { ready: begin, fail: failCb, bye: () => { } }, wantCode));
-            }
-          } catch (er) { status(er.message || 'Could not start a game', true); }
-          busy = false; return;
+          cfg.variant = $('#on-var', api.el).value;
+          const ci = $('#on-codein', api.el); if (ci) { wantCode = Net.cleanCode(ci.value); if (wantCode.length < Net.MIN_CODE) { status('Use at least 5 letters or numbers for the code.', true); return; } }
+          await hostNow(); return;
         }
         if (go === 'connect') {
           const txt = $('#on-reply', api.el).value.trim(); if (!txt) { status('Paste your friend\'s reply code first.', true); return; }
