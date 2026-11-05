@@ -194,7 +194,7 @@ svg.on { fill: var(--brass2); filter: drop-shadow(0 0 4px rgba(241,207,134,0.5))
 /* ---------- game ---------- */
 #screen-game { background: radial-gradient(1100px 700px at 50% 40%, rgba(30,70,50,0.35), transparent 70%); }
 .hud { display: flex; align-items: center; gap: 12px; padding: 8px 14px; background: rgba(8,13,11,0.7); backdrop-filter: blur(6px); flex: none; z-index: 2; }
-.hud.top { border-bottom: 1px solid var(--line); }
+.hud.top { border-bottom: 1px solid var(--line); z-index: 7; }
 .hud.bottom { border-top: 1px solid var(--line); }
 .pl { display: flex; align-items: center; gap: 10px; padding: 5px 12px 5px 6px; border-radius: 12px; border: 1px solid transparent; transition: border-color .2s, background .2s, box-shadow .2s; min-width: 0; }
 .pl.active { border-color: var(--brass); background: rgba(217,172,78,0.10); box-shadow: 0 0 18px -6px var(--brass); }
@@ -502,6 +502,7 @@ body.compact .perk-opp { width: 24px; height: 24px; font-size: 12px; }
 #scene-bg::after { content: ''; position: absolute; inset: 0; background: radial-gradient(900px 560px at 50% 45%, rgba(8,13,11,0.55), rgba(8,13,11,0.86)); }
 #scene-bg .scene { opacity: .9; }
 #screen-game > .hud, #screen-game > #board-wrap, #screen-game > .perkbar { position: relative; z-index: 1; }
+#screen-game > .hud.top { z-index: 7; }
 .pl .av { overflow: hidden; padding: 0; }
 .pl .av .portrait { width: 100%; height: 100%; display: block; }
 
@@ -614,6 +615,142 @@ body.compact .shop-filters { padding-top: 4px; padding-bottom: 4px; }
 .join-row .on-join { flex: 1; min-width: 0; width: auto; font-size: 22px; padding: 10px 12px; }
 .join-row .btn { flex: none; min-width: 84px; }
 
+/* ---------- training and the coach card ---------- */
+.modal-bg.sheet { background: none; backdrop-filter: none; pointer-events: none; place-items: end center; padding: 0 8px max(8px, env(safe-area-inset-bottom)); overflow: visible; }
+.modal-bg.sheet .modal { pointer-events: auto; width: min(680px, 100%); max-height: min(58vh, 440px); padding: 14px 16px 12px; border-radius: 16px; box-shadow: 0 -10px 50px -10px rgba(0,0,0,0.75); }
+.modal-bg.sheet .btns { margin-top: 10px; }
+.modal-bg.sheet .btns .btn { flex: 1 1 110px; padding: 10px 12px; }
+.coach-card .cc-head { display: flex; align-items: center; gap: 10px; font-family: var(--font-d); font-size: 22px; margin-bottom: 4px; }
+.cc-ico { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 15px; font-family: var(--font-b, inherit); font-weight: 800; color: #0b110e; flex: none; }
+.coach-card.ok .cc-ico { background: var(--good); } .coach-card.near .cc-ico { background: var(--brass2); } .coach-card.bad .cc-ico { background: var(--bad); } .coach-card.show .cc-ico { background: var(--you); color: #fff; }
+.cc-line { margin: 4px 0 6px; font-size: 15px; } .cc-small { color: var(--mute); font-size: 13px; margin: 4px 0; }
+.cc-why { margin: 4px 0 6px; padding-left: 20px; display: grid; gap: 5px; font-size: 14px; line-height: 1.35; }
+.cc-lesson { font-size: 12.5px; color: var(--mute); border-top: 1px solid var(--line); padding-top: 8px; margin: 8px 0 0; line-height: 1.35; }
+.cc-reward { margin-top: 8px; color: var(--brass2); font-weight: 700; font-size: 13px; }
+@media (max-height: 520px) { .modal-bg.sheet .modal { max-height: 62vh; padding: 10px 14px 8px; } .coach-card .cc-head { font-size: 18px; } .cc-lesson { display: none; } }
+.pill.o { background: #c9822b; }
+.tn-hero { display: flex; gap: 16px; padding: 16px 18px; border-radius: 16px; border: 1px solid var(--line); background: linear-gradient(135deg, var(--panel2), var(--panel)); margin-bottom: 18px; align-items: flex-start; }
+.tn-coach { font-size: 46px; line-height: 1; flex: none; }
+.tn-hero h3 { font-family: var(--font-d); font-size: 24px; margin: 0 0 4px; }
+.tn-hero p { color: var(--mute); margin: 0 0 10px; font-size: 13.5px; line-height: 1.4; }
+.tn-prog span { display: block; font-size: 12.5px; color: var(--mute); margin-top: 6px; }
+.tn-bar { height: 8px; border-radius: 99px; background: rgba(255,255,255,0.08); overflow: hidden; }
+.tn-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--brass), var(--brass2)); border-radius: 99px; }
+.tn-go { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.tn-sec { margin-bottom: 18px; }
+.tn-sec h3 { font-family: var(--font-d); font-size: 20px; margin: 0 0 10px; }
+.tn-empty { padding: 14px 16px; border-radius: 12px; border: 1px dashed var(--line); color: var(--mute); font-size: 13.5px; line-height: 1.4; }
+.tn-lessons { display: grid; gap: 6px; }
+.tn-les { display: flex; align-items: center; gap: 12px; text-align: left; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: inherit; }
+.tn-les:hover { border-color: var(--brass); }
+.tn-les .h-main { flex: 1; min-width: 0; } .tn-les .h-main b { display: block; } .tn-les small { color: var(--mute); }
+.tn-arrow { font-size: 22px; color: var(--mute); }
+.tn-themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.tn-theme { padding: 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel); display: grid; gap: 10px; align-content: start; }
+.tn-theme.full { border-color: rgba(91,220,146,0.5); }
+.tt-top { display: flex; gap: 10px; align-items: center; }
+.tt-ico { font-size: 26px; flex: none; } .tt-t { min-width: 0; } .tt-t b { display: block; } .tt-t small { color: var(--mute); display: block; font-size: 12px; }
+.tt-n { margin-left: auto; font-weight: 800; color: var(--brass2); font-variant-numeric: tabular-nums; }
+.tt-tiles { display: flex; flex-wrap: wrap; gap: 6px; }
+.tt-tile { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--line); background: rgba(255,255,255,0.04); color: var(--mute); font-weight: 700; font-size: 13px; padding: 0; }
+.tt-tile.done { background: var(--good); color: #0b110e; border-color: transparent; }
+.tt-tile:hover { border-color: var(--brass); }
+.tn-note { margin-top: 6px; }
+@media (max-width: 560px) { .tn-hero { flex-direction: column; gap: 8px; } }
+.cc-toggle { margin-left: auto; padding: 4px 11px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,0.06); color: var(--mute); font-size: 12px; font-weight: 700; font-family: inherit; }
+.modal.collapsed .cc-body { display: none; }
+.cc-reward { margin: 2px 0 4px; }
+@media (max-width: 560px) { .coach-card.bad .cc-lesson, .coach-card.near .cc-lesson { display: none; } }
+
+/* ---------- fair dice ---------- */
+.fair { display: inline-flex; align-items: center; margin-top: 3px; padding: 1px 9px; border-radius: 999px; border: 1px solid rgba(91,220,146,0.45); background: rgba(91,220,146,0.1); color: var(--good); font-size: 11px; font-weight: 700; font-family: inherit; line-height: 1.5; cursor: pointer; }
+.fair[hidden] { display: none; }
+.fair.warn { border-color: rgba(228,105,63,0.55); background: rgba(228,105,63,0.12); color: var(--ember); }
+.fair-steps { margin: 0 0 12px; padding-left: 20px; display: grid; gap: 7px; font-size: 14px; line-height: 1.4; }
+.fair-rows { display: grid; gap: 6px; margin: 4px 0 12px; }
+.fair-rows > div { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 7px 10px; border-radius: 10px; background: rgba(255,255,255,0.04); font-size: 13px; }
+.fair-rows span { color: var(--mute); } .fair-rows code { font-size: 12px; color: var(--ink); } .fair-rows i { font-style: normal; color: var(--good); font-weight: 700; font-size: 12px; }
+.fair-stat { padding: 9px 12px; border-radius: 10px; border: 1px dashed var(--line); color: var(--mute); font-size: 12.5px; margin-bottom: 10px; line-height: 1.4; }
+.fair-stat b { color: var(--ink); } .fair-stat small { color: var(--mute); }
+.fair-small { color: var(--mute); font-size: 12px; line-height: 1.4; margin: 0 0 8px; }
+.toast { max-width: min(92vw, 540px); text-align: center; line-height: 1.35; }
+
+/* ---------- opponent chatter ---------- */
+#hud-p1 { position: relative; }
+.bubble { position: absolute; width: max-content; left: 8px; top: calc(100% + 8px); z-index: 6; max-width: min(72vw, 300px); padding: 8px 12px; border-radius: 14px 14px 14px 4px; background: #f2e9d6; color: #1b1a17; font-weight: 700; font-size: 13.5px; line-height: 1.3; box-shadow: 0 10px 30px -8px rgba(0,0,0,0.8); pointer-events: none; animation: bubble 3.4s ease forwards; }
+.bubble::before { content: ""; position: absolute; left: 14px; top: -6px; width: 12px; height: 12px; background: inherit; transform: rotate(45deg); border-radius: 2px; }
+@keyframes bubble { 0% { opacity: 0; transform: translateY(-6px) scale(.96); } 8% { opacity: 1; transform: none; } 88% { opacity: 1; } 100% { opacity: 0; } }
+.av.react { animation: avreact .5s ease; }
+@keyframes avreact { 0% { transform: scale(1); } 30% { transform: scale(1.18) rotate(-4deg); } 60% { transform: scale(1.1) rotate(3deg); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .bubble { animation: none; } .av.react { animation: none; } }
+
+/* ---------- knockout tournaments ---------- */
+.tk-hero { display: flex; gap: 16px; padding: 16px 18px; border-radius: 16px; border: 1px solid var(--line); background: linear-gradient(135deg, var(--panel2), var(--panel)); margin-bottom: 16px; align-items: flex-start; }
+.tk-big { font-size: 44px; line-height: 1; flex: none; }
+.tk-hero h3 { font-family: var(--font-d); font-size: 24px; margin: 0 0 4px; }
+.tk-hero p { color: var(--mute); margin: 0; font-size: 13.5px; line-height: 1.45; }
+.tk-tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.tk-tier { border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: var(--panel); display: flex; flex-direction: column; gap: 10px; }
+.tk-tier.lock { opacity: .72; }
+.tk-ti { display: flex; gap: 10px; align-items: center; }
+.tk-ico { font-size: 30px; line-height: 1; flex: none; }
+.tk-tt { min-width: 0; flex: 1; }
+.tk-tt b { display: block; font-family: var(--font-d); font-size: 18px; }
+.tk-tt small { color: var(--mute); font-size: 12.5px; line-height: 1.3; display: block; }
+.tk-titles { font-weight: 800; color: var(--brass2); white-space: nowrap; }
+.tk-facts { display: grid; gap: 3px; font-size: 12.5px; color: var(--mute); }
+.tk-facts b { color: var(--ink); }
+.tk-lock { font-size: 12.5px; color: var(--mute); padding: 8px 10px; border: 1px dashed var(--line); border-radius: 10px; text-align: center; }
+.tk-head { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+.tk-head h3 { font-family: var(--font-d); font-size: 22px; margin: 0; }
+.tk-head small { color: var(--mute); }
+.tk-wrap { container-type: inline-size; margin: 8px 0 14px; }
+.tk-bracket { display: grid; gap: 12px; }
+.tk-col h4 { margin: 0 0 6px; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--mute); display: flex; justify-content: space-between; gap: 8px; }
+.tk-col h4 small { font-weight: 600; text-transform: none; letter-spacing: 0; }
+.tk-ms { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+@container (min-width: 520px) { .tk-bracket { grid-template-columns: 1.15fr 1fr .85fr; } }
+.tk-m { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); overflow: hidden; min-width: 0; }
+.tk-m.mine { border-color: rgba(217,172,78,0.55); }
+.tk-m.next { border-color: var(--brass); box-shadow: 0 0 16px -6px var(--brass); }
+.tk-p { display: flex; align-items: center; gap: 8px; padding: 6px 8px; min-width: 0; }
+.tk-p + .tk-p { border-top: 1px solid var(--line); }
+.tk-p.win { background: rgba(91,220,146,0.10); font-weight: 800; }
+.tk-p.lose { opacity: .55; }
+.tk-p.tbd { color: var(--mute); }
+.tk-av { width: 26px; height: 26px; border-radius: 50%; overflow: hidden; flex: none; background: var(--panel2); border: 1px solid var(--line); display: block; }
+.tk-av svg { width: 100%; height: 100%; display: block; }
+.tk-n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }
+.tk-p.me .tk-n { color: var(--brass2); }
+.tk-s { font-weight: 800; min-width: 1ch; text-align: right; }
+.tk-next { border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: var(--panel); display: grid; gap: 10px; }
+.tk-next.champ { border-color: var(--brass); background: linear-gradient(135deg, rgba(217,172,78,0.16), var(--panel)); }
+.tk-next small { color: var(--mute); }
+.tk-nf { display: flex; gap: 12px; align-items: center; }
+.tk-nf b { display: block; font-size: 16px; }
+.tk-nf small { display: block; font-size: 12.5px; }
+.tk-bigav { width: 56px; height: 56px; border-radius: 50%; overflow: hidden; flex: none; border: 2px solid var(--brass); background: var(--panel2); }
+.tk-bigav svg { width: 100%; height: 100%; display: block; }
+.tk-win { font-size: 13.5px; color: var(--mute); }
+.tk-win b { color: var(--ink); }
+.tk-go { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* ---------- speed mode clock ---------- */
+.clk { margin-left: auto; display: flex; align-items: baseline; gap: 4px; padding: 3px 9px; border-radius: 9px; border: 1px solid var(--line); background: rgba(255,255,255,0.05); font-variant-numeric: tabular-nums; font-size: 15px; color: var(--mute); flex: none; transition: color .2s, border-color .2s, background .2s; }
+.clk[hidden] { display: none; }
+.clk b { font-weight: 800; }
+.clk i { font-style: normal; font-size: 11px; font-weight: 700; color: var(--brass2); min-width: 2.2ch; }
+.clk.run { color: var(--ink); border-color: var(--brass); background: rgba(217,172,78,0.12); }
+.clk.low { color: #ffb44d; }
+.clk.crit { color: #ff6b6b; border-color: #ff6b6b; }
+.clk.crit.run { animation: clkpulse 1s ease-in-out infinite; }
+@keyframes clkpulse { 50% { background: rgba(255,107,107,0.22); } }
+.clk-note { color: var(--mute); font-size: 12.5px; line-height: 1.4; margin-top: 6px; }
+@media (prefers-reduced-motion: reduce) { .clk.crit.run { animation: none; } }
+
+.fair { white-space: nowrap; }
+@media (max-width: 480px) { .hud.top:has(.clk:not([hidden])) .fair { font-size: 11px; padding: 2px 8px; } }
+
 </style>
 </head>
 <body>
@@ -629,6 +766,8 @@ body.compact .shop-filters { padding-top: 4px; padding-bottom: 4px; }
         <button class="menu-btn hero" id="m-campaign"><span class="ico"><svg viewBox="0 0 24 24"><path d="M4 21V4m0 0h12l-2 4 2 4H4"/></svg></span><span><b>Campaign</b><small>25 opponents across five chapters</small></span></button>
         <button class="menu-btn" title="Five difficulties, six play styles" id="m-quick"><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.2"/><circle cx="15.5" cy="15.5" r="1.2"/><circle cx="12" cy="12" r="1.2"/></svg></span><span><b>Play the Computer</b><small>Five difficulties, six play styles</small></span></button>
         <button class="menu-btn" title="Draft powers, spend energy and bend the rules" id="m-wild"><span class="ico"><svg viewBox="0 0 24 24"><path d="M12 3l1.900 5.100L19 10l-5.100 1.900L12 17l-1.900-5.100L5 10l5.100-1.900L12 3ZM18 15l.8 2.200L21 18l-2.200.8L18 21l-.8-2.200L15 18l2.200-.8L18 15Z"/></svg></span><span><b>Wild Mode</b><small>Draft powers and spend energy</small></span></button>
+        <button class="menu-btn" title="Eight-player knockout with prizes" id="m-tour"><span class="ico"><svg viewBox="0 0 24 24"><path d="M3 5h5v4H3zM3 15h5v4H3zM16 10h5v4h-5zM8 7h3v10H8M11 12h5"/></svg></span><span><b>Tournament</b><small>Eight-player knockout with prizes</small></span></button>
+        <button class="menu-btn" title="Puzzles and lessons with a plain-English coach" id="m-train"><span class="ico"><svg viewBox="0 0 24 24"><path d="M3 9l9-5 9 5-9 5-9-5Z"/><path d="M7 11.500V16c0 1.200 2.200 2.500 5 2.500s5-1.300 5-2.500v-4.500M21 9v6"/></svg></span><span><b>Training</b><small>Puzzles with a plain-English coach</small></span></button>
         <button class="menu-btn" title="Pass and play on one screen" id="m-two"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3.2"/><circle cx="16.5" cy="9" r="2.6"/><path d="M2.5 20c.6-3.6 3-5.4 5.5-5.4S12.900 16.400 13.500 20M14 15c2.600-.6 5.800.6 6.500 5"/></svg></span><span><b>Two Players</b><small>Pass and play on one screen</small></span></button>
         <button class="menu-btn" title="Play a friend on another device with a room code" id="m-online"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg></span><span><b>Play online</b><small>Challenge a friend with a room code</small></span></button>
         <button class="menu-btn" title="Boss trophies and your star map" id="m-trophy"><span class="ico"><svg viewBox="0 0 24 24"><path d="M7 4h10v5a5 5 0 0 1-10 0V4ZM7 6H4v1.500A3.500 3.500 0 0 0 7 11M17 6h3v1.500A3.500 3.500 0 0 1 17 11M12 14v4M8 20h8"/></svg></span><span><b>Trophy Room</b><small>Boss trophies and your star map</small></span></button>
@@ -671,6 +810,18 @@ body.compact .shop-filters { padding-top: 4px; padding-bottom: 4px; }
     <div class="tr-panel" id="trophy-panel"></div>
   </section>
 
+  <!-- TRAINING -->
+  <section id="screen-train" class="screen">
+    <div class="back-row"><button class="icon-btn" data-back title="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h2>Training</h2><span class="coin" data-coins></span></div>
+    <div class="scroll pad" id="train-body"></div>
+  </section>
+
+  <!-- TOURNAMENT -->
+  <section id="screen-tour" class="screen">
+    <div class="back-row"><button class="icon-btn" data-back title="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h2>Tournament</h2><span class="coin" data-coins></span></div>
+    <div class="scroll pad" id="tour-body"></div>
+  </section>
+
   <!-- STATS -->
   <section id="screen-stats" class="screen">
     <div class="back-row"><button class="icon-btn" data-back title="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h2>Stats</h2><span class="coin" data-coins></span></div>
@@ -682,14 +833,14 @@ body.compact .shop-filters { padding-top: 4px; padding-bottom: 4px; }
     <div id="scene-bg" hidden></div>
     <header class="hud top">
       <button class="icon-btn" id="g-menu" title="Menu"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
-      <div class="pl" id="hud-p1"><div class="av" id="hud-av1"></div><div class="pl-info"><b id="hud-n1"></b><span class="sub" id="hud-s1"></span></div><div class="stats"><span class="chip"><i>PIP</i><b id="hud-pip1">167</b></span><span class="chip"><i>OFF</i><b id="hud-off1">0</b></span></div></div>
-      <div class="match-box"><div class="score" id="hud-score">0 : 0</div><div class="info" id="hud-info"></div></div>
+      <div class="pl" id="hud-p1"><div class="av" id="hud-av1"></div><div class="pl-info"><b id="hud-n1"></b><span class="sub" id="hud-s1"></span></div><div class="stats"><span class="chip"><i>PIP</i><b id="hud-pip1">167</b></span><span class="chip"><i>OFF</i><b id="hud-off1">0</b></span></div><div class="clk" id="hud-clk1" hidden></div></div>
+      <div class="match-box"><div class="score" id="hud-score">0 : 0</div><div class="info" id="hud-info"></div><button type="button" class="fair" id="g-fair" hidden></button></div>
       <div class="actions"><button class="icon-btn" data-fs title="Fullscreen" style="display:none"><svg viewBox="0 0 24 24" data-fs-enter><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><svg viewBox="0 0 24 24" data-fs-exit style="display:none"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg></button><button class="icon-btn" id="g-sound" title="Sound"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><path d="M16.500 8.500a5 5 0 0 1 0 7"/></svg></button></div>
     </header>
     <main id="board-wrap"><canvas id="board"></canvas><div id="board-toast"></div></main>
     <div id="perkbar" class="perkbar" hidden></div>
     <footer class="hud bottom">
-      <div class="pl" id="hud-p0"><div class="av" id="hud-av0"></div><div class="pl-info"><b id="hud-n0"></b><span class="sub" id="hud-s0"></span></div><div class="stats"><span class="chip"><i>PIP</i><b id="hud-pip0">167</b></span><span class="chip"><i>OFF</i><b id="hud-off0">0</b></span></div></div>
+      <div class="pl" id="hud-p0"><div class="av" id="hud-av0"></div><div class="pl-info"><b id="hud-n0"></b><span class="sub" id="hud-s0"></span></div><div class="stats"><span class="chip"><i>PIP</i><b id="hud-pip0">167</b></span><span class="chip"><i>OFF</i><b id="hud-off0">0</b></span></div><div class="clk" id="hud-clk0" hidden></div></div>
       <div class="msg" id="msg"></div>
       <div class="actions">
         <button class="btn small" id="g-emote" hidden>Say</button>
@@ -1287,6 +1438,219 @@ const AI = (() => {
 })();
 
 /* ============================================================
+   Coach: plain-English reasons for a backgammon play.
+   The built-in engine decides which play is best. This module turns the difference between two plays into words,
+   using only facts that can be counted on the board: checkers hit, points made, blots left and how many of the 36
+   rolls hit them, back checkers, blockades, bear-off safety. It has no DOM, so it also runs in Node.
+   All points are numbered from the mover's own side: home board 1-6, bar point 7, midpoint 13, start point 24.
+   ============================================================ */
+const Coach = (() => {
+  const ROLLS = (() => { const r = []; for (let a = 1; a <= 6; a++) for (let b = a; b <= 6; b++) r.push({ a, b, w: a === b ? 1 : 2 }); return r; })();
+  const TOL_OK = 1.0;                                                    // plays this close to the best count as correct
+  const GRADES = [[TOL_OK, 'best', 'Best play'], [3, 'good', 'Good'], [6, 'inacc', 'Inaccuracy'], [14, 'mist', 'Mistake'], [1e9, 'blun', 'Blunder']];
+  const grade = (loss) => { for (const g of GRADES) if (loss < g[0]) return { k: g[1], label: g[2] }; return { k: 'blun', label: 'Blunder' }; };
+
+  const pt = (p, i) => p === 0 ? i + 1 : 24 - i;
+  const plural = (n, a, b) => n === 1 ? a : (b || a + 's');
+  const pct = (r) => Math.round(100 * r / 36);
+  const num = (n) => ['no', 'one', 'two', 'three', 'four'][n] || String(n);
+
+  // ----- move notation: 13/7, 8/7 or 24/18 then 13 with a star on a hit -----
+  function notate(p, moves) {
+    const segs = [];
+    for (const m of moves) {
+      const f = m.from === BG.BAR ? 'bar' : pt(p, m.from), t = m.to === BG.OFF ? 'off' : pt(p, m.to);
+      const s = segs.find(x => x.cur === m.from);
+      if (s) { s.path.push(t + (m.hit ? '*' : '')); s.cur = m.to; }
+      else segs.push({ path: [f, t + (m.hit ? '*' : '')], cur: m.to, start: m.from === BG.BAR ? 99 : pt(p, m.from), pend: m.to === BG.OFF ? 0 : pt(p, m.to) });
+    }
+    segs.sort((x, y) => y.start - x.start || y.pend - x.pend);
+    const out = [], seen = new Map();
+    for (const s of segs) { const k = s.path.join('/'); if (seen.has(k)) seen.get(k).n++; else { const e = { k, n: 1 }; seen.set(k, e); out.push(e); } }
+    return out.map(e => e.k + (e.n > 1 ? '(' + e.n + ')' : '')).join(', ');
+  }
+
+  /* ----- what a point is worth, in words ----- */
+  const PT_NAME = { 1: 'ace point', 2: '2-point', 3: '3-point', 4: '4-point', 5: '5-point', 6: '6-point', 7: 'bar point', 8: '8-point', 9: '9-point', 10: '10-point', 11: '11-point', 12: '12-point', 13: 'midpoint' };
+  const PT_NOTE = {
+    5: 'the most valuable point in the game, it anchors your home board and blocks their back checkers',
+    4: 'a strong home-board point that is hard for them to escape past',
+    7: 'it blocks their sixes and is the heart of a blockade',
+    6: 'it starts a wall that traps their back checkers',
+    3: 'a useful home-board point, it makes entering harder for them',
+    8: 'a good stepping stone for building your 5 and 6 points',
+    2: 'a deep point: it helps a finished home board but is slow early on',
+    1: 'a very deep point that is rarely worth making this early',
+    9: 'a handy builder spot aimed at your 5 and 4 points',
+    10: 'a handy builder spot aimed at your key home points',
+    11: 'a spare landing spot that is hard for them to hit',
+    12: 'a spare landing spot that is hard for them to hit',
+    13: 'your midpoint, a safe landing spot for checkers coming home',
+    14: 'a safe landing spot in their outfield', 15: 'a safe landing spot in their outfield', 16: 'a safe landing spot in their outfield', 17: 'a safe landing spot in their outfield',
+  };
+  const PT_VAL = { 5: 10, 4: 9, 7: 9, 6: 8, 3: 7, 8: 6, 9: 4, 2: 4, 10: 3, 1: 3, 11: 2, 12: 2, 13: 2 };
+  const ptName = (n) => n >= 19 ? n + '-point' : (PT_NAME[n] || n + '-point');
+  const ptList = (a) => a.length === 1 ? 'your ' + ptName(a[0]) : 'your ' + a.map(ptName).join(' and ');
+
+  /* ----- facts about a position ----- */
+  function shotInfo(pos, p) {
+    const v = AI.view(pos, p), blots = [];
+    for (let n = 1; n <= 24; n++) if (v.a[n] === 1) blots.push({ n, shots: AI.shots(v, n) });
+    let rolls = 0;
+    if (blots.length) {
+      const opp = 1 - p;
+      for (const r of ROLLS) {
+        const turns = BG.genTurns(pos, opp, BG.diceToList(r.a, r.b));
+        if (turns.length && turns.some(t => t.moves.some(m => m.hit))) rolls += r.w;
+      }
+    }
+    return { rolls, blots };
+  }
+  function factsOf(an, r) {
+    if (r.f) return r.f;
+    const p = an.p, v0 = an.v0, v1 = AI.view(r.pos, p);
+    const f = { hits: Math.max(0, v1.bBar - v0.bBar), hitAt: [], made: [], anchors: [], back: v1.aBar, prime: 0, board: 0, off: v1.aOff - v0.aOff, contact: AI.contactOf(v1), bar: v1.aBar, oppBar: v1.bBar, gaps: 0, stack: 0 };
+    let run = 0, hi = 0;
+    for (let n = 1; n <= 24; n++) {
+      if (v0.a[n] < 2 && v1.a[n] >= 2) f.made.push(n);
+      if (v1.a[n] >= 2 && n >= 18) f.anchors.push(n);
+      if (n >= 19) f.back += v1.a[n];
+      if (v1.a[n] >= 2) { run++; f.prime = Math.max(f.prime, run); if (n <= 6) f.board++; } else run = 0;
+      if (v1.a[n] > 0) hi = n;
+      if (v1.a[n] > f.stack) f.stack = v1.a[n];
+    }
+    for (let n = 1; n < Math.min(hi, 7); n++) if (!v1.a[n]) f.gaps++;
+    for (const m of r.moves) if (m.hit) f.hitAt.push(pt(p, m.to));
+    const si = shotInfo(r.pos, p);
+    f.rolls = si.rolls; f.blots = si.blots;
+    f.cleared = []; let hi0 = 0; for (let n = 6; n >= 1; n--) if (v0.a[n] > 0) { hi0 = n; break; }
+    if (hi0 && v1.a[hi0] === 0) f.cleared.push(hi0);
+    f.backBefore = 0; for (let n = 19; n <= 24; n++) f.backBefore += v0.a[n]; f.backBefore += v0.aBar;
+    f.pipsMe = BG.pips(r.pos, p); f.pipsOpp = BG.pips(r.pos, 1 - p);
+    return r.f = f;
+  }
+
+  /* ----- analysis of every legal turn for a roll ----- */
+  function analyse(pos, p, dice) {
+    const list = BG.genTurns(pos, p, dice);
+    if (!list.length || !list[0].moves.length) return null;
+    for (const r of list) { r.v = AI.evalPos(r.pos, p); r.key = BG.key(r.pos); r.text = notate(p, r.moves); }
+    list.sort((x, y) => y.v - x.v);
+    return { pos, p, dice, list, best: list[0], v0: AI.view(pos, p), start: BG.key(pos), home: BG.allHome(pos, p) };
+  }
+  const findByKey = (an, key) => an.list.find(r => r.key === key) || null;
+  const lossOf = (an, r) => Math.max(0, an.best.v - r.v);
+
+  /* ----- reasons a play is good (strongest first) ----- */
+  const FOCUS = { hit: 'hit', nohit: 'safe', point: 'point', safe: 'safe', escape: 'escape', bearoff: 'bear', race: 'race' };
+  function positives(an, r, theme) {
+    const f = factsOf(an, r), out = [];
+    if (f.hits) {
+      const pips = f.hitAt.reduce((s, n) => s + n, 0) || 0;
+      let t = f.hits > 1 ? 'Hits two checkers' : 'Hits on your ' + ptName(f.hitAt[0] || 0), more = '';
+      if (f.hits === 1) t += ', sending a checker back to the bar. That costs them ' + pips + ' pips and they must spend part of their next roll just to come in';
+      else t += ' and sends both back, a huge swing';
+      if (f.board >= 2 && f.hits === 1) more = '. With ' + num(f.board) + ' home-board points made, they fail to enter about ' + Math.round(100 * f.board * f.board / 36) + '% of the time';
+      out.push({ k: 'hit', w: 20 + f.hits * 4 + Math.min(f.board, 4), s: f.hits > 1 ? 'hits two checkers' : 'hits and sends a checker back', t: t + more + '.' });
+    }
+    const homeMade = an.home ? [] : f.made.filter(n => n < 18 && n > 2), anchorMade = an.home ? [] : f.made.filter(n => n >= 18);
+    if (an.home && f.contact && f.off > 0) out.push({ k: 'bear', w: 9, s: 'bears off safely', t: 'Bears off ' + num(f.off) + ' ' + plural(f.off, 'checker') + (f.blots.length ? ' while keeping the exposed checkers to a minimum.' : ' and leaves nothing for them to hit.') });
+    if (an.home && f.contact && f.cleared.length) out.push({ k: 'bear', w: 6, s: 'clears from the back', t: 'Clears your ' + ptName(f.cleared[0]) + ' from the back, which keeps gaps (and blots) away from their anchor.' });
+    if (homeMade.length) {
+      const best = homeMade.slice().sort((a, b) => (PT_VAL[b] || 1) - (PT_VAL[a] || 1))[0];
+      out.push({ k: 'point', w: 10 + (PT_VAL[best] || 1), s: 'makes ' + ptList(homeMade), t: 'Makes ' + ptList(homeMade) + (PT_NOTE[best] ? ': ' + PT_NOTE[best] : '') + '.' });
+    }
+    if (anchorMade.length) out.push({ k: 'escape', w: 9, s: 'makes a safe anchor', t: 'Makes an anchor on your ' + anchorMade[0] + '-point (their ' + (anchorMade[0] === 18 ? 'bar point' : (25 - anchorMade[0]) + '-point') + '): a safe base that can never be attacked, from which you can wait or escape.' });
+    if (f.blots.length === 0 && f.contact && !f.bar) out.push({ k: 'safe', w: 8, s: 'leaves no blots', t: 'Leaves no blots, so there is nothing for them to hit.' });
+    else if (f.blots.length && f.rolls <= 6 && f.contact) out.push({ k: 'safe', w: 8, s: f.rolls === 0 ? 'no roll can hit you' : 'only ' + f.rolls + ' of 36 rolls hit you', t: f.rolls === 0 ? 'The checkers left alone cannot be hit by any roll.' : 'Takes little risk: only ' + f.rolls + ' of the 36 rolls (' + pct(f.rolls) + '%) hit you.' });
+    if (!an.home && f.contact && f.backBefore > f.back) out.push({ k: 'escape', w: 9, s: 'gets a back checker moving', t: 'Moves a back checker out of their home board, so it is less likely to get trapped.' });
+    if (!an.home && f.prime >= 4) out.push({ k: 'prime', w: 7 + f.prime, s: 'builds a blockade', t: 'Builds a ' + num(f.prime) + '-point blockade, which their back checkers will find hard to cross.' });
+    if (!f.contact && f.off > 0) out.push({ k: 'bear', w: 5, s: 'bears off', t: 'Bears off ' + num(f.off) + ' ' + plural(f.off, 'checker') + ' without leaving a gap behind.' });
+    if (!f.contact && !f.off) out.push({ k: 'race', w: 3, s: 'keeps the race smooth', t: 'No more contact, so it is a pure race: bring checkers home smoothly and avoid gaps.' });
+    const focus = FOCUS[theme];
+    for (const x of out) if (x.k === focus) x.w += 30;
+    out.sort((a, b) => b.w - a.w);
+    if (!out.length) out.push({ w: 0, s: 'keeps your checkers flexible', t: 'It keeps your checkers flexible and well placed for making good points next turn.' });
+    const res = out.map(x => x.t); res.short = out[0].s;
+    return res;
+  }
+
+  /* ----- how a play compares with the best one ----- */
+  function contrast(an, best, alt) {
+    const fb = factsOf(an, best), fa = factsOf(an, alt), out = [];
+    if (fb.hits > fa.hits) out.push('The best play hits and yours does not. Sending a checker back costs them ' + (fb.hitAt.reduce((s, n) => s + n, 0)) + ' pips and a turn of effort.');
+    else if (fa.hits > fb.hits) {
+      if (fa.rolls - fb.rolls >= 5) out.push('Hitting is tempting, but it leaves ' + fa.rolls + ' rolls (' + pct(fa.rolls) + '%) that hit you back, against ' + fb.rolls + ' for the best play.');
+      else out.push('Hitting is tempting, but here it costs you more than it gains: the best play keeps a better position instead.');
+    }
+    const newB = fb.made.filter(n => n < 18 && !fa.made.includes(n)), newA = fa.made.filter(n => n < 18 && !fb.made.includes(n));
+    if (newB.length) out.push('The best play makes ' + ptList(newB) + '; yours does not.');
+    else if (newA.length && !(fa.hits > fb.hits)) out.push('Yours makes ' + ptList(newA) + ', but it gives up something worth more elsewhere.');
+    if (fa.rolls - fb.rolls >= 4 && !(fa.hits > fb.hits && out.length)) out.push('Yours leaves ' + fa.rolls + ' of 36 rolls (' + pct(fa.rolls) + '%) that hit you; the best play leaves ' + fb.rolls + '.');
+    else if (fb.rolls - fa.rolls >= 5) out.push('The best play takes a calculated risk (' + fb.rolls + ' rolls hit), because it gains more than it risks.');
+    if (fb.backBefore > fb.back && fa.back > fb.back) out.push('The best play gets a back checker moving; yours leaves it behind.');
+    if (fb.prime >= fa.prime + 2) out.push('The best play builds a longer blockade (' + num(fb.prime) + ' points in a row).');
+    if (!fb.contact && !fa.contact) {
+      if (fa.gaps > fb.gaps) out.push('Yours leaves a gap in the home board; the best play keeps the checkers spread evenly.');
+      else if (fa.stack > fb.stack + 1) out.push('Yours piles checkers on one point, which wastes pips later.');
+      else if (fb.off > fa.off) out.push('The best play bears off more checkers.');
+    }
+    if (!out.length) out.push('The difference is subtle: the best play leaves a more flexible position, with checkers better placed to make good points next turn.');
+    return out.slice(0, 3);
+  }
+
+  /* ----- one-line summary of a play, for hints and lists ----- */
+  function oneLine(an, r) {
+    const why = positives(an, r);
+    return '<b>' + r.text + '</b>' + (why.short ? ': ' + why.short + '.' : '.');
+  }
+
+  /* ----- review of a chosen play against the best ----- */
+  function review(an, chosen, theme) {
+    const loss = lossOf(an, chosen), g = grade(loss), same = chosen === an.best;
+    const rank = 1 + an.list.filter(r => r.v > chosen.v + 1e-9).length;
+    const out = { loss, grade: g, same, rank, total: an.list.length, best: an.best.text, yours: chosen.text, ok: loss < TOL_OK, close: loss < 3 };
+    out.whyBest = positives(an, an.best, theme).slice(0, 2);
+    out.why = same ? [] : contrast(an, an.best, chosen);
+    // other plays that are just as good
+    out.alts = an.list.filter(r => r !== an.best && an.best.v - r.v < TOL_OK).map(r => r.text);
+    return out;
+  }
+  function hint(pos, p, dice) {
+    const an = analyse(pos, p, dice);
+    if (!an) return null;
+    return { an, text: oneLine(an, an.best), best: an.best };
+  }
+
+  /* ----- a short label for what a puzzle is about ----- */
+  function themeOf(an) {
+    const best = an.best, fb = factsOf(an, best);
+    const rest = an.list.slice(1, 7).filter(r => best.v - r.v > 0.01);
+    const someHit = an.list.some(r => factsOf(an, r).hits > 0);
+    const startBack = fb.backBefore;
+    if (fb.hits > 0 && rest.some(r => factsOf(an, r).hits === 0)) return 'hit';
+    if (fb.hits === 0 && someHit && an.v0.aBar === 0) return 'nohit';
+    if (fb.made.some(n => n <= 13 && n >= 3) && !fb.hits && rest.length && rest.every(r => !factsOf(an, r).made.includes(fb.made[0]))) return 'point';
+    if (fb.contact && fb.hits === 0 && !fb.made.length && fb.rolls <= 6 && rest.filter(r => factsOf(an, r).rolls >= fb.rolls + 10).length >= 2) return 'safe';
+    if (fb.contact && fb.backBefore > fb.back && fb.hits === 0 && rest.every(r => factsOf(an, r).back >= fb.backBefore)) return 'escape';
+    if (!fb.contact) return an.pos.off[an.p] > 0 || BG.allHome(an.pos, an.p) ? 'bearoff' : 'race';
+    if (BG.allHome(an.pos, an.p) && fb.contact) return 'bearoff';
+    return 'general';
+  }
+
+  /* ----- positions saved in the profile ----- */
+  const ser = (pos) => ({ p: pos.pts.slice(), b: pos.bar.slice(), o: pos.off.slice(), t: pos.total || 15 });
+  const unser = (o) => {
+    if (!o || !Array.isArray(o.p) || o.p.length !== 24 || !Array.isArray(o.b) || !Array.isArray(o.o)) return null;
+    const pts = o.p.map(x => Math.max(-15, Math.min(15, Math.round(+x) || 0)));
+    return { pts, bar: [Math.max(0, +o.b[0] | 0), Math.max(0, +o.b[1] | 0)], off: [Math.max(0, +o.o[0] | 0), Math.max(0, +o.o[1] | 0)], total: Math.max(1, Math.min(15, +o.t | 0 || 15)) };
+  };
+  const mirror = (pos) => ({ pts: pos.pts.map((_, i) => -pos.pts[23 - i]), bar: [pos.bar[1], pos.bar[0]], off: [pos.off[1], pos.off[0]], total: pos.total });
+
+  return { ser, unser, mirror, analyse, review, hint, oneLine, positives, contrast, factsOf, findByKey, lossOf, grade, notate, themeOf, shotInfo, TOL_OK, ptName, pct };
+})();
+
+/* ============================================================
    Game data: cosmetics catalog, campaign, progression, rewards
    ============================================================ */
 const DATA = (() => {
@@ -1671,6 +2035,14 @@ const DATA = (() => {
     return false;
   }
 
+  // Speed mode: a time bank for each game plus a short delay at the start of every turn (the delay is used first)
+  const CLOCKS = [
+    { id: 'blitz', name: 'Blitz', bank: 60, delay: 4 },
+    { id: 'rapid', name: 'Rapid', bank: 150, delay: 6 },
+    { id: 'classic', name: 'Classic', bank: 300, delay: 10 },
+  ];
+  const clockOf = (id) => CLOCKS.find(c => c.id === id) || null;
+  const clockText = (c) => c ? Math.floor(c.bank / 60) + ':' + String(c.bank % 60).padStart(2, '0') + ' + ' + c.delay + 's delay' : '';
   const CHAPTERS = [
     { id: 1, name: 'Corner Café', blurb: 'Warm up over coffee. Friendly faces and gentle rules.', color: '#c68b4e' },
     { id: 2, name: 'Harbour Tavern', blurb: 'Sailors play fast and loose. Expect blots and blitzes.', color: '#3f8fb5' },
@@ -1738,11 +2110,13 @@ const DATA = (() => {
     equipped: { board: 'club', checkers: 'classic', dice: 'ivory', moveFx: 'glide', throwFx: 'toss', hitFx: 'knock', trim: 'none', inlay: 'none', mat: 'none', cube: 'ivory' },
     campaign: {}, cheats: { unlockStages: false }, career: blankCareer(),
     stats: { played: 0, won: 0, gammons: 0, hits: 0, coinsEarned: 0, bestStreak: 0, streak: 0 },
-    settings: { sound: true, volume: 0.7, autoRoll: false, assist: true, legal: true, numbers: true, fast: false, pipDisplay: true, haptics: true, wakeLock: true, compact: 'auto', landscapeLock: false, quality: 'auto', board3d: true, fps: 'max', powerSaver: false },
-    quick: { level: 3, style: 'balanced', matchLen: 1, cube: false, variant: 'classic', gammons: true },
+    settings: { sound: true, volume: 0.7, autoRoll: false, assist: true, legal: true, numbers: true, fast: false, pipDisplay: true, haptics: true, wakeLock: true, compact: 'auto', landscapeLock: false, quality: 'auto', board3d: true, fps: 'max', powerSaver: false, banter: true, liveCoach: false },
+    quick: { level: 3, style: 'balanced', matchLen: 1, cube: false, variant: 'classic', gammons: true, clock: 'off' },
+    train: { solved: {}, lessons: [], tried: 0, right: 0, streak: 0, bestStreak: 0 },
+    tour: { run: null, wins: {}, played: 0, titles: 0 },
   });
 
-  return { RARITY, BOARDS, CHECKERS, DICE, MOVEFX, THROWFX, HITFX, TRIMS, INLAYS, MATS, CUBES, themeFor, BOSS_SETS, CATS, find, levelInfo, xpToNext, levelBonusCoins, rankFor, MAX_LEVEL, rewardFor, gameReward, matchBase, VARIANT_REWARD, vf, CHAPTERS, STAGES, objText, objDone, DEFAULT_PROFILE, blankCareer, mergeCareer };
+  return { CLOCKS, clockOf, clockText, RARITY, BOARDS, CHECKERS, DICE, MOVEFX, THROWFX, HITFX, TRIMS, INLAYS, MATS, CUBES, themeFor, BOSS_SETS, CATS, find, levelInfo, xpToNext, levelBonusCoins, rankFor, MAX_LEVEL, rewardFor, gameReward, matchBase, VARIANT_REWARD, vf, CHAPTERS, STAGES, objText, objDone, DEFAULT_PROFILE, blankCareer, mergeCareer };
 })();
 
 /* ---------- shop expansion: more boards, checkers, dice, trims, inlays, roll mats and cube skins ---------- */
@@ -7442,7 +7816,7 @@ const SFX = (() => {
    and rolls never need to be sent for trust, only for animation.
    ============================================================ */
 const Net = (() => {
-  const BUILD = '20261105-0633';
+  const BUILD = '20261105-1034';
   const TOPIC = 'm', ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const HEARTBEAT = 2500, RESEND = 1400, LOST_AFTER = 14000;
   let ns = null, nsTried = false, S = null;
@@ -7456,6 +7830,35 @@ const Net = (() => {
     h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
     return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
   };
+
+  // SHA-256, synchronous, for the dice commitments (the cyrb53 fingerprint above stays for older copies of the game)
+  const sha256 = (() => {
+    const primes = []; for (let n = 2; primes.length < 64; n++) { let ok = true; for (let d = 2; d * d <= n; d++) if (n % d === 0) { ok = false; break; } if (ok) primes.push(n); }
+    const frac = (x) => Math.floor((x - Math.floor(x)) * 4294967296) >>> 0;
+    const K = primes.map(p => frac(Math.cbrt(p))), H0 = primes.slice(0, 8).map(p => frac(Math.sqrt(p)));
+    const rotr = (x, n) => (x >>> n) | (x << (32 - n));
+    return (str) => {
+      const bytes = new TextEncoder().encode(str), len = bytes.length, n = (((len + 8) >> 6) + 1) << 4, w = new Uint32Array(n), x = new Uint32Array(64), h = H0.slice();
+      for (let i = 0; i < len; i++) w[i >> 2] |= bytes[i] << (24 - (i & 3) * 8);
+      w[len >> 2] |= 0x80 << (24 - (len & 3) * 8);
+      w[n - 1] = len * 8;
+      for (let o = 0; o < n; o += 16) {
+        for (let i = 0; i < 16; i++) x[i] = w[o + i];
+        for (let i = 16; i < 64; i++) {
+          const s0 = rotr(x[i - 15], 7) ^ rotr(x[i - 15], 18) ^ (x[i - 15] >>> 3), s1 = rotr(x[i - 2], 17) ^ rotr(x[i - 2], 19) ^ (x[i - 2] >>> 10);
+          x[i] = (x[i - 16] + s0 + x[i - 7] + s1) | 0;
+        }
+        let a = h[0], b = h[1], c = h[2], d = h[3], e = h[4], f = h[5], g = h[6], hh = h[7];
+        for (let i = 0; i < 64; i++) {
+          const t1 = (hh + (rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25)) + ((e & f) ^ (~e & g)) + K[i] + x[i]) | 0;
+          const t2 = ((rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) | 0;
+          hh = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+        }
+        h[0] = (h[0] + a) | 0; h[1] = (h[1] + b) | 0; h[2] = (h[2] + c) | 0; h[3] = (h[3] + d) | 0; h[4] = (h[4] + e) | 0; h[5] = (h[5] + f) | 0; h[6] = (h[6] + g) | 0; h[7] = (h[7] + hh) | 0;
+      }
+      return Array.from(h, v => (v >>> 0).toString(16).padStart(8, '0')).join('');
+    };
+  })();
   const mulberry = (a) => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
   const newCode = () => Array.from({ length: 6 }, () => ALPHABET[Math.floor(Math.random() * ALPHABET.length)]).join('');
   const MIN_CODE = 5, cleanCode = (s) => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 16);
@@ -7508,35 +7911,40 @@ const Net = (() => {
   function dispatch(e) {
     const t = e.t, d = e.d || {};
     if (t === 'hello') {                                  // host: the guest has arrived
-      S.peerProfile = d; send('setup', { cfg: S.cfg, name: S.profile.name, av: S.profile.av, h: commitOf() });
+      S.peerProfile = d; send('setup', { cfg: S.cfg, name: S.profile.name, av: S.profile.av, h: commitOf(), h2: commit2() });
       return;
     }
     if (t === 'setup') {                                  // guest: the host's settings and commitment
-      S.cfg = d.cfg; S.peerProfile = { name: d.name, av: d.av }; S.peerCommit = d.h;
-      send('commit', { h: commitOf() });
+      S.cfg = d.cfg; S.peerProfile = { name: d.name, av: d.av }; S.peerCommit = d.h; S.peerCommit2 = typeof d.h2 === 'string' ? d.h2 : null;
+      send('commit', { h: commitOf(), h2: commit2() });
       return;
     }
-    if (t === 'commit') { S.peerCommit = d.h; sendReveal(); return; }
+    if (t === 'commit') { S.peerCommit = d.h; S.peerCommit2 = typeof d.h2 === 'string' ? d.h2 : null; sendReveal(); return; }
     if (t === 'reveal') {
-      if (hash(d.a + ':' + d.b + ':' + d.salt) !== S.peerCommit) { fail('The other player\'s dice seed did not check out.'); return; }
+      const mix = d.a + ':' + d.b + ':' + d.salt;
+      if (hash(mix) !== S.peerCommit || (S.peerCommit2 && sha256(mix) !== S.peerCommit2)) { fail('The other player\'s dice seed did not check out.'); return; }
       S.peerReveal = d; sendReveal(); maybeReady(); return;
     }
     if (t === 'bye') { S.left = true; wake(null); if (S.cb.bye) S.cb.bye(d); return; }
     if (t === 'emo') { if (S.cb.emo) S.cb.emo(d); return; }
+    if (t === 'clk') { if (S.cb.clk) S.cb.clk(d); return; }                              // the other player's time bank, for the display
+    if (t === 'flag' && d.claim) { if (S.cb.claim) S.cb.claim(d); return; }          // the other player says your time ran out
     if (t === 'rematch') { S.vote.peer = true; if (S.cb.vote) S.cb.vote(); checkVotes(); return; }
-    S.inbox.push(e);                                      // roll, move, double, reply: for the game loop
+    S.inbox.push(e);                                      // roll, move, double, reply, flag: for the game loop
     wake();
   }
   function commitOf() {
     if (!S.seedA) { S.seedA = rand32(); S.seedB = rand32(); }
     return hash(S.seedA + ':' + S.seedB + ':' + S.salt);
   }
+  function commit2() { commitOf(); return sha256(S.seedA + ':' + S.seedB + ':' + S.salt); }
   function sendReveal() { if (S.myReveal || !S.peerCommit) return; commitOf(); S.myReveal = true; send('reveal', { a: S.seedA, b: S.seedB, salt: S.salt }); maybeReady(); }
   function maybeReady() {
     if (S.ready || !S.myReveal || !S.peerReveal) return;
     const sa = (S.seedA ^ S.peerReveal.a) >>> 0, sb = (S.seedB ^ S.peerReveal.b) >>> 0;
     S.rng = mulberry((sa ^ Math.imul(sb, 0x9E3779B1)) >>> 0);
     S.ready = true;
+    S.fair = { sha: !!S.peerCommit2, mine: commit2(), theirs: S.peerCommit2 || S.peerCommit, drawn: 0, checked: 0 };
     S.info = { role: S.role, code: S.code, cfg: S.cfg, me: { name: S.profile.name, av: S.profile.av }, opp: { name: S.peerProfile.name || 'Opponent', av: S.peerProfile.av || '🎲' } };
     if (S.cb.ready) S.cb.ready(S.info);
   }
@@ -7552,6 +7960,7 @@ const Net = (() => {
       if (k >= 0) { const m = S.inbox.splice(k, 1)[0]; S.waiters.splice(i--, 1); w.res(Object.assign({ t: m.t }, m.d)); }
     }
   }
+  function poke(t, d) { if (!S) return; S.inbox.push({ t, d: d || {} }); wake(); }   // put a message in my own inbox (used to end a wait locally)
   function next(types) {
     if (!S) return Promise.resolve(null);
     return new Promise((res) => {
@@ -7806,7 +8215,7 @@ const Net = (() => {
     const playing = o.st === 'p', watch = !!o.sp;
     if (playing && !watch) return null;                    // a game in progress is only listed when the host lets people watch
     const sc = Array.isArray(o.sc) ? [int(o.sc[0], 0, 99, 0), int(o.sc[1], 0, 99, 0)] : [0, 0];
-    return { code: c, name: lobbyTxt(o.n, 14) || 'Player', av: lobbyTxt(o.av, 4) || '🎲', build: lobbyTxt(o.b, 24), len: Math.min(9, Math.max(1, (o.m | 0) || 1)), cube: !!o.cu, variant: lobbyTxt(o.va, 16) || 'classic', t,
+    return { code: c, name: lobbyTxt(o.n, 14) || 'Player', av: lobbyTxt(o.av, 4) || '🎲', build: lobbyTxt(o.b, 24), len: Math.min(9, Math.max(1, (o.m | 0) || 1)), cube: !!o.cu, clock: lobbyTxt(o.ck || '', 8), variant: lobbyTxt(o.va, 16) || 'classic', t,
       playing, opp: playing ? (lobbyTxt(o.o, 14) || 'Player') : '', oppAv: playing ? (lobbyTxt(o.oa, 4) || '🎲') : '', score: sc, watchers: int(o.w, 0, 99, 0), finished: !!o.f };
   }
   /* ---------- live games ----------
@@ -8094,7 +8503,7 @@ const Net = (() => {
     first.forEach(entry);
     if (cfg && cfg.pub) {                                  // list this game publicly, with the same code
       const ent = (vw) => {
-        const e = { v: 1, c: code, n: lobbyTxt(profile.name, 14), av: lobbyTxt(profile.av, 4), b: BUILD, m: cfg.matchLen | 0, cu: cfg.cube ? 1 : 0, va: lobbyTxt(cfg.variant, 16), t: Date.now(), sp: cfg.watch ? 1 : 0, w: vw | 0 };
+        const e = { v: 1, c: code, n: lobbyTxt(profile.name, 14), av: lobbyTxt(profile.av, 4), b: BUILD, m: cfg.matchLen | 0, cu: cfg.cube ? 1 : 0, ck: lobbyTxt(cfg.clock || '', 8), va: lobbyTxt(cfg.variant, 16), t: Date.now(), sp: cfg.watch ? 1 : 0, w: vw | 0 };
         if (linked || mine.ready) { const p = mine.peerProfile || {}; e.st = 'p'; e.o = lobbyTxt(p.name, 14); e.oa = lobbyTxt(p.av, 4); e.sc = mine.lastSc || [0, 0]; if (mine.fin) e.f = 1; }   // once someone has joined it is a game in progress
         return e;
       };
@@ -8217,8 +8626,10 @@ const Net = (() => {
   function voteRematch() { if (!S) return; S.vote.me = true; send('rematch', {}); checkVotes(); }
 
   return {
-    available, host, join, leave, close, send, next, voteRematch, cleanCode, p2pSupported, hostP2P, joinP2P, hostBroker, joinBroker, lobbyBrowse, watch, live, check, build: BUILD, MIN_CODE, newCode,
-    die: () => (S && S.rng) ? 1 + Math.floor(S.rng() * 6) : 1 + Math.floor(Math.random() * 6),
+    available, host, join, leave, close, send, next, poke, voteRematch, cleanCode, p2pSupported, hostP2P, joinP2P, hostBroker, joinBroker, lobbyBrowse, watch, live, check, build: BUILD, MIN_CODE, newCode,
+    die: () => { if (S && S.rng) { if (S.fair) S.fair.drawn++; return 1 + Math.floor(S.rng() * 6); } return 1 + Math.floor(Math.random() * 6); },
+    noteChecked: (n) => { if (S && S.fair) S.fair.checked += n; },
+    get fair() { return S && S.fair ? S.fair : null; },
     rand: () => (S && S.rng) ? S.rng() : Math.random(),
     get active() { return !!(S && !S.closed); },
     get ready() { return !!(S && S.ready); },
@@ -8264,6 +8675,15 @@ const Store = (() => {
     p.campaign = (src.campaign && typeof src.campaign === 'object') ? src.campaign : {};
     Object.assign(p.stats, src.stats || {}); Object.assign(p.settings, src.settings || {}); Object.assign(p.quick, src.quick || {}); Object.assign(p.cheats, src.cheats || {});
     p.career = DATA.mergeCareer(src.career);
+    // training: solved puzzles, saved mistakes; tournament: the run in progress and past wins
+    const tr = src.train && typeof src.train === 'object' ? src.train : {};
+    for (const k of ['tried', 'right', 'streak', 'bestStreak']) p.train[k] = Math.max(0, +tr[k] || 0);
+    if (tr.solved && typeof tr.solved === 'object') for (const id of Object.keys(tr.solved).slice(0, 400)) { const e = tr.solved[id]; if (e && typeof e === 'object') p.train.solved[String(id).slice(0, 24)] = { t: +e.t || 0, n: Math.max(1, +e.n || 1) }; }
+    if (Array.isArray(tr.lessons)) p.train.lessons = tr.lessons.filter(l => l && Coach.unser(l.s) && Array.isArray(l.d) && l.d.length === 2).slice(-40);
+    const tu = src.tour && typeof src.tour === 'object' ? src.tour : {};
+    p.tour.run = (tu.run && typeof tu.run === 'object' && Array.isArray(tu.run.rounds)) ? tu.run : null;
+    p.tour.played = Math.max(0, +tu.played || 0); p.tour.titles = Math.max(0, +tu.titles || 0);
+    if (tu.wins && typeof tu.wins === 'object') for (const k of Object.keys(tu.wins).slice(0, 10)) p.tour.wins[String(k).slice(0, 16)] = Math.max(0, +tu.wins[k] || 0);
     return p;
   }
   function readLocal() { try { const s = localStorage.getItem(KEY); if (s) return normalize(JSON.parse(s)); } catch (e) { } return null; }
@@ -8305,13 +8725,14 @@ const Store = (() => {
 const P = () => Store.p;
 
 /* ---------- toast & modal ---------- */
-function toast(text) {
-  const t = document.createElement('div'); t.className = 'toast'; t.textContent = text;
-  $('#toast-root').appendChild(t); setTimeout(() => t.remove(), 2700);
+function toast(text, ms) {
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = text; ms = ms || 2700;
+  if (ms > 2700) t.style.animationDuration = (ms / 1000 - 0.1) + 's';
+  $('#toast-root').appendChild(t); setTimeout(() => t.remove(), ms);
 }
 function modal(o) {
   const root = $('#modal-root');
-  const bg = document.createElement('div'); bg.className = 'modal-bg';
+  const bg = document.createElement('div'); bg.className = 'modal-bg' + (o.sheet ? ' sheet' : '');
   const m = document.createElement('div'); m.className = 'modal' + (o.wide ? ' wide' : ''); m.innerHTML = o.html;
   bg.appendChild(m); root.appendChild(bg);
   const api = { el: m, closed: false, close() { if (api.closed) return; api.closed = true; bg.remove(); if (o.onClose) o.onClose(); } };
@@ -8331,7 +8752,8 @@ function ask(o) {
   return new Promise((res) => {
     const btns = o.buttons.map((b, i) => `<button class="btn ${b.cls || ''}" data-act="b${i}">${b.label}</button>`).join('');
     const actions = {}; o.buttons.forEach((b, i) => { actions['b' + i] = () => { res(b.value); }; });
-    modal({ html: `<h2>${o.title}</h2><p class="lead">${o.text || ''}</p>${o.extra || ''}<div class="btns">${btns}</div>`, actions, dismiss: false });
+    const api = modal({ html: `<h2>${o.title}</h2><p class="lead">${o.text || ''}</p>${o.extra || ''}<div class="btns">${btns}</div>`, actions, dismiss: false });
+    if (o.onOpen) o.onOpen(api, res);
   });
 }
 
@@ -8509,6 +8931,8 @@ function openSettings() {
         <div class="toggle" style="cursor:default"><span style="flex:1"><b>Volume</b><input class="slider" id="set-vol" type="range" min="0" max="1" step="0.05" value="${s.volume}"></span></div>
         ${row('legal', 'Show legal moves', 'Highlights checkers you can move and where they can land')}
         ${row('assist', 'Auto-play forced moves', 'Plays a move for you when only one is legal')}
+        ${row('banter', 'Opponent chatter', 'Computer opponents react with lines and faces to hits, doubles and your mistakes')}
+        ${row('liveCoach', 'Live coach', 'Tells you in plain English when you make a big mistake in a game against the computer')}
         ${row('autoRoll', 'Auto-roll dice', 'Rolls for you at the start of your turn, unless you can double')}
         ${row('board3d', '3D board', 'Turn off for the flat 2D board: lighter on older phones')}
         ${row('numbers', 'Point numbers', 'Numbers along the board edge, from your side')}
@@ -8633,6 +9057,8 @@ const Stats = (() => {
   const EXP_ROLL = 49 / 6;                   // average pips per roll, doubles count four times
   const DEEP_DEFICIT = 35;                   // pips behind at some point, then won = comeback
   const THRESH = { inacc: 3, mist: 6, blun: 14 };
+  const LESSON_MIN = 8;                      // only clear mistakes become lessons, and never the first two turns (opening theory is a judgement call)
+  const LESSONS_PER_MATCH = 5, LESSONS_KEPT = 40;
 
   const blankPlayer = () => ({ turns: 0, hits: 0, rolls: 0, pips: 0, exp: 0, doubles: 0, rated: 0, loss: 0, perfect: 0, inacc: 0, mist: 0, blun: 0, cubeOffered: 0, cubeReceived: 0, cubeTaken: 0, cubePassed: 0, cubeAccepted: 0, cubePassedByOpp: 0 });
   const accOf = (s) => s.rated ? 100 * Math.exp(-(s.loss / s.rated) / 10) : null;
@@ -8652,7 +9078,7 @@ const Stats = (() => {
       s.hits += Math.max(0, end.bar[o] - start.bar[o]);
       const lead = BG.pips(end, 1) - BG.pips(end, 0);      // positive: the bottom player leads the race
       g.lead.push(lead); g.deficit = Math.max(g.deficit, -lead);
-      T.pend.push({ g, p, start, dice: dice.slice(), end });
+      T.pend.push({ g, p, start, dice: dice.slice(), end, n: g.turns });
       if (!T.timer) T.timer = setTimeout(T.tick, 40);
     };
     T.cube = (p, kind) => {
@@ -8667,7 +9093,12 @@ const Stats = (() => {
       let best = -1e9; for (const r of list) { const v = AI.evalPos(r.pos, j.p); if (v > best) best = v; }
       const loss = Math.min(60, Math.max(0, best - AI.evalPos(j.end, j.p)));
       const s = j.g.pl[j.p]; s.rated++; s.loss += loss;
+      if (T.onRate) { try { T.onRate(j, loss); } catch (e) { } }
       if (loss < 0.5) s.perfect++; else if (loss >= THRESH.blun) s.blun++; else if (loss >= THRESH.mist) s.mist++; else if (loss >= THRESH.inacc) s.inacc++;
+      const c = T.cfg;
+      if (j.p === 0 && loss >= LESSON_MIN && j.n > 2 && c.mode !== '2p' && c.mode !== 'online' && c.mode !== 'puzzle' && !c.wild && !j.start.walls && !j.start.pins) {
+        (j.g.lessons || (j.g.lessons = [])).push({ start: j.start, end: j.end, dice: j.dice.length === 4 ? [j.dice[0], j.dice[0]] : j.dice.slice(), loss, n: j.n });
+      }
     };
     T.tick = () => { T.timer = 0; const j = T.pend.shift(); if (j) { try { T.rate(j); } catch (e) { } } if (T.pend.length) T.timer = setTimeout(T.tick, 16); };
     T.flush = () => { clearTimeout(T.timer); T.timer = 0; while (T.pend.length) { try { T.rate(T.pend.shift()); } catch (e) { } } };
@@ -8712,6 +9143,20 @@ const Stats = (() => {
       c.longestGame = Math.max(c.longestGame, you.turns); c.secs += g.secs;
     }
     c.bestStreakGames = streakBest;
+    // the biggest mistakes of the match become practice lessons
+    const les = []; for (const g of T.games) for (const l of (g.lessons || [])) les.push(l);
+    les.sort((a, b) => b.loss - a.loss);
+    const tr = P().train, have = new Set(tr.lessons.map(l => JSON.stringify(l.s.p) + l.d.join('')));
+    let added = 0;
+    for (const l of les) {
+      if (added >= LESSONS_PER_MATCH) break;
+      const so = Coach.ser(l.start), id = JSON.stringify(so.p) + l.dice.join('');
+      if (have.has(id)) continue;
+      have.add(id); added++;
+      tr.lessons.push({ s: so, d: l.dice, e: Coach.ser(l.end), l: Math.round(l.loss * 10) / 10, t: Date.now(), o: String(cfg.names[1] || 'Computer').slice(0, 20), v: cfg.variant });
+    }
+    if (tr.lessons.length > LESSONS_KEPT) tr.lessons = tr.lessons.slice(-LESSONS_KEPT);
+    res.lessons = added;
     c.matches++; if (res.won) c.matchesWon++;
     const mode = cfg.mode === 'campaign' ? 'campaign' : cfg.wild ? 'wild' : 'quick';
     const bump = (o, k) => { const e = o[k] || (o[k] = { w: 0, l: 0 }); res.won ? e.w++ : e.l++; };
@@ -8893,7 +9338,7 @@ const Stats = (() => {
     });
   }
 
-  return { newMatch, aggregate, record, tabsHTML, wireTabs, gamePanel, matchPanel, renderScreen, accOf, fmtTime };
+  return { THRESH, newMatch, aggregate, record, tabsHTML, wireTabs, gamePanel, matchPanel, renderScreen, accOf, fmtTime };
 })();
 
 Nav.onShow.stats = () => Stats.renderScreen();
@@ -9277,15 +9722,160 @@ const Portraits = (() => {
   };
 
   // the face a stage shows. key like 's7', 'player'. `locked` draws a silhouette with a question mark.
+  // a face can show a mood for a moment: the eyes, brows and mouth are swapped for a matching set
+  const MOODS = {
+    smug: { eyes: 'sly', mouth: 'smirk', brow: 'arched' }, happy: { eyes: 'normal', mouth: 'grin', brow: 'arched' },
+    angry: { eyes: 'narrow', mouth: 'frown', brow: 'stern' }, shock: { eyes: 'wide', mouth: 'open', brow: 'high' },
+    worried: { eyes: 'wide', mouth: 'frown', brow: 'worried' }, sad: { eyes: 'tired', mouth: 'frown', brow: 'worried' },
+    think: { eyes: 'narrow', mouth: 'flat', brow: 'flat' },
+  };
   function svg(key, o) {
     o = o || {};
-    const sp = P[key]; if (!sp) return '';
+    let sp = P[key]; if (!sp) return '';
+    if (o.mood && MOODS[o.mood]) sp = Object.assign({}, sp, MOODS[o.mood]);
     const inner = build(sp);
     const sil = o.locked ? ' style="filter:brightness(0) opacity(.55)"' : '';
     const vb = o.crop ? '14 6 72 72' : '0 0 100 120';
     return `<svg class="portrait" viewBox="${vb}" preserveAspectRatio="xMidYMax meet" role="img" aria-label="${esc(o.label || key)}"><g${sil}>${inner}</g>${o.locked ? '<text x="50" y="72" text-anchor="middle" font-family="Fraunces,serif" font-size="30" font-weight="700" fill="rgba(255,255,255,.55)">?</text>' : ''}</svg>`;
   }
   return { svg, specs: P, has: (k) => !!P[k] };
+})();
+
+/* ============================================================
+   Banter: computer opponents react to what happens with a line and a mood.
+   Each play style is a personality. A reaction is a short speech bubble by the opponent's portrait and, when the
+   opponent has a drawn face, a mood (eyes, brows and mouth) for a moment. Reactions are rate-limited so they stay
+   a seasoning, and can be turned off in Settings.
+   ============================================================ */
+const Banter = (() => {
+  const LINES = {
+    balanced: {
+      start: ['Good luck. May the best player win.', 'Let us see a clean game.', 'Ready when you are.'],
+      hitMe: ['Sorry, that was necessary.', 'A fair hit.', 'Back to the bar with you.'],
+      gotHit: ['Well played.', 'I will come back from that.', 'Fair enough.'],
+      theirDoubles: ['Doubles. That helps.', 'A good roll at last.'],
+      yourDoubles: ['Nice roll.', 'Doubles for you. Hmm.'],
+      blunder: ['Are you sure about that?', 'That may cost you.'],
+      take: ['I will take that.', 'Fine. I accept.'],
+      pass: ['I will pass. Well played.', 'Too rich for me.'],
+      theyDouble: ['I think it is time to double.', 'The cube is mine to turn.'],
+      win: ['A good game. Thank you.', 'Better luck next time.'],
+      lose: ['Well played.', 'You earned that.'],
+    },
+    aggressive: {
+      start: ['Leave a blot and I will find it.', 'I do not wait for the dice. I chase them.', 'Hit first, apologise never.'],
+      hitMe: ['Back to the bar!', 'Got you.', 'Never leave a checker alone.'],
+      gotHit: ['Lucky shot. It will cost you.', 'You will pay for that.', 'Ha! Now I am angry.'],
+      theirDoubles: ['Doubles! Now we are talking.', 'That is how you attack.'],
+      yourDoubles: ['Do not get comfortable.', 'Doubles. How annoying.'],
+      blunder: ['You left that wide open.', 'A gift. Thank you.'],
+      take: ['Bring it on.', 'I take. And I attack.'],
+      pass: ['Enjoy it while it lasts.', 'I pass. For now.'],
+      theyDouble: ['Take it or run!', 'Time to raise the stakes.'],
+      win: ['Crushed.', 'Too slow.'],
+      lose: ['Beginner’s luck.', 'Enjoy it. Next time I win.'],
+    },
+    defensive: {
+      start: ['Patience wins more games than courage.', 'I never leave a checker alone.'],
+      hitMe: ['I had to. It was the safest play.', 'Sorry. It was safe enough.'],
+      gotHit: ['Ouch. A risk I took.', 'I will rebuild.'],
+      theirDoubles: ['Doubles are safe. Good.', 'Good. I can make a point.'],
+      yourDoubles: ['Careful with those dice.', 'A lot of pips, those.'],
+      blunder: ['That blot was risky.', 'A careful player would not do that.'],
+      take: ['I am solid enough. I take.', 'I take. I am not worried.'],
+      pass: ['Not worth the risk. I pass.', 'I will pass. Safety first.'],
+      theyDouble: ['My position is safe. I double.', 'Time to double. I am well placed.'],
+      win: ['Slow and steady.', 'Safety first, always.'],
+      lose: ['Your risks paid off.', 'I never saw that coming.'],
+    },
+    primer: {
+      start: ['Walls first. Questions later.', 'Every point I make is another brick.'],
+      hitMe: ['Back you go, behind my wall.', 'Now try getting out.'],
+      gotHit: ['A small setback.', 'My wall will hold.'],
+      theirDoubles: ['Four more bricks.', 'Doubles build walls faster.'],
+      yourDoubles: ['Do not rush through my wall.', 'You will need more than that.'],
+      blunder: ['You are walking into my prime.', 'That will get you trapped.'],
+      take: ['My wall will win it. I take.', 'I take. Look at my points.'],
+      pass: ['I cannot break through. I pass.', 'Your position is too strong. I pass.'],
+      theyDouble: ['You are trapped. Double.', 'The wall is complete. I double.'],
+      win: ['The wall held.', 'Another brick in the wall.'],
+      lose: ['You broke through. Well done.', 'My wall had a gap.'],
+    },
+    runner: {
+      start: ['Fastest home wins. That is me.', 'Race you to the finish.'],
+      hitMe: ['Sorry, no time to stop.', 'Out of my way.'],
+      gotHit: ['Hey! I was running.', 'That cost me time.'],
+      theirDoubles: ['Speed!', 'Zoom. Doubles.'],
+      yourDoubles: ['You are catching up.', 'Nice. But I am still ahead.'],
+      blunder: ['That slowed you down.', 'You lost a lot of pips there.'],
+      take: ['I take. Count the pips.', 'I take. I am fast.'],
+      pass: ['Too far behind. I pass.', 'I pass. Well run.'],
+      theyDouble: ['I am way ahead. Double.', 'Double. Try to keep up.'],
+      win: ['First home. Of course.', 'Not even close.'],
+      lose: ['You were faster this time.', 'A photo finish. Nearly.'],
+    },
+    gambler: {
+      start: ['The cube loves a brave heart.', 'Double or nothing. Always.', 'Fortune favours me tonight.'],
+      hitMe: ['Fortune smiles!', 'Boom. Back to the bar.'],
+      gotHit: ['Ha! A gamble that failed.', 'Easy come, easy go.'],
+      theirDoubles: ['Lady luck is with me!', 'Doubles! Place your bets.'],
+      yourDoubles: ['Lucky! Do it again, I dare you.', 'The dice love you tonight.'],
+      blunder: ['Now that was a gamble.', 'Reckless. I like it.'],
+      take: ['All in. I take!', 'Of course I take!'],
+      pass: ['Even I fold sometimes.', 'Not this hand. I pass.'],
+      theyDouble: ['Double! Fortune favours the bold.', 'Raise! Let us make it interesting.'],
+      win: ['Fortune favours me.', 'The house always wins.'],
+      lose: ['You won this hand.', 'Beaten. Deal again.'],
+    },
+  };
+  const MOOD = { start: 'think', hitMe: 'smug', gotHit: 'angry', theirDoubles: 'happy', yourDoubles: 'shock', blunder: 'smug', take: 'think', pass: 'sad', theyDouble: 'smug', win: 'happy', lose: 'sad' };
+  const CHANCE = { start: 1, hitMe: 0.7, gotHit: 0.85, theirDoubles: 0.5, yourDoubles: 0.5, blunder: 0.75, take: 0.9, pass: 1, theyDouble: 0.9, win: 1, lose: 1 };
+  const GAP = 5500;                               // at most one reaction in this time, apart from the ones that matter most
+  const LOUD = { win: 1, lose: 1, pass: 1, start: 1 };
+  let st = { last: 0, used: {}, t1: 0, t2: 0 };
+
+  const enabled = (cfg) => !!cfg && (cfg.mode === 'ai' || cfg.mode === 'campaign') && P().settings.banter !== false;
+  function begin() { clearTimeout(st.t1); clearTimeout(st.t2); st = { last: 0, used: {}, t1: 0, t2: 0 }; }
+  function pick(style, ev) {
+    const set = (LINES[style] || LINES.balanced)[ev]; if (!set) return null;
+    const used = st.used[ev] || (st.used[ev] = []);
+    let i = Math.floor(Math.random() * set.length);
+    if (set.length > 1 && used.includes(i)) i = (i + 1) % set.length;
+    used.push(i); if (used.length >= set.length) used.length = 0;
+    return set[i];
+  }
+  // ev: one of the keys in MOOD. cfg is the game's config; the portrait and bubble belong to the top player (the opponent).
+  function react(cfg, ev) {
+    if (!enabled(cfg)) return;
+    const now = Date.now();
+    if (!LOUD[ev] && now - st.last < GAP) return;
+    if (Math.random() > (CHANCE[ev] || 0.5)) return;
+    const line = pick(cfg.style || 'balanced', ev); if (!line) return;
+    st.last = now;
+    const host = $('#hud-p1'), av = $('#hud-av1');
+    if (!host || !av) return;
+    $$('.bubble', host).forEach(b => b.remove());
+    const b = document.createElement('div'); b.className = 'bubble'; b.textContent = line; b.setAttribute('role', 'status');
+    host.appendChild(b);
+    setTimeout(() => b.remove(), 3500);
+    av.classList.remove('react'); void av.offsetWidth; av.classList.add('react');
+    const face = cfg.faces && cfg.faces[1];
+    if (face && Portraits.has(face)) {
+      clearTimeout(st.t2);
+      av.innerHTML = Portraits.svg(face, { crop: true, label: cfg.names[1], mood: MOOD[ev] });
+      st.t2 = setTimeout(() => { av.innerHTML = Portraits.svg(face, { crop: true, label: cfg.names[1] }); }, 3000);
+    }
+  }
+  // a mood without a line, e.g. while the opponent thinks about a double
+  function face(cfg, mood, ms) {
+    if (!enabled(cfg)) return;
+    const av = $('#hud-av1'), f = cfg.faces && cfg.faces[1];
+    if (!av || !f || !Portraits.has(f)) return;
+    clearTimeout(st.t2);
+    av.innerHTML = Portraits.svg(f, { crop: true, label: cfg.names[1], mood });
+    st.t2 = setTimeout(() => { av.innerHTML = Portraits.svg(f, { crop: true, label: cfg.names[1] }); }, ms || 2000);
+  }
+  return { begin, react, face, enabled, LINES };
 })();
 
 /* ---------- chapter scenes: animated vector backdrops, one per chapter ----------
@@ -9666,6 +10256,88 @@ const Trophy = (() => {
 Nav.onShow.trophy = () => Trophy.start();
 Nav.onHide.trophy = () => Trophy.stop();
 
+/* Generated by test/build_bank.js: puzzle positions found by engine self-play (and the opening book).
+   [theme, difficulty, die 1, die 2, 'points|bar|off']. The player is always the bottom side, moving 24 to 1.
+   An empty position means the standard opening position. Answers are never stored: the coach rates every play live. */
+const PUZZLES = [
+  ['open', 1, 3, 1, ''],
+  ['open', 1, 1, 6, ''],
+  ['open', 1, 2, 4, ''],
+  ['open', 1, 3, 5, ''],
+  ['open', 1, 5, 6, ''],
+  ['open', 2, 6, 6, ''],
+  ['open', 2, 4, 4, ''],
+  ['open', 2, 5, 5, ''],
+  ['hit', 1, 4, 3, '-2,0,0,2,2,5,2,2,0,0,0,0,0,0,-1,0,-1,-1,-4,0,-5,0,-1,2|0,0|0,0'],
+  ['hit', 1, 2, 1, '-1,2,0,2,0,-1,0,2,0,0,2,0,0,-1,-2,-1,1,0,2,0,2,-3,1,-6|1,0|0,0'],
+  ['hit', 1, 2, 5, '1,0,-1,0,0,5,0,2,-1,0,0,-5,4,0,0,0,-2,0,-5,0,0,2,-1,0|1,0|0,0'],
+  ['hit', 2, 1, 4, '0,0,2,-3,0,3,-2,5,1,0,0,0,0,0,1,0,-2,-2,-3,2,0,-2,-1,1|0,0|0,0'],
+  ['hit', 1, 4, 5, '-2,-2,0,2,-2,4,0,1,0,1,0,-1,1,0,0,0,0,-2,-3,-2,2,3,1,-1|0,0|0,0'],
+  ['hit', 1, 6, 2, '-1,0,0,0,-1,4,3,4,1,0,0,0,2,0,-1,-1,-2,-2,-2,-1,0,-1,0,-3|1,0|0,0'],
+  ['hit', 1, 1, 4, '0,5,1,-2,4,3,0,0,0,0,0,0,0,0,0,0,0,-1,-2,-2,-3,2,-3,-2|0,0|0,0'],
+  ['hit', 1, 6, 4, '-2,2,3,3,-1,-1,0,0,1,0,-1,1,3,0,0,0,-3,0,-4,0,0,0,-3,1|1,0|0,0'],
+  ['hit', 1, 6, 1, '0,0,-1,0,-1,5,0,3,0,1,1,-5,3,0,0,0,-3,0,-5,0,0,0,0,2|0,0|0,0'],
+  ['hit', 1, 6, 2, '-2,-1,2,3,2,2,2,2,1,0,0,0,0,0,0,0,0,-2,-1,-3,-2,1,-2,-1|0,1|0,0'],
+  ['hit', 2, 4, 3, '-1,0,0,-1,0,5,0,3,1,0,0,-3,4,0,0,0,-5,1,-1,-1,0,1,0,-3|0,0|0,0'],
+  ['hit', 2, 3, 3, '1,0,0,0,-1,5,0,2,0,0,0,-5,5,0,0,0,-2,0,-6,0,0,1,0,1|0,1|0,0'],
+  ['nohit', 1, 1, 6, '-1,-1,-2,0,0,3,1,3,0,0,0,-2,2,0,0,0,-4,0,-3,0,1,-2,3,2|0,0|0,0'],
+  ['nohit', 2, 5, 6, '0,1,-1,0,0,5,0,2,0,0,-1,-5,4,0,0,0,-3,0,-5,0,0,0,0,3|0,0|0,0'],
+  ['nohit', 1, 6, 1, '-1,0,2,-1,1,5,1,2,0,0,0,-4,2,0,0,0,-2,-2,-5,0,0,0,0,2|0,0|0,0'],
+  ['nohit', 1, 5, 4, '-1,2,0,0,3,2,2,1,0,0,0,0,0,0,0,0,0,-2,-3,-4,-3,-2,2,3|0,0|0,0'],
+  ['nohit', 1, 2, 4, '3,0,-1,0,2,3,0,4,0,0,0,0,0,0,0,0,0,0,-1,1,0,2,-9,-4|0,0|0,0'],
+  ['nohit', 1, 5, 4, '1,1,-1,-2,5,5,2,0,0,0,-1,0,0,0,0,0,0,1,-1,-1,-2,-2,-3,-2|0,0|0,0'],
+  ['nohit', 2, 2, 4, '-3,0,-1,3,2,3,2,0,0,0,0,-2,3,0,1,0,1,0,-4,-2,-1,-1,-1,0|0,0|0,0'],
+  ['nohit', 1, 5, 3, '-1,-1,0,0,0,3,2,2,0,0,0,0,0,0,0,0,-2,-3,-3,-2,3,-3,3,2|0,0|0,0'],
+  ['nohit', 2, 4, 6, '0,-2,4,0,2,1,0,-1,0,2,0,1,3,0,0,0,0,0,-2,-2,-2,-2,-4,2|0,0|0,0'],
+  ['nohit', 2, 6, 1, '0,-4,3,4,1,3,0,0,0,0,0,-2,0,-1,0,0,-3,0,-2,0,2,-2,1,1|0,1|0,0'],
+  ['nohit', 2, 6, 2, '0,0,-1,3,-1,3,0,1,1,0,0,1,0,0,0,1,-3,1,-3,-2,1,2,-2,1|0,3|0,0'],
+  ['nohit', 2, 2, 2, '-1,0,2,0,-2,4,2,2,0,-1,0,0,0,0,0,-2,-5,0,-4,0,3,2,0,0|0,0|0,0'],
+  ['point', 2, 4, 2, '0,-4,2,2,2,2,0,2,1,0,0,0,0,0,1,0,0,1,-2,0,-3,0,2,-6|0,0|0,0'],
+  ['point', 1, 2, 4, '-2,-2,3,0,0,3,3,2,0,0,0,-2,0,0,0,0,-2,0,-5,0,0,-2,2,2|0,0|0,0'],
+  ['point', 2, 6, 4, '3,0,0,0,0,0,0,-1,1,0,1,0,0,0,0,0,0,-2,-2,-2,-7,7,3,-1|0,0|0,0'],
+  ['point', 1, 5, 6, '-2,0,3,2,2,3,0,1,0,0,0,1,1,0,0,0,0,-2,-3,-2,-4,-2,2,0|0,0|0,0'],
+  ['point', 2, 3, 2, '-2,2,0,0,3,5,0,0,0,0,0,-2,3,0,-1,-1,0,0,-2,-2,-3,-2,0,2|0,0|0,0'],
+  ['point', 1, 1, 4, '0,-2,-1,-1,2,4,0,-1,0,0,1,0,1,0,1,1,-3,-3,-2,0,-2,0,2,2|1,0|0,0'],
+  ['point', 1, 5, 4, '0,0,1,2,-2,2,0,4,0,0,2,-3,2,0,0,0,-4,0,-6,0,0,0,0,2|0,0|0,0'],
+  ['point', 2, 6, 3, '-1,-1,0,0,0,4,1,2,0,0,0,-3,5,0,0,0,-5,0,-3,-2,0,0,0,2|1,0|0,0'],
+  ['point', 1, 3, 1, '3,-1,0,3,-1,2,-1,0,0,-1,0,0,1,1,0,0,0,0,-2,2,-2,2,-5,-2|1,0|0,0'],
+  ['point', 1, 5, 4, '2,0,2,-8,0,4,2,3,0,0,0,0,1,1,0,0,0,0,0,0,0,-3,-3,0|0,1|0,0'],
+  ['point', 1, 4, 4, '2,2,4,-3,0,3,0,2,0,0,0,0,0,0,0,-2,0,0,-2,-2,2,-1,-4,-1|0,0|0,0'],
+  ['point', 2, 2, 2, '0,2,0,-2,0,5,0,2,0,0,2,-3,2,0,-1,0,-2,0,-2,0,0,-3,-2,2|0,0|0,0'],
+  ['safe', 2, 2, 5, '-2,0,0,0,0,5,0,4,0,1,0,-3,3,0,0,0,-4,-1,-5,0,0,0,0,2|0,0|0,0'],
+  ['safe', 2, 6, 3, '5,2,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-4,-4,2,-4,-2,3|0,0|0,1'],
+  ['safe', 1, 4, 1, '-2,3,-2,5,2,2,0,3,0,0,0,-1,0,0,0,0,0,0,-2,-3,-2,0,0,-3|0,0|0,0'],
+  ['safe', 1, 6, 2, '-3,2,6,3,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-2,0,-7,-3|0,0|0,0'],
+  ['safe', 2, 3, 2, '-2,3,0,0,0,3,2,3,0,0,0,0,4,-1,0,0,0,-1,-3,0,-3,-3,0,-2|0,0|0,0'],
+  ['safe', 2, 4, 2, '-2,0,0,2,3,2,2,2,0,0,0,-2,2,0,0,0,-2,-3,-2,-2,-2,0,0,2|0,0|0,0'],
+  ['safe', 1, 4, 5, '-2,0,0,0,2,4,0,2,0,0,0,-5,5,0,0,0,-2,0,-4,0,-2,0,0,2|0,0|0,0'],
+  ['safe', 2, 2, 5, '-2,0,2,2,0,5,0,2,0,0,0,-2,2,0,0,0,-5,0,-4,0,0,0,-2,2|0,0|0,0'],
+  ['safe', 2, 5, 5, '-1,-2,-4,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,-2,0,2,0,-4,-2|1,0|0,0'],
+  ['safe', 1, 6, 1, '2,0,0,0,0,4,0,2,-3,0,0,-3,4,0,1,0,-2,-2,-5,0,0,2,0,0|0,0|0,0'],
+  ['safe', 1, 5, 2, '-2,0,0,0,3,3,0,3,0,0,0,-3,3,-2,0,0,0,0,-2,1,-2,-2,2,-2|0,0|0,0'],
+  ['safe', 1, 6, 3, '-2,0,0,0,0,5,2,2,0,0,0,-5,4,0,0,0,-2,0,-4,0,0,0,-2,2|0,0|0,0'],
+  ['escape', 1, 5, 6, '-3,-1,-1,2,0,4,0,3,0,0,0,-2,2,1,0,0,-4,0,-2,0,-1,0,2,-1|1,0|0,0'],
+  ['escape', 2, 5, 3, '2,2,1,2,2,2,0,1,0,0,0,0,-1,0,-1,0,0,-2,-2,2,0,-4,-2,-3|1,0|0,0'],
+  ['escape', 1, 1, 6, '0,3,0,5,-2,2,2,0,0,0,0,0,0,-1,-2,0,0,1,0,-3,1,0,-4,-3|1,0|0,0'],
+  ['escape', 2, 2, 1, '5,3,2,0,2,-1,0,0,0,0,1,0,0,0,0,0,0,1,0,0,1,-4,-9,0|0,1|0,0'],
+  ['escape', 1, 2, 6, '-2,0,2,2,2,3,2,2,0,0,0,0,0,0,0,0,-2,-3,-2,-4,-2,0,0,2|0,0|0,0'],
+  ['escape', 1, 3, 5, '3,4,3,-2,0,-1,-1,0,0,0,0,0,0,0,1,-1,1,-3,-4,0,-2,0,-1,2|1,0|0,0'],
+  ['escape', 1, 2, 1, '2,0,2,-2,0,4,0,2,2,0,0,-2,-1,0,-1,0,0,1,-2,1,-2,-2,-3,0|1,0|0,0'],
+  ['escape', 2, 4, 5, '-2,2,0,3,2,2,2,0,0,1,0,-1,-1,0,0,0,-3,2,0,0,-4,0,-2,-2|1,0|0,0'],
+  ['escape', 2, 6, 2, '3,4,2,0,0,0,0,3,-1,-1,0,0,2,0,-2,0,0,0,0,-1,-2,-2,-3,-3|1,0|0,0'],
+  ['escape', 2, 6, 3, '-1,-1,1,0,0,5,2,2,0,0,0,-4,2,0,-1,0,-2,2,-2,0,-2,0,-2,0|1,0|0,0'],
+  ['bearoff', 1, 2, 2, '0,-2,0,2,2,3,0,0,-1,-1,0,0,0,0,-1,-1,0,-1,-2,-1,-2,-1,-1,-1|0,0|8,0'],
+  ['bearoff', 1, 3, 6, '1,3,3,3,2,1,-1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-4,-8,-1|0,1|2,0'],
+  ['bearoff', 1, 2, 1, '-2,1,0,2,0,2,-1,0,-1,-1,-1,0,0,-1,-1,0,0,-1,0,-1,0,-2,0,-3|0,0|10,0'],
+  ['bearoff', 1, 3, 1, '-2,0,2,1,1,1,0,0,-1,-1,-1,-2,0,0,0,0,0,-1,-1,0,-3,-1,0,-2|0,0|10,0'],
+  ['bearoff', 1, 4, 2, '0,6,3,3,-2,2,-1,0,0,0,0,0,-1,0,-1,0,0,0,-4,-2,-1,0,-1,-2|0,0|1,0'],
+  ['bearoff', 1, 2, 2, '8,-1,2,5,0,0,-1,-1,0,0,0,0,0,0,0,0,0,0,0,-2,-2,-1,-2,-5|0,0|0,0'],
+  ['bearoff', 1, 1, 2, '0,-2,1,2,3,4,0,0,-1,0,-2,0,-1,0,-2,0,-1,-2,0,0,-2,0,-1,-1|0,0|5,0'],
+  ['bearoff', 2, 2, 2, '0,0,-2,1,1,4,0,0,0,0,0,-2,-2,0,0,0,0,0,-3,-1,0,-1,-1,-3|0,0|9,0'],
+  ['bearoff', 1, 4, 5, '0,-2,1,3,2,2,-1,-1,-2,-1,0,0,-1,0,0,-1,0,0,-2,-2,-1,0,-1,0|0,0|7,0'],
+  ['bearoff', 1, 1, 4, '0,-2,1,3,3,1,-1,0,-1,-1,0,0,0,0,0,0,0,0,-2,0,-2,0,-3,-3|0,0|7,0'],
+];
+
 /* ============================================================
    Game controller: matches, turns, input, cube, results, rewards
    ============================================================ */
@@ -9677,6 +10349,8 @@ const Game = (() => {
   const alive = (id) => id === G.runId;
   const online = () => !!(G.cfg && G.cfg.mode === 'online');
   const watching = () => !!(G.cfg && G.cfg.mode === 'watch');
+  const drilling = () => !!(G.cfg && G.cfg.mode === 'puzzle');
+  const clonePos = (p) => Object.assign(BG.clone(p), { total: p.total || 15 });
   const W = { q: [], busy: false, last: null, h: null, done: false };      // spectating: queued snapshots, the last one applied, the feed handle
   const liveOn = () => online() && Net.role === 'host' && !!G.cfg.watch;
   const dieRoll = () => online() ? Net.die() : BG.rollDie();
@@ -9700,6 +10374,7 @@ const Game = (() => {
     $('#g-double').addEventListener('click', () => { if (canDouble(G.turn) && G.phase === 'preroll') signal('preroll', 'double'); });
     $('#g-undo').addEventListener('click', undo);
     $('#g-hint').addEventListener('click', hint);
+    $('#g-fair').addEventListener('click', openFair);
     $('#g-menu').addEventListener('click', openGameMenu);
     $('#g-emote').addEventListener('click', openEmotes);
     $('#perkbar').addEventListener('click', (e) => { const b = e.target.closest('[data-perk]'); if (b && !b.disabled) { SFX.click(); usePerkUI(b.dataset.perk); } });
@@ -9781,9 +10456,9 @@ const Game = (() => {
     G.cfg = cfg; G.score = [0, 0]; G.gameNo = 0; G.crawfordUsed = false; G.crawford = false;
     G.stats = { hits: 0, hurt: 0, turns: 0, gammons: 0, backgammons: 0, cubeWin: 0, oppLeft: 0, games: 0, pointsWon: 0 };
     G.levelAtStart = DATA.levelInfo(P().xp).level; G.gameXP = 0; G.gameCoins = 0; G.gamesWon = 0; G.gamesLost = 0; G.cheated = false; G.cheat = { roll: null, doubles: false, aiPass: false };
-    G.waiter = null; G.busy = false; G.history = []; G.ptr = null; G.active = true; G.phase = 'idle'; G.track = Stats.newMatch(cfg); G.turnStart = null;
+    G.waiter = null; G.busy = false; G.history = []; G.ptr = null; G.active = true; G.phase = 'idle'; G.track = Stats.newMatch(cfg); G.turnStart = null; Banter.begin(); G.track.onRate = onRated; G.clk = null; G.flagged = -1; clearInterval(G.clkTimer); G.clkTimer = cfg.clock && !cfg.wild && !cfg.drill ? setInterval(clkTick, 200) : 0;
     G.perkIds = [[], []]; G.energy = [0, 0]; G.freeze = [false, false]; G.hex = [false, false]; G.peek = [null, null]; G.perkTurn = false; G.target = null;
-    G.pos = BG.startPos(cfg.variant); G.turn = 0; G.cube = { value: 1, owner: -1 }; G.rem = [];
+    G.pos = cfg.drill ? clonePos(cfg.drill.pos) : BG.startPos(cfg.variant); G.turn = 0; G.cube = { value: 1, owner: -1 }; G.rem = [];
     show('game'); $('#screen-game').classList.remove('watching');
     $('#g-emote').hidden = cfg.mode !== 'online';
     if (cfg.mode === 'online') wireOnline();
@@ -9794,19 +10469,101 @@ const Game = (() => {
     setupHUD();
     if (cfg.mode === 'online' && cfg.cos && Net.role === 'guest') toast('Playing with ' + cfg.names[1] + '\'s board and pieces' + (cfg.watch ? '. This is a public game: others can watch.' : ''));
     requestAnimationFrame(() => { fit(); view.start(); });
-    runMatch(id);
+    if (!cfg.drill) setTimeout(() => { if (alive(id)) Banter.react(cfg, 'start'); }, 900);
+    if (cfg.drill) runDrill(id); else runMatch(id);
   }
-  function leaveBoard() { if (!G.active) return; if (online()) Net.leave(); if (watching() && W.h) { W.h.stop(); W.h = null; } $('#screen-game').classList.remove('watching'); clearTimeout(G.lostTimer); G.active = false; G.runId++; G.waiter = null; if (view) view.stop(); }
+  // called by the stats rater a moment after each turn: lets the opponent gloat over a blunder and, if asked, lets the coach say what was better
+  function onRated(j, loss) {
+    const c = G.cfg;
+    if (!c || !G.active || G.phase === 'over' || j.p !== 0 || (c.mode !== 'ai' && c.mode !== 'campaign')) return;
+    if (loss >= Stats.THRESH.blun) Banter.react(c, 'blunder');
+    if (P().settings.liveCoach && loss >= 8 && j.n > 2 && !c.wild && !j.start.walls && !j.start.pins) {
+      const an = Coach.analyse(j.start, 0, j.dice.length === 4 ? [j.dice[0], j.dice[0]] : j.dice.slice());
+      const mine = an && Coach.findByKey(an, BG.key(j.end));
+      if (!an || !mine || mine.key === an.best.key) return;
+      const rv = Coach.review(an, mine);
+      toast('Coach: ' + rv.best + ' was stronger than ' + rv.yours + '. ' + (rv.why[0] || rv.whyBest[0] || ''), 6500);
+    }
+  }
+  function leaveBoard() { clearInterval(G.clkTimer); G.clkTimer = 0; if (!G.active) return; if (online()) Net.leave(); if (watching() && W.h) { W.h.stop(); W.h = null; } $('#screen-game').classList.remove('watching'); clearTimeout(G.lostTimer); G.active = false; G.runId++; G.waiter = null; if (view) view.stop(); }
 
   /* ---------- waiting for the player ---------- */
   function waitFor(kind) { return new Promise((res) => { G.waiter = { kind, res }; }); }
   function signal(kind, val) { if (G.waiter && G.waiter.kind === kind) { const w = G.waiter; G.waiter = null; w.res(val); } }
+
+  /* ---------- clock (speed mode) ----------
+     Each player has a time bank for the game plus a short delay at the start of every turn; the delay is used first.
+     Only thinking time counts: the clock stops while dice and checkers move. The computer is never on the clock.
+     Online, each player's own clock is the one that counts: you flag yourself when your bank is empty. The other side keeps an
+     estimate (corrected by the bank sent with each turn) and only claims a timeout after a few seconds of grace. */
+  const CLK_GRACE = 8000;
+  const clkLive = () => { const m = G.cfg.mode; return m === 'online' || m === '2p' ? [true, true] : [true, false]; };
+  function clkReset() {
+    const c = G.cfg && G.cfg.clock;
+    G.flagged = -1; G.clkHold = false;
+    if (!c || G.cfg.wild || drilling() || watching()) { G.clk = null; renderClock(); return; }
+    G.clk = { bank: [c.bank * 1000, c.bank * 1000], free: [0, 0], last: performance.now(), who: -1, over: false, live: clkLive(), tickAt: -1, claimed: false };
+    renderClock();
+  }
+  const clkTurn = (p) => { if (G.clk) G.clk.free[p] = G.cfg.clock.delay * 1000; };       // a fresh delay for whoever starts thinking
+  function clkWho() {
+    const k = G.clk; if (!k || k.over || !G.active || G.clkHold) return -1;
+    if (!online() && (document.hidden || ($('#modal-root').children.length && !G.askApi))) return -1;   // a paused game is not on the clock
+    let p;
+    if (G.phase === 'doubling') p = 1 - G.turn;                                         // whoever is answering the cube
+    else if (G.phase === 'preroll' || G.phase === 'moving') { if (G.busy) return -1; p = G.turn; }
+    else return -1;
+    return k.live[p] ? p : -1;
+  }
+  const fmtClk = (ms) => { const s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+  function renderClock() {
+    for (const p of [0, 1]) {
+      const e = $('#hud-clk' + p); if (!e) continue;
+      const k = G.clk;
+      if (!k || !k.live[p] || !G.active) { if (!e.hidden) e.hidden = true; continue; }
+      const run = k.who === p, b = k.bank[p], fr = run && k.free[p] > 0 ? Math.ceil(k.free[p] / 1000) : 0;
+      const html = '<b>' + fmtClk(b) + '</b>' + (fr ? '<i>+' + fr + '</i>' : '');
+      if (e.hidden) e.hidden = false;
+      if (e._h !== html) { e.innerHTML = html; e._h = html; }
+      e.classList.toggle('run', run); e.classList.toggle('low', b < 20000 && b >= 10000); e.classList.toggle('crit', b < 10000);
+    }
+  }
+  function clkTick() {
+    const k = G.clk; if (!k || !G.active) return;
+    const now = performance.now(); let dt = now - k.last; k.last = now;
+    if (!online()) dt = Math.min(dt, 1500);                    // a sleeping phone must not cost anyone the game
+    const w = clkWho(); k.who = w;
+    if (w >= 0 && dt > 0) {
+      let d = dt;
+      if (k.free[w] > 0) { const u = Math.min(d, k.free[w]); k.free[w] -= u; d -= u; }
+      k.bank[w] -= d;
+      const mine = !(online() && w === 1);
+      if (k.bank[w] <= 0) {
+        if (mine) flagOut(w);
+        else if (k.bank[w] < -CLK_GRACE && !k.claimed) { k.claimed = true; Net.poke('flag', { claim: 1 }); }
+      } else if (mine && w === 0 && k.bank[w] < 5000) {     // a tick for the last five seconds
+        const s = Math.ceil(k.bank[w] / 1000); if (s !== k.tickAt) { k.tickAt = s; SFX.error(); }
+      }
+    }
+    renderClock();
+  }
+  // player p ran out of time: they lose the game at the current stake
+  function flagOut(p, remote) {
+    const k = G.clk; if (!k || k.over || G.flagged >= 0) return;
+    k.over = true; G.flagged = p; k.bank[p] = 0;
+    banner(G.cfg.names[p] + ': out of time'); SFX.error(); renderClock();
+    if (online() && !remote) Net.send('flag', {});
+    if (G.askApi) { const a = G.askApi, r = G.askRes; G.askApi = null; a.close(); r('pass'); }
+    if (G.waiter) { const w = G.waiter; G.waiter = null; w.res('flag'); }
+  }
+  const clkSend = () => { if (online() && G.clk) Net.send('clk', { b: Math.max(0, Math.round(G.clk.bank[0])), g: G.gameNo }); };
 
   /* ---------- HUD ---------- */
   function setupHUD() {
     const c = G.cfg, li = DATA.levelInfo(P().xp);
     const subs = [c.mode === '2p' ? 'Bottom · light' : c.mode === 'online' ? 'You' : 'Level ' + li.level + ' · ' + DATA.rankFor(li.level), c.subs ? c.subs[1] : ''];
     if (c.mode === '2p') subs[1] = 'Top · dark';
+    if (c.mode === 'puzzle') subs[0] = 'Training';
     if (c.mode === 'watch') { subs[0] = 'Host'; subs[1] = 'Guest'; }
     for (const p of [0, 1]) {
       $('#hud-n' + p).textContent = c.names[p];
@@ -9821,16 +10578,60 @@ const Game = (() => {
       $('#hud-p' + p).classList.toggle('active', G.active && G.phase !== 'opening' && G.phase !== 'over' && G.turn === p);
     }
     const c = G.cfg;
-    $('#hud-score').innerHTML = '<span class="sc"><small>' + esc(c.names[0]) + '</small>' + G.score[0] + '</span><span class="sep">:</span><span class="sc"><small>' + esc(c.names[1]) + '</small>' + G.score[1] + '</span>';
+    if (c.mode === 'puzzle') $('#hud-score').innerHTML = '<span class="sc"><small>Puzzle</small>' + esc(c.drill.label || '·') + '</span>';
+    else $('#hud-score').innerHTML = '<span class="sc"><small>' + esc(c.names[0]) + '</small>' + G.score[0] + '</span><span class="sep">:</span><span class="sc"><small>' + esc(c.names[1]) + '</small>' + G.score[1] + '</span>';
     let info = c.matchLen === 1 ? 'Single game' : 'First to ' + c.matchLen + ' · Game ' + G.gameNo;
     info += ' · ' + BG.VARIANTS[c.variant].name;
     if (c.wild) info += ' · Wild';
+    if (c.mode === 'puzzle') { $('#hud-info').textContent = c.drill.info; updateFair(); return; }
     if (c.mode === 'watch') info = 'Watching · ' + info;                                                                    // first, so it is not cut off on a narrow screen
     else if (c.mode === 'online' && c.watch && Net.role === 'host' && Net.watchers) info = '👁 ' + Net.watchers + ' · ' + info;
     if (c.cube) info += G.crawford ? ' · Crawford game' : ' · Cube ' + (G.cube.owner === -1 ? 'centred' : G.cube.value);
     $('#hud-info').textContent = info;
+    updateFair();
   }
   function say(t) { $('#msg').innerHTML = t; }
+
+  /* ---------- the fair-dice badge ---------- */
+  function updateFair() {
+    const b = $('#g-fair'), c = G.cfg;
+    if (!c || c.mode === 'watch' || c.mode === 'puzzle') { b.hidden = true; return; }
+    b.hidden = false;
+    b.className = 'fair' + (G.cheated ? ' warn' : '');
+    b.textContent = G.cheated ? 'Cheats on' : '✓ Fair dice';
+    b.title = G.cheated ? 'A cheat was used in this match' : 'How the dice are kept fair';
+  }
+  const fp = (s) => s ? s.slice(0, 8) + '…' + s.slice(-4) : '';
+  function openFair() {
+    const c = G.cfg; if (!c || c.mode === 'watch' || c.mode === 'puzzle') return;
+    const t = Stats.aggregate(G.track.games), rolls = t[0].rolls + t[1].rolls, pips = t[0].pips + t[1].pips, dbl = t[0].doubles + t[1].doubles;
+    const stat = rolls ? `<div class="fair-stat"><b>${rolls}</b> rolls so far · average <b>${(pips / rolls).toFixed(1)}</b> pips <small>(expected 8.2)</small> · doubles <b>${Math.round(100 * dbl / rolls)}%</b> <small>(expected 17%)</small></div>` : '<div class="fair-stat">No rolls yet this match.</div>';
+    const steps = (a) => '<ol class="fair-steps">' + a.map(x => '<li>' + x + '</li>').join('') + '</ol>';
+    let title = 'Fair dice', lead, body, small = '';
+    if (G.cheated) {
+      title = 'Cheats are on';
+      lead = 'A cheat was used in this match, so the dice are no longer fair and the match pays no rewards.';
+      body = steps(['Cheats can only be turned on from the pause menu of a game against the computer. They are never available online.']);
+    } else if (online()) {
+      const f = Net.fair, opp = esc(c.names[1]);
+      lead = 'Nobody can choose or change the dice in this match, not you and not ' + opp + '.';
+      body = steps([
+        'Before the first roll, each of you secretly picked random numbers and swapped only a locked fingerprint of them (' + (f && f.sha ? 'SHA-256' : 'a basic fingerprint') + ').',
+        'Then you revealed the numbers. Both devices checked that each number matched its fingerprint, so nothing could be swapped after the other side’s numbers were known.',
+        'Both sets of numbers are mixed into one shared stream of dice. Both devices draw the same rolls, and every roll ' + opp + ' makes is checked against yours.',
+      ]);
+      if (f) body += `<div class="fair-rows"><div><span>Your fingerprint</span><code>${esc(fp(f.mine))}</code><i>✓ matched</i></div><div><span>${opp}'s fingerprint</span><code>${esc(fp(f.theirs))}</code><i>✓ matched</i></div><div><span>Rolls cross-checked</span><b>${f.checked}</b><i>${f.checked ? '✓ all matched' : 'none yet'}</i></div></div>`;
+      if (f && !f.sha) small += '<p class="fair-small">Your opponent’s copy of the game is older and uses a basic fingerprint. Ask them to reload the page for the stronger check.</p>';
+      small += '<p class="fair-small">If a roll ever differed between the two devices, the game would stop and tell you. Like any game played directly between two devices, a hacked copy of the game could peek at upcoming rolls, but it could never change one.</p>';
+    } else {
+      lead = 'Every roll, yours and ' + (c.mode === '2p' ? 'your friend’s' : 'the computer’s') + ', comes from your device’s secure random number generator, the same kind used for encryption.';
+      const a = ['Each die is drawn fresh, one at a time, with no adjustment' + (c.mode === '2p' ? '.' : '. The computer plays by the same dice you do and never sees a roll before it is thrown.')];
+      if (c.mode !== '2p') a.push('Dice are never weighted by score, difficulty or play style. Harder opponents play better; they do not roll better.');
+      if (c.wild) a.push('In Wild Mode, powers change dice on purpose and in the open. The dice themselves are still fair before a power is used.');
+      body = steps(a);
+    }
+    modal({ wide: true, html: `<h2>${title}</h2><p class="lead">${lead}</p>${body}${stat}${small}<div class="btns"><button class="btn primary" data-act="ok">Close</button></div>`, actions: { ok: () => { } } });
+  }
   function banner(text) { const d = document.createElement('div'); d.className = 'banner'; d.textContent = text; $('#board-toast').appendChild(d); setTimeout(() => d.remove(), 1700); }
 
   function canDouble(p) {
@@ -9845,14 +10646,15 @@ const Game = (() => {
     const roll = $('#g-roll'), dbl = $('#g-double'), und = $('#g-undo'), hnt = $('#g-hint');
     const canRoll = human && (ph === 'preroll' || ph === 'opening') && !G.busy;
     // online, the same button is "End turn" while you are moving: nothing goes to your opponent until you press it
-    const endMode = online() && human && ph === 'moving', canEnd = endMode && !!G.confirming && !G.busy;
-    roll.disabled = !(canRoll || canEnd); roll.textContent = endMode ? 'End turn' : ph === 'opening' ? 'Roll to start' : 'Roll dice'; roll.classList.toggle('pulse', canRoll || canEnd);
+    const endMode = (online() || drilling()) && human && ph === 'moving', canEnd = endMode && !!G.confirming && !G.busy;
+    roll.disabled = !(canRoll || canEnd); roll.textContent = endMode ? (drilling() ? 'Check answer' : 'End turn') : ph === 'opening' ? 'Roll to start' : 'Roll dice'; roll.classList.toggle('pulse', canRoll || canEnd);
     dbl.style.display = G.cfg.cube ? '' : 'none';
     const cd = human && canDouble(G.turn);
     dbl.disabled = !cd; dbl.textContent = 'Double to ' + Math.min(64, G.cube.value * 2);
     und.disabled = !(human && ph === 'moving' && !G.busy && G.history.length);
     hnt.disabled = !(human && ph === 'moving' && !G.busy);
     hnt.style.display = online() ? 'none' : '';
+    $('#g-emote').hidden = !online();
     if (view) view.setCube({ show: !!G.cfg.cube, value: G.cube.value, owner: G.cube.owner, glow: cd });
     renderPerks();
   }
@@ -9878,7 +10680,7 @@ const Game = (() => {
     G.crawford = false;
     if (c.cube && m > 1 && !G.crawfordUsed && (G.score[0] === m - 1 || G.score[1] === m - 1)) { G.crawford = true; G.crawfordUsed = true; }
     G.confirming = false; G.pos = BG.startPos(c.variant, online() ? Net.rand : undefined); G.turn = 0; G.cube = { value: 1, owner: -1 }; G.rem = []; G.history = [];
-    G.track.newGame(); G.shieldNow = undefined;
+    G.track.newGame(); G.shieldNow = undefined; clkReset();
     G.energy = [Wild.ENERGY.start, Wild.ENERGY.start]; G.freeze = [false, false]; G.hex = [false, false]; G.peek = [null, null]; G.perkTurn = false; G.target = null; renderPerks();
     resetBoardView(); view.setPos(G.pos);
     view.setCube({ show: !!c.cube, value: 1, owner: -1, glow: false }); view.cubePos = null;
@@ -9913,6 +10715,8 @@ const Game = (() => {
 
     let skipRoll = true;
     while (alive(id)) {
+      if (G.flagged >= 0) return finishGame(id, 1 - G.flagged, 'time');
+      clkTurn(G.turn);
       if (!skipRoll) {
         G.perkTurn = false;
         if (c.wild) gainEnergy(G.turn, Wild.ENERGY.perTurn);
@@ -9933,6 +10737,7 @@ const Game = (() => {
             if (P().settings.autoRoll && !canDouble(G.turn)) { await view.wait(450); act = 'roll'; }
             else act = await waitFor('preroll');
             if (!alive(id)) return;
+            if (act === 'flag' || G.flagged >= 0) return finishGame(id, 1 - G.flagged, 'time');
             if (act === 'double') {
               const out = await doDouble(id, G.turn);
               if (!alive(id)) return;
@@ -9946,9 +10751,10 @@ const Game = (() => {
           say(esc(G.cfg.names[G.turn]) + ' is about to roll…');
           let rolled = false;
           while (!rolled) {
-            const m = await Net.next(['roll', 'double']);
+            const m = await Net.next(['roll', 'double', 'flag']);
             if (!alive(id)) return;
             if (!m) return oppGone(id);
+            if (m.t === 'flag') { G.flagged = 1; if (G.clk) G.clk.over = true; return finishGame(id, 0, 'time'); }
             if (m.t === 'double') {
               const out = await doDouble(id, G.turn);
               if (!alive(id)) return;
@@ -9967,14 +10773,16 @@ const Game = (() => {
         G.phase = 'rolling'; G.busy = true; updateActions();
         const [d1, d2] = rollPair(G.turn);
         if (online()) {
-          if (G.turn === 0) Net.send('roll', { d: [d1, d2] });
+          if (G.turn === 0) { clkSend(); Net.send('roll', { d: [d1, d2] }); }
           else if (G.remoteDice && (G.remoteDice[0] !== d1 || G.remoteDice[1] !== d2)) { desync(); return oppGone(id); }
+          else if (G.remoteDice) Net.noteChecked(2);
         }
         liveSnap({ k: 'roll' }, { dice: [d1, d2], rem: BG.diceToList(d1, d2), ph: 'moving' });
         await view.throwDice([{ value: d1, side: G.turn }, { value: d2, side: G.turn }]);
         if (!alive(id)) return;
         G.busy = false;
         G.track.roll(G.turn, d1, d2);
+        if (d1 === d2) Banter.react(G.cfg, G.turn === 0 ? 'yourDoubles' : 'theirDoubles');
         G.rem = BG.diceToList(d1, d2);
         if (G.freeze[G.turn]) { G.freeze[G.turn] = false; G.rem = freezeRoll(G.rem); banner('Frozen: lower die lost'); renderPerks(); }
         view.setDiceRemaining(G.rem);
@@ -9987,21 +10795,22 @@ const Game = (() => {
       if (!legal.length) {
         say(esc(G.cfg.names[G.turn]) + ' has no legal move.'); banner('No move');
         view.setDiceRemaining([]);
-        await view.wait(1300);
+        G.clkHold = true; await view.wait(1300); G.clkHold = false;
       } else if (!isHuman(G.turn)) {
-        if (online()) { const r = await remotePlay(id); if (!alive(id)) return; if (r === 'gone') return oppGone(id); }
+        if (online()) { const r = await remotePlay(id); if (!alive(id)) return; if (r === 'flag') { G.flagged = 1; if (G.clk) G.clk.over = true; return finishGame(id, 0, 'time'); } if (r === 'gone') return oppGone(id); }
         else await aiPlay(id);
       } else {
         await humanMoves(id);
       }
       if (!alive(id)) return;
+      if (G.flagged >= 0) return finishGame(id, 1 - G.flagged, 'time');
       liveSnap({ k: 'moves', p: G.turn, mv: G.history.map(h => h.mv).filter(Boolean) }, { turn: 1 - G.turn, rem: [], ph: 'preroll' });
       if (G.cfg.mode !== '2p' && G.turn === 0) G.stats.turns++;
       if (G.turnStart) { G.track.turn(G.turnStart.p, G.turnStart.pos, G.turnStart.dice, G.pos); G.turnStart = null; }
       const w = BG.winnerOf(G.pos);
       if (w >= 0) return finishGame(id, w, 'normal');
       if (G.pos.walls || G.pos.pins) { G.pos = BG.tickTurn(G.pos, G.turn); view.setPos(G.pos); }
-      G.turn = 1 - G.turn;
+      G.turn = 1 - G.turn; clkTurn(G.turn);                // the new player starts with a fresh delay, so the short pause below costs nothing
       if (G.pos.shield && G.pos.shield[G.turn]) { setShield(G.turn, false); }
       await view.wait(350);
     }
@@ -10054,10 +10863,56 @@ const Game = (() => {
   }
 
   function maybeAssist() {
-    if (!P().settings.assist || G.legal.length !== 1) return;
+    if (drilling() || !P().settings.assist || G.legal.length !== 1) return;
     if (G.cfg.wild && G.turn === 0 && !G.perkTurn && !G.history.length && G.perkIds[0].some(x => Wild.byId(x).when === 'dice' && Wild.byId(x).cost <= G.energy[0])) return;
     const id = G.runId, m = G.legal[0];
     setTimeout(() => { if (alive(id) && G.phase === 'moving' && !G.busy && G.legal.length === 1 && G.legal[0] === m) { view.sel = null; doMove(m, {}); } }, 520);
+  }
+
+
+  /* ---------- training: one roll, one position, then the coach's verdict ---------- */
+  async function drillShow(id, an) {
+    const d = G.cfg.drill;
+    G.phase = 'showing'; G.busy = true; G.confirming = false; updateActions();
+    resetBoardView(); G.pos = clonePos(d.pos); view.setPos(G.pos); G.rem = BG.diceToList(d.dice[0], d.dice[1]); view.setDiceRemaining(G.rem); G.history = [];
+    await view.wait(450); if (!alive(id)) return;
+    for (const m of an.best.moves) {
+      G.busy = false;
+      await doMove(m, { ai: true });
+      if (!alive(id)) return;
+      await view.wait(260);
+    }
+    G.busy = false;
+  }
+  async function runDrill(id) {
+    const d = G.cfg.drill, dl = BG.diceToList(d.dice[0], d.dice[1]);
+    G.gameNo = 1; G.crawford = false; G.phase = 'idle'; updateHUD(); updateActions();
+    say(d.prompt);
+    await view.wait(180); if (!alive(id)) return;
+    const an = Coach.analyse(d.pos, 0, dl);                                  // a moment of work, once
+    if (!an) { Game.leaveBoard(); show('train'); toast('That puzzle could not be loaded'); return; }
+    for (let attempt = 0; alive(id); attempt++) {
+      G.pos = clonePos(d.pos); G.turn = 0; G.rem = []; G.history = []; G.confirming = false;
+      resetBoardView(); view.setPos(G.pos); view.turnPlayer = 0;
+      G.phase = 'rolling'; G.busy = true; updateHUD(); updateActions();
+      say(d.prompt);
+      await view.wait(attempt ? 150 : 450); if (!alive(id)) return;
+      await view.throwDice([{ value: d.dice[0], side: 0 }, { value: d.dice[1], side: 0 }]); if (!alive(id)) return;
+      G.busy = false; G.rem = dl.slice(); view.setDiceRemaining(G.rem);
+      G.phase = 'moving'; G.turnStart = null;
+      say(d.prompt + ' <small>Tap a checker, then where it goes. Press Check answer when you are done.</small>');
+      refreshHighlights(); updateActions();
+      await waitFor('moves');
+      if (!alive(id)) return;
+      const chosen = Coach.findByKey(an, BG.key(G.pos));
+      G.phase = 'judging'; view.movable = []; view.dests = []; view.sel = null; updateActions();
+      if (!chosen) { say('That play could not be rated.'); return; }
+      let out = await d.judge(an, chosen, attempt);
+      if (!alive(id)) return;
+      if (out === 'show') { await drillShow(id, an); if (!alive(id)) return; out = await d.afterShow(an); if (!alive(id)) return; }
+      if (out === 'retry') continue;
+      return;
+    }
   }
 
   /* ---------- online play ---------- */
@@ -10066,9 +10921,10 @@ const Game = (() => {
     say(esc(G.cfg.names[G.turn]) + ' is playing…');
     const flip = (i) => (i >= 24 ? i : 23 - i);
     while (alive(id) && G.rem.length && BG.legalNext(G.pos, G.turn, G.rem).length) {
-      const msg = await Net.next(['move']);
+      const msg = await Net.next(['move', 'flag']);
       if (!alive(id)) return;
       if (!msg) return 'gone';
+      if (msg.t === 'flag') return 'flag';
       const mv = msg.mv || {}, legal = BG.legalNext(G.pos, G.turn, G.rem);
       const want = { from: flip(mv.from), to: mv.to === BG.OFF ? BG.OFF : flip(mv.to), die: mv.die };
       const m = legal.find(l => l.from === want.from && l.to === want.to && l.die === want.die);
@@ -10102,6 +10958,8 @@ const Game = (() => {
         G.runId++; G.waiter = null; oppGone(G.runId);
       },
       emo: (d) => { if (online() && EMOTES[d.k]) { banner(G.cfg.names[1] + ': ' + EMOTES[d.k]); SFX.click(); } },
+      clk: (d) => { if (G.clk && d && d.g === G.gameNo && Number.isFinite(d.b)) { G.clk.bank[1] = Math.max(0, Math.min(d.b, G.cfg.clock.bank * 1000)); G.clk.claimed = false; } },
+      claim: () => { if (G.clk && !G.clk.over && online()) flagOut(0, true); },
       status: (st) => {
         if (!G.active || !online() || G.phase === 'over') return;
         clearTimeout(G.lostTimer);
@@ -10283,6 +11141,7 @@ const Game = (() => {
     G.pos = BG.applyMove(G.pos, G.turn, m);
     G.rem.splice(G.rem.indexOf(m.die), 1);
     if (m.hit && G.cfg.mode !== '2p') { if (G.turn === 0) G.stats.hits++; else G.stats.hurt++; }
+    if (m.hit) Banter.react(G.cfg, G.turn === 0 ? 'gotHit' : 'hitMe');
     if (m.hit && G.cfg.wild) gainEnergy(1 - G.turn, Wild.ENERGY.whenHit);
     view.sel = null; view.dests = []; view.movable = []; view.hint = null;
     G.dests = []; G.movable = new Set();
@@ -10296,8 +11155,9 @@ const Game = (() => {
   function afterHumanMove() {
     if (G.phase !== 'moving') return;
     if (BG.winnerOf(G.pos) >= 0 || G.rem.length === 0 || BG.legalNext(G.pos, G.turn, G.rem).length === 0) {
-      if (online()) {                                  // wait for End turn; Undo still works until then
+      if (online() || drilling()) {                    // wait for End turn / Check answer; Undo still works until then
         G.confirming = true; view.movable = []; view.dests = []; view.sel = null; G.movable = new Set(); G.dests = [];
+        if (drilling()) { say('Happy with that? Press <b>Check answer</b>, or Undo to change it.'); updateActions(); return; }
         say(BG.winnerOf(G.pos) >= 0 ? 'That wins the game. Press <b>End turn</b> to finish, or Undo to change it.' : (G.rem.length ? 'No further legal moves. ' : '') + 'Press <b>End turn</b> to send your move, or Undo to change it.');
         updateActions(); return;
       }
@@ -10365,9 +11225,9 @@ const Game = (() => {
   }
 
   function endTurn() {
-    if (!online() || !G.confirming || G.busy || G.phase !== 'moving' || !isHuman(G.turn) || !G.active) return;
+    if (!(online() || drilling()) || !G.confirming || G.busy || G.phase !== 'moving' || !isHuman(G.turn) || !G.active) return;
     G.confirming = false;
-    for (const h of G.history) if (h.mv) Net.send('move', { mv: h.mv });   // now, and only now, the opponent hears about this turn
+    if (online()) { clkSend(); for (const h of G.history) if (h.mv) Net.send('move', { mv: h.mv }); }   // now, and only now, the opponent hears about this turn
     G.phase = 'ending'; view.movable = []; view.dests = []; view.sel = null; G.movable = new Set(); G.dests = [];
     SFX.click(); updateActions(); signal('moves');
   }
@@ -10383,8 +11243,10 @@ const Game = (() => {
   }
   function hint() {
     if (G.busy || G.phase !== 'moving' || !isHuman(G.turn)) return;
-    const r = AI.chooseTurn(G.pos, G.turn, G.rem.slice(), { level: 5, exact: true });
-    if (r.moves.length) { view.hint = r.moves[0]; SFX.select(); }
+    if (drilling()) { say('<b>Hint:</b> ' + esc(G.cfg.drill.hint || 'Check for a hit, a point to make, and the shots you leave.')); SFX.select(); return; }
+    const h = G.cfg.wild ? null : Coach.hint(G.pos, G.turn, G.rem.slice());
+    const r = h ? { moves: h.best.moves } : AI.chooseTurn(G.pos, G.turn, G.rem.slice(), { level: 5, exact: true });
+    if (r.moves.length) { view.hint = r.moves[0]; SFX.select(); if (h) say('<b>Hint:</b> ' + h.text); }
   }
 
   /* ---------- input ---------- */
@@ -10559,7 +11421,7 @@ const Game = (() => {
       const from = id === 'dash' ? arg.from : BG.BAR, r = BG.freeMove(G.pos, p, from, arg.to);
       G.pos = r.pos;
       await view.moveChecker({ from, to: arg.to, die: 0, hit: r.hit }, p, 'glide', hitFxFor(p));
-      if (r.hit) { if (G.cfg.mode !== '2p') { if (p === 0) G.stats.hits++; else G.stats.hurt++; } gainEnergy(opp, Wild.ENERGY.whenHit); }
+      if (r.hit) { if (G.cfg.mode !== '2p') { if (p === 0) G.stats.hits++; else G.stats.hurt++; } Banter.react(G.cfg, p === 0 ? 'gotHit' : 'hitMe'); gainEnergy(opp, Wild.ENERGY.whenHit); }
     } else if (id === 'exchange') {
       G.pos = BG.exchange(G.pos, arg.a, arg.b);
       await view.castExchange(arg.a, arg.b, p);
@@ -10643,11 +11505,12 @@ const Game = (() => {
   /* ---------- doubling cube ---------- */
   async function doDouble(id, p) {
     const c = G.cfg, newVal = G.cube.value * 2, opp = 1 - p;
-    G.phase = 'doubling'; updateActions();
+    G.phase = 'doubling'; updateActions(); clkTurn(opp);
     G.track.cube(p, 'offer');
-    if (online() && p === 0) Net.send('double', { v: newVal });
+    if (online() && p === 0) { clkSend(); Net.send('double', { v: newVal }); }
     liveSnap({ k: 'dbl', p, v: newVal }, { ph: 'doubling' });
     SFX.cube(); banner(c.names[p] + ' doubles to ' + newVal);
+    if (p === 1) Banter.react(c, 'theyDouble'); else Banter.face(c, 'think', 1600);
     say(esc(c.names[p]) + ' offers the cube at ' + newVal + '.');
     let take;
     if (isHuman(opp)) {
@@ -10657,14 +11520,17 @@ const Game = (() => {
         text: 'The cube goes to <b>' + newVal + '</b>. ' + (c.mode === '2p' ? esc(c.names[opp]) + ', do you take? ' : 'Take it and play on for double the stakes, or pass and give up this game.') + (c.mode === '2p' ? '' : ''),
         extra: '<div class="reward-note">Pass costs ' + G.cube.value + ' point' + (G.cube.value > 1 ? 's' : '') + '. Taking risks ' + newVal + '.</div>',
         buttons: [{ label: 'Pass (lose ' + G.cube.value + ')', value: 'pass' }, { label: 'Take', value: 'take', cls: 'primary' }],
+        onOpen: (api, res) => { G.askApi = api; G.askRes = res; },
       });
+      G.askApi = null;
       take = r === 'take';
-      if (online()) Net.send('reply', { take });
+      if (online()) { clkSend(); Net.send('reply', { take }); }
     } else if (online()) {
       await view.wait(500);
-      const m = await Net.next(['reply']);
+      const m = await Net.next(['reply', 'flag']);
       if (!alive(id)) return 'pass';
       if (!m) return 'gone';
+      if (m.t === 'flag') { G.flagged = 1; if (G.clk) G.clk.over = true; return 'pass'; }
       take = !!m.take;
     } else {
       await view.wait(1100);
@@ -10673,13 +11539,14 @@ const Game = (() => {
     }
     if (!alive(id)) return 'pass';
     G.track.cube(opp, take ? 'take' : 'pass');
+    if (opp === 1) Banter.react(c, take ? 'take' : 'pass');
     if (take) {
       G.cube = { value: newVal, owner: opp };
       liveSnap({ k: 'rep', p: opp, take: true }, { ph: 'preroll' });
       view.setCube({ value: newVal, owner: opp, glow: false });
       SFX.cube(); banner(c.names[opp] + ' takes');
       G.phase = 'preroll'; updateHUD(); updateActions();
-      await view.wait(700);
+      G.clkHold = true; await view.wait(700); G.clkHold = false;
       return 'take';
     }
     liveSnap({ k: 'rep', p: opp, take: false }, { ph: 'preroll' });
@@ -10691,8 +11558,10 @@ const Game = (() => {
   /* ---------- game end ---------- */
   async function finishGame(id, w, how) {
     const c = G.cfg;
-    G.phase = 'over'; view.sel = null; view.dests = []; view.movable = []; view.hint = null;
-    const base = how === 'pass' ? 1 : (c.gammons ? BG.gameValue(G.pos, w) : 1);
+    if (G.flagged >= 0) how = 'time';
+    if (online() && G.flagged === 1 && G.clk && G.clk.claimed) Net.send('flag', { claim: 1 });   // I claimed it: make sure they agree
+    G.phase = 'over'; view.sel = null; view.dests = []; view.movable = []; view.hint = null; if (G.clk) G.clk.over = true;
+    const base = how === 'pass' || how === 'time' ? 1 : (c.gammons ? BG.gameValue(G.pos, w) : 1);
     const cv = G.cube.value, pts = base * cv;
     G.score[w] += pts; G.stats.games++;
     const gs = G.track.endGame({ winner: w, base, pts, cv, how });
@@ -10701,19 +11570,20 @@ const Game = (() => {
       if (base === 3) G.stats.backgammons++;
       G.stats.cubeWin = Math.max(G.stats.cubeWin, cv);
       G.stats.pointsWon += pts;
-      G.stats.oppLeft = how === 'pass' ? BG.total(G.pos) : BG.total(G.pos) - G.pos.off[1];
+      G.stats.oppLeft = how === 'pass' || how === 'time' ? BG.total(G.pos) : BG.total(G.pos) - G.pos.off[1];
     }
     updateHUD(); updateActions();
     liveSnap({ k: 'end', w, base, pts }, { ph: 'over' });
     const humanWon = c.mode === '2p' ? true : w === 0;
     humanWon ? SFX.win() : SFX.lose();
     if (humanWon) view.celebrate();
-    banner(base === 3 ? 'Backgammon!' : base === 2 ? 'Gammon!' : how === 'pass' ? 'Double declined' : (humanWon && c.mode !== '2p' ? 'You win!' : c.mode === '2p' ? c.names[w] + ' wins' : c.names[1] + ' wins'));
+    banner(base === 3 ? 'Backgammon!' : base === 2 ? 'Gammon!' : how === 'time' ? 'Out of time' : how === 'pass' ? 'Double declined' : (humanWon && c.mode !== '2p' ? 'You win!' : c.mode === '2p' ? c.names[w] + ' wins' : c.names[1] + ' wins'));
+    Banter.react(c, w === 1 ? 'win' : 'lose');
     await view.wait(1500);
     if (!alive(id)) return;
     if (c.mode === '2p' || w === 0) G.gamesWon++; else G.gamesLost++;
     let gx = 0, gc = 0;
-    if (!G.cheated) {
+    if (!G.cheated && !c.tour) {
       const gr = DATA.gameReward({ mode: c.mode, level: c.level, variant: c.variant, won: humanWon });
       gx = gr.xp; gc = gr.coins;
       P().xp += gx; P().coins += gc; P().stats.coinsEarned += gc; G.gameXP += gx; G.gameCoins += gc; Store.save(); refreshCoins();
@@ -10769,7 +11639,8 @@ const Game = (() => {
       if (fresh) res.bossSet = bs;
     }
     if (!G.cheated && c.mode !== '2p' && c.mode !== 'online') Stats.record(G.track, res);
-    res.rw = G.cheated ? { xp: 0, coins: 0, lines: [['Cheats used: no match rewards', 0, 0]] } : DATA.rewardFor(input);
+    if (c.tour) res.tour = Tour.finish(c, res.won, G.score, G.cheated);
+    res.rw = G.cheated ? { xp: 0, coins: 0, lines: [['Cheats used: no match rewards', 0, 0]] } : c.tour ? (res.tour ? res.tour.rw : { xp: 0, coins: 0, lines: [['This tournament is no longer active', 0, 0]] }) : DATA.rewardFor(input);
     if (c.mode === 'campaign' && G.cheated) { res.done = c.stage.objectives.map(() => false); }
     p.xp += res.rw.xp; p.coins += res.rw.coins; p.stats.coinsEarned += res.rw.coins;
     const li1 = DATA.levelInfo(p.xp).level;
@@ -10799,6 +11670,14 @@ const Game = (() => {
     if (c.mode === '2p') { title = esc(c.names[res.winner]) + ' wins the match'; lead = G.score[0] + ' to ' + G.score[1] + '. Both players share the rewards on this device.'; }
     else if (res.won) { title = c.mode === 'campaign' ? 'Stage cleared' : 'Victory'; lead = 'You beat ' + esc(c.names[1]) + ' ' + G.score[0] + ' to ' + G.score[1] + '.' + (c.stage ? ' <i>' + esc(rivalLine(c.stage, true)) + '</i>' : ''); }
     else { title = 'Defeat'; lead = esc(c.names[1]) + ' wins ' + G.score[1] + ' to ' + G.score[0] + '. Better luck next time.' + (c.stage ? ' <i>' + esc(rivalLine(c.stage, false)) + '</i>' : ''); }
+    if (c.tour && res.tour) {
+      const T = res.tour, rn = Tour.RNAME[T.round], foeName = esc(c.names[1]);
+      if (T.status === 'champ') { title = 'Tournament champion!'; lead = 'You beat ' + foeName + ' ' + G.score[0] + ' to ' + G.score[1] + ' in the final and won the ' + esc(Tour.byId(T.run.tier).name) + '.'; }
+      else if (T.status === 'next') { title = rn + ' won'; lead = 'You beat ' + foeName + ' ' + G.score[0] + ' to ' + G.score[1] + '.' + (T.nextFoe !== null ? ' Next: ' + esc(DATA.STAGES[T.run.ent[T.nextFoe]].name) + ' in the ' + Tour.RNAME[T.round + 1].toLowerCase() + '.' : ''); }
+      else { title = 'Knocked out'; lead = foeName + ' wins ' + G.score[1] + ' to ' + G.score[0] + ' in the ' + rn.toLowerCase() + '.'; }
+      extra += Tour.bracketHTML(T.run);
+      if (T.status === 'champ') SFX.levelUp();
+    }
     if (c.mode === 'campaign') {
       const stage = c.stage;
       extra += '<div style="margin:12px 0 4px">' + stage.objectives.map((o, i) => `<div class="obj ${res.done[i] ? 'done' : ''}">${res.done[i] ? CHECK : CROSS}<span style="flex:1">${esc(DATA.objText(o))}</span>${STAR(res.done[i])}</div>`).join('') + '</div>';
@@ -10814,12 +11693,17 @@ const Game = (() => {
     }
     const stage = c.stage, nextStage = stage && DATA.STAGES[stage.n + 1];
     const btns = [];
-    if (c.mode === 'campaign') {
+    if (c.tour) {
+      if (res.lessons) btns.push(`<button class="btn" data-act="lessons">Learn from your mistakes</button>`);
+      btns.push(`<button class="btn primary" data-act="bracket">${res.tour && res.tour.status === 'next' ? 'Continue' : 'See the bracket'}</button>`);
+    } else if (c.mode === 'campaign') {
       btns.push(`<button class="btn" data-act="map">Campaign map</button>`);
+      if (res.lessons) btns.push(`<button class="btn" data-act="lessons">Learn from your mistakes</button>`);
       btns.push(`<button class="btn" data-act="again">Retry</button>`);
       if (res.won && nextStage) btns.push(`<button class="btn primary" data-act="next">Next stage</button>`);
     } else {
       btns.push(`<button class="btn" data-act="menu">Menu</button>`);
+      if (res.lessons) btns.push(`<button class="btn" data-act="lessons">Learn from your mistakes</button>`);
       btns.push(`<button class="btn primary" data-act="again">Rematch</button>`);
       if (c.mode === 'online') G.matchDone = true;
     }
@@ -10836,7 +11720,9 @@ const Game = (() => {
       after: Stats.wireTabs,
       actions: {
         menu: () => { show('menu'); },
+        lessons: () => { setTimeout(() => Train.openLessons(5), 0); },
         map: () => { show('campaign'); },
+        bracket: () => { show('tour'); },
         again: (api, b) => { if (c.mode === 'online') { if (Net.left) return false; Net.voteRematch(); b.disabled = true; b.textContent = 'Waiting for ' + c.names[1] + '…'; return false; } start(Object.assign({}, c)); },
         equipset: (api, b) => { const bs = res.bossSet; Object.assign(P().equipped, { board: bs.board, checkers: bs.checkers, dice: bs.dice, moveFx: bs.moveFx, throwFx: bs.throwFx }); Store.save(); toast(bs.name + ' equipped'); b.disabled = true; b.textContent = 'Equipped'; return false; },
         next: () => { startStage(nextStage); },
@@ -10852,6 +11738,22 @@ const Game = (() => {
         html: `<h2>Watching</h2><p class="lead">${esc(G.cfg.names[0])} vs ${esc(G.cfg.names[1])}. You can leave at any time: it does not affect their game.</p>
           <div class="btns"><button class="btn danger" data-act="quit">Stop watching</button>${Device.fsOK() ? `<button class="btn" data-act="fs">${Device.isFull() ? 'Exit fullscreen' : 'Fullscreen'}</button>` : ''}<button class="btn" data-act="settings">Settings</button><button class="btn primary" data-act="resume">Resume</button></div>`,
         actions: { resume: () => { }, fs: () => { Device.toggleFullscreen(); }, settings: () => { setTimeout(openSettings, 0); }, quit: () => { show('menu'); } },
+      });
+      return;
+    }
+    if (G.cfg.tour) {
+      modal({
+        html: `<h2>Forfeit the match?</h2><p class="lead">Leaving now counts as a loss and you are knocked out of the tournament.</p>
+          <div class="btns"><button class="btn danger" data-act="quit">Forfeit</button><button class="btn" data-act="settings">Settings</button><button class="btn primary" data-act="resume">Keep playing</button></div>`,
+        actions: { resume: () => { }, settings: () => { setTimeout(openSettings, 0); }, quit: () => { Tour.forfeit(); show('tour'); } },
+      });
+      return;
+    }
+    if (drilling()) {
+      modal({
+        html: `<h2>Leave this puzzle?</h2><p class="lead">You can come back to it any time from Training.</p>
+          <div class="btns"><button class="btn danger" data-act="quit">Back to Training</button><button class="btn" data-act="settings">Settings</button><button class="btn primary" data-act="resume">Keep going</button></div>`,
+        actions: { resume: () => { }, settings: () => { setTimeout(openSettings, 0); }, quit: () => { show('train'); } },
       });
       return;
     }
@@ -10880,6 +11782,457 @@ function startStage(stage) {
     names: ['You', stage.name], avs: ['🎲', stage.av], subs: ['', stage.title], faces: ['player', 's' + stage.num], scene: stage.chapter,
   });
 }
+
+/* ============================================================
+   Training: puzzles ("find the best play") with a plain-English coach, and lessons made from your own mistakes.
+   A puzzle is only a position and a roll. The built-in engine rates whatever you play, and Coach explains the
+   difference in words. The board, dragging and animations are the real game screen (Game.start with a `drill`).
+   ============================================================ */
+function grantReward(xp, coins) {
+  const p = P(), l0 = DATA.levelInfo(p.xp).level;
+  p.xp += xp; p.coins += coins; p.stats.coinsEarned += coins;
+  const l1 = DATA.levelInfo(p.xp).level;
+  let bonus = 0; for (let L = l0 + 1; L <= l1; L++) bonus += DATA.levelBonusCoins(L);
+  if (bonus) { p.coins += bonus; p.stats.coinsEarned += bonus; }
+  Store.save(); refreshCoins();
+  if (l1 > l0) { SFX.levelUp(); toast('Level ' + l1 + '! +' + fmt(bonus) + ' bonus coins'); }
+  return { levelUp: l1 > l0, bonus };
+}
+
+const Train = (() => {
+  const THEMES = {
+    open: { name: 'Opening rolls', ico: '🎲', blurb: 'The strongest plays for your first roll', hint: 'Look for a point to make with the first roll, or a safe run for a back checker.',
+      lesson: 'Early in the game, making a valuable point (the 5-point, 4-point, bar point or 3-point) beats everything else. With a 6-5, running a back checker all the way is the standard play.' },
+    hit: { name: 'Hit them', ico: '🎯', blurb: 'When sending a checker back is right', hint: 'You can hit here. Check how many shots the hit leaves you and what it gains.',
+      lesson: 'A hit costs them pips and a turn of effort to come back in. It is strongest when your home board is strong or their checker was far advanced.' },
+    nohit: { name: 'Leave it alone', ico: '🛑', blurb: 'When not hitting is the better play', hint: 'A hit is on offer, but ask what it leaves behind before you take it.',
+      lesson: 'Not every hit is good. A loose hit can leave a return shot that costs more than the hit gains. Always count what you leave behind.' },
+    point: { name: 'Make a point', ico: '🧱', blurb: 'Build points that block and protect', hint: 'Can two checkers land on the same point? Look for your 5, 4, bar or 3 point.',
+      lesson: 'Points are safe from hits and block your opponent. Make the high-value ones first: the 5-point, then the 4-point and bar point.' },
+    safe: { name: 'Play it safe', ico: '🛡', blurb: 'Leave as few shots as you can', hint: 'No hit, no point? Then count how many rolls could hit each of your blots.',
+      lesson: 'When there is nothing better to do, leave as few shots as possible. A blot that many rolls can hit is a gift to your opponent.' },
+    escape: { name: 'Back checkers', ico: '🏃', blurb: 'Get your last checkers moving', hint: 'Your back checkers can get trapped. Which play gets one moving or anchors it safely?',
+      lesson: 'Back checkers are easiest to free early. Move them up or make an anchor before a blockade forms in front of them.' },
+    bearoff: { name: 'Bearing off', ico: '🏁', blurb: 'Take checkers off without leaving shots', hint: 'An enemy checker is still waiting. Which play leaves the fewest blots?',
+      lesson: 'While an enemy checker is still behind you, every blot is a target. Clear points from the back and avoid gaps.' },
+  };
+  const ORDER = ['open', 'hit', 'point', 'safe', 'nohit', 'escape', 'bearoff'];
+  const hash = (s) => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
+
+  /* ----- the bank ----- */
+  let bank = null;
+  function parse(s) {
+    if (!s) return BG.startPos('classic');
+    const [pts, bar, off] = s.split('|');
+    return { pts: pts.split(',').map(Number), bar: bar.split(',').map(Number), off: off.split(',').map(Number), total: 15 };
+  }
+  function load() {
+    if (bank) return bank;
+    bank = PUZZLES.map(r => ({ id: r[0] + '-' + hash(r[4] + r[2] + r[3] + r[1]), t: r[0], d: r[1], dice: [r[2], r[3]], pos: parse(r[4]) }));
+    return bank;
+  }
+  const tr = () => P().train;
+  const isSolved = (id) => !!tr().solved[id];
+  const byTheme = (t) => load().filter(x => x.t === t);
+  const dice2 = (d) => d[0] + '-' + d[1];
+  const wasSession = { cur: null };
+
+  /* ----- sessions: a list of drills played one after the other ----- */
+  function startSession(list, o) {
+    if (!list.length) return;
+    const S = { list, idx: 0, o: o || {}, first: 0, done: 0 };
+    wasSession.cur = S;
+    play(S);
+  }
+  function play(S) {
+    const item = S.list[S.idx];
+    const les = item.lesson, th = THEMES[item.t] || {};
+    const total = S.list.length, label = total > 1 ? (S.idx + 1) + ' / ' + total : '';
+    const kind = les ? 'lesson' : S.o.mix ? 'mix' : 'theme';
+    const title = les ? 'Your mistake' : S.o.mix ? 'Random puzzle' : th.name;
+    const prompt = les
+      ? 'In your game against <b>' + esc(les.o) + '</b> you rolled <b>' + dice2(item.dice) + '</b>. Find a better play than last time.'
+      : 'Your roll: <b>' + dice2(item.dice) + '</b>. What is the best play?';
+    const drill = {
+      id: item.id, t: item.t, pos: item.pos, dice: item.dice, prompt, label, info: title, banner: title, kind,
+      hint: les ? 'Look at what your play left behind: blots that can be hit, or a point you could have made.' : (S.o.mix ? 'Check for a hit, a point to make, and the shots you leave.' : th.hint),
+      judge: (an, chosen, attempt) => judge(S, item, an, chosen, attempt),
+      afterShow: (an) => afterShow(S, item, an),
+    };
+    Game.start({ mode: 'puzzle', drill, level: 3, style: 'balanced', variant: 'classic', matchLen: 1, cube: false, gammons: true, names: ['You', 'Coach'], avs: ['🎲', '🎓'], subs: ['', 'Your training coach'] });
+  }
+  function nextInSession(S) {
+    S.idx++;
+    if (S.idx >= S.list.length) { finishSession(S); return; }
+    play(S);
+  }
+  function finishSession(S) {
+    const n = S.list.length;
+    show('train');
+    if (n > 1) toast(S.o.lessons ? 'Lessons finished' : 'Set finished: ' + S.first + ' of ' + n + ' right first time');
+  }
+
+  /* ----- the coach card shown after each answer ----- */
+  // the card sits over the bottom of the board: this button folds the reasons away so the whole board can be seen
+  const TOGGLE = '<button type="button" class="cc-toggle" aria-label="Show or hide the reasons">Board</button>';
+  function wireToggle(api) {
+    const b = api.el.querySelector('.cc-toggle'); if (!b) return;
+    const fold = (on) => { api.el.classList.toggle('collapsed', on); b.textContent = on ? 'Reasons' : 'Board'; };
+    b.addEventListener('click', (e) => { e.stopPropagation(); SFX.click(); fold(!api.el.classList.contains('collapsed')); });
+    if (window.innerHeight < 520) fold(true);                       // a landscape phone: start with the board in view
+  }
+  const li = (arr) => '<ul class="cc-why">' + arr.map(x => '<li>' + x + '</li>').join('') + '</ul>';
+  function cardFor(S, item, an, chosen, rv, attempt, extra) {
+    const th = THEMES[item.t] || {}, les = item.lesson;
+    let state, head;
+    const sameAsGame = les && les.e && chosen.key === les.e;
+    if (rv.ok) { state = 'ok'; head = rv.same ? 'Correct!' : 'Correct: an equally good play'; }
+    else if (sameAsGame) { state = 'bad'; head = 'That is the play from your game'; }
+    else if (rv.close) { state = 'near'; head = 'Close, but not the best'; }
+    else { state = 'bad'; head = 'Not quite'; }
+    let body = '', line = '';
+    if (rv.ok) {
+      const why = rv.same ? rv.whyBest : Coach.positives(an, chosen, item.t).slice(0, 2);
+      line = rv.same ? '<p class="cc-line"><b>' + esc(rv.best) + '</b></p>' : '<p class="cc-line">The engine\'s first choice is <b>' + esc(rv.best) + '</b>, and yours is just as good.</p>';
+      body += li(why);
+    } else {
+      line = '<p class="cc-line">You played <b>' + esc(rv.yours) + '</b>. The best play is <b>' + esc(rv.best) + '</b>.</p>';
+      body += li(rv.why.concat(rv.whyBest.slice(0, 1)).slice(0, 3));
+    }
+    if (les && les.e) {
+      const orig = Coach.findByKey(an, les.e);
+      if (orig && orig.key !== chosen.key) body += '<p class="cc-small">In the game you played <b>' + esc(orig.text) + '</b>.</p>';
+    }
+    if (th.lesson && !les) body += '<p class="cc-lesson"><b>' + esc(th.name) + ':</b> ' + esc(th.lesson) + '</p>';
+    return { state, head, line, body, reward: extra || '' };
+  }
+  function judge(S, item, an, chosen, attempt) {
+    const rv = Coach.review(an, chosen, item.t);
+    const t = tr(), first = attempt === 0;
+    let rewardNote = '';
+    if (first) { t.tried++; if (rv.ok) { t.right++; t.streak++; t.bestStreak = Math.max(t.bestStreak, t.streak); S.first++; } else t.streak = 0; }
+    if (rv.ok) {
+      if (item.lesson) {
+        t.lessons = t.lessons.filter(l => l !== item.lesson.ref);
+        const g = grantReward(5, 2); rewardNote = '<div class="cc-reward">Lesson learned: +5 XP, +2 coins</div>';
+      } else if (!t.solved[item.id]) {
+        const xp = item.d === 1 ? 6 : 10, co = item.d === 1 ? 3 : 5;
+        t.solved[item.id] = { t: Date.now(), n: attempt + 1 }; grantReward(xp, co);
+        rewardNote = '<div class="cc-reward">New puzzle solved: +' + xp + ' XP, +' + co + ' coins</div>';
+      }
+      Store.save();
+    } else Store.save();
+    const c = cardFor(S, item, an, chosen, rv, attempt, rewardNote);
+    const last = S.idx >= S.list.length - 1;
+    const nextLbl = last ? 'Finish' : 'Next puzzle';
+    return new Promise((res) => {
+      SFX[rv.ok ? 'win' : 'select'] && SFX[rv.ok ? 'win' : 'select']();
+      const btns = rv.ok
+        ? (rv.same ? '' : '<button class="btn" data-act="show">Show the engine\'s play</button>') + '<button class="btn primary" data-act="next">' + nextLbl + '</button>'
+        : '<button class="btn" data-act="retry">Try again</button><button class="btn" data-act="show">Show me</button><button class="btn ' + (attempt >= 1 ? 'primary' : '') + '" data-act="next">' + (last ? 'Finish' : 'Skip') + '</button>';
+      modal({
+        sheet: true, dismiss: false,
+        html: `<div class="coach-card ${c.state}"><div class="cc-head"><span class="cc-ico">${c.state === 'ok' ? '✓' : c.state === 'near' ? '≈' : '✗'}</span><b>${c.head}</b>${TOGGLE}</div>${c.line}${c.reward}<div class="cc-body">${c.body}</div></div><div class="btns">${btns}</div>`,
+        actions: { retry: () => res('retry'), show: () => res('show'), next: () => { res('next'); setTimeout(() => nextInSession(S), 0); } },
+        after: wireToggle,
+      });
+    });
+  }
+  function afterShow(S, item, an) {
+    const last = S.idx >= S.list.length - 1;
+    const rv = { best: an.best.text };
+    const why = Coach.positives(an, an.best, item.t).slice(0, 2);
+    return new Promise((res) => {
+      modal({
+        sheet: true, dismiss: false,
+        html: `<div class="coach-card show"><div class="cc-head"><span class="cc-ico">▶</span><b>The best play</b>${TOGGLE}</div><p class="cc-line"><b>${esc(an.best.text)}</b></p><div class="cc-body">${li(why)}</div></div><div class="btns"><button class="btn" data-act="retry">Try it yourself</button><button class="btn primary" data-act="next">${last ? 'Finish' : 'Next puzzle'}</button></div>`,
+        actions: { retry: () => res('retry'), next: () => { res('next'); setTimeout(() => nextInSession(S), 0); } },
+        after: wireToggle,
+      });
+    });
+  }
+
+  /* ----- lessons from the player's own games ----- */
+  function lessonItems(limit) {
+    const out = [];
+    for (const l of tr().lessons.slice().reverse()) {
+      const pos = Coach.unser(l.s); if (!pos) continue;
+      let e = null; const ep = l.e ? Coach.unser(l.e) : null; if (ep) e = BG.key(ep);
+      out.push({ id: 'les' + l.t, t: 'les', d: 2, dice: l.d.slice(), pos, lesson: { o: l.o, e, ref: l, loss: l.l } });
+      if (limit && out.length >= limit) break;
+    }
+    return out;
+  }
+  function openLessons(limit) {
+    const items = lessonItems(limit || 5);
+    if (!items.length) { toast('No saved mistakes yet'); return; }
+    startSession(items, { lessons: true });
+  }
+
+  /* ----- the Training screen ----- */
+  function nextPuzzle(t) {
+    const list = byTheme(t);
+    return list.find(x => !isSolved(x.id)) || list[0];
+  }
+  function randomSet(n) {
+    const all = load(), fresh = all.filter(x => !isSolved(x.id));
+    const pool = (fresh.length >= n ? fresh : all).slice();
+    for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+    return pool.slice(0, n);
+  }
+  const ago = (t) => { const d = Math.floor((Date.now() - t) / 86400000); return d <= 0 ? 'today' : d === 1 ? 'yesterday' : d + ' days ago'; };
+  function render() {
+    const body = $('#train-body'); if (!body) return;
+    const all = load(), t = tr(), solved = all.filter(x => isSolved(x.id)).length;
+    const pctDone = Math.round(100 * solved / all.length);
+    const acc = t.tried ? Math.round(100 * t.right / t.tried) : null;
+    let h = `<div class="tn-hero"><div class="tn-coach">🎓</div><div class="tn-hero-t"><h3>Your coach</h3><p>See a position, find the best play, and learn why in plain English. Points are numbered from your side: your home board is 1 to 6, the bar point is 7, your midpoint is 13, and you start on the 24-point.</p>
+      <div class="tn-prog"><div class="tn-bar"><i style="width:${pctDone}%"></i></div><span>${solved} of ${all.length} puzzles solved${acc !== null ? ' · ' + acc + '% right first time' : ''}${t.bestStreak ? ' · best streak ' + t.bestStreak : ''}</span></div>
+      <div class="tn-go"><button class="btn primary" data-tn="quick">Quick puzzle</button><button class="btn" data-tn="five">Five random</button></div></div></div>`;
+    const les = t.lessons;
+    h += `<div class="tn-sec"><h3>From your games</h3>`;
+    if (!les.length) h += `<div class="tn-empty">Play a match against the computer. Your biggest mistakes are saved here so you can replay them and find the better move.</div>`;
+    else {
+      h += `<div class="tn-lessons">` + les.slice().reverse().slice(0, 6).map((l, i) => {
+        const g = Coach.grade(l.l), n = les.length - 1 - i;
+        return `<button class="tn-les" data-les="${n}"><span class="pill ${g.k === 'blun' ? 'l' : 'o'}">${g.k === 'blun' ? 'B' : 'M'}</span><span class="h-main"><b>${dice2(l.d)} against ${esc(l.o)}</b><small>${g.label} · ${ago(l.t)}</small></span><span class="tn-arrow">›</span></button>`;
+      }).join('') + `</div><div class="tn-go"><button class="btn primary" data-tn="lessons">Practise your ${Math.min(5, les.length)} latest</button></div>`;
+    }
+    h += `</div><div class="tn-sec"><h3>Lessons</h3><div class="tn-themes">`;
+    for (const id of ORDER) {
+      const th = THEMES[id], list = byTheme(id), done = list.filter(x => isSolved(x.id)).length;
+      if (!list.length) continue;
+      h += `<div class="tn-theme ${done === list.length ? 'full' : ''}"><div class="tt-top"><span class="tt-ico">${th.ico}</span><div class="tt-t"><b>${esc(th.name)}</b><small>${esc(th.blurb)}</small></div><span class="tt-n">${done}/${list.length}</span></div>
+        <div class="tt-tiles">${list.map((x, i) => `<button class="tt-tile ${isSolved(x.id) ? 'done' : ''}" data-pz="${x.id}" aria-label="Puzzle ${i + 1}${isSolved(x.id) ? ', solved' : ''}">${i + 1}</button>`).join('')}</div>
+        <button class="btn small ${done < list.length ? 'primary' : ''}" data-theme="${id}">${done === 0 ? 'Start' : done < list.length ? 'Continue' : 'Play again'}</button></div>`;
+    }
+    h += `</div></div><div class="st-note tn-note">The coach is the game's built-in engine. It plays well and its reasons are counted from the board (hits, points, shots), but it is not a world-class bot. When two plays are close, both count as right.</div>`;
+    const st = body.scrollTop; body.innerHTML = h; body.scrollTop = st;
+  }
+  function wire() {
+    const body = $('#train-body');
+    body.addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      SFX.click();
+      if (b.dataset.tn === 'quick') return startSession(randomSet(1), { mix: true });
+      if (b.dataset.tn === 'five') return startSession(randomSet(5), { mix: true });
+      if (b.dataset.tn === 'lessons') return openLessons(5);
+      if (b.dataset.les !== undefined) { const l = tr().lessons[+b.dataset.les]; const items = lessonItems().filter(x => x.lesson.ref === l); return startSession(items, { lessons: true }); }
+      if (b.dataset.pz) { const list = load().filter(x => x.t === load().find(y => y.id === b.dataset.pz).t); const i = list.findIndex(x => x.id === b.dataset.pz); S0(list, i); return; }
+      if (b.dataset.theme) { const list = byTheme(b.dataset.theme), n = nextPuzzle(b.dataset.theme); S0(list, Math.max(0, list.indexOf(n))); }
+    });
+    function S0(list, idx) { const S = { list, idx, o: {}, first: 0, done: 0 }; wasSession.cur = S; play(S); }
+  }
+  Nav.onShow.train = render;
+  return { render, wire, startSession, openLessons, load, THEMES, hintFor: (d) => d && d.hint };
+})();
+
+/* ============================================================
+   Knockout tournaments: eight players, three rounds (quarter-final, semi-final, final).
+   You play your own matches on the real board against the campaign characters. The other matches in each round
+   are settled by a simple strength model (a stronger opponent wins more often), so the bracket fills in as you go.
+   A run is saved in the profile (P().tour.run), so you can leave and come back to it.
+   ============================================================ */
+const Tour = (() => {
+  // lo / hi: the computer levels of the field. ml: match length (first to) in each round. k: prize scale.
+  const TIERS = [
+    { id: 'club', name: 'Club Cup', ico: '🥉', blurb: 'A friendly knockout for the neighbourhood regulars.', lo: 1, hi: 3, ml: [1, 3, 3], k: 1, need: null },
+    { id: 'city', name: 'City Open', ico: '🥈', blurb: 'Sharper players and longer matches.', lo: 2, hi: 4, ml: [3, 3, 5], k: 1.6, need: 'club' },
+    { id: 'nat', name: 'National Masters', ico: '🥇', blurb: 'Only strong players make this field.', lo: 3, hi: 5, ml: [3, 5, 5], k: 2.4, need: 'city' },
+    { id: 'world', name: 'World Championship', ico: '🏆', blurb: 'The best eight. No easy rounds.', lo: 4, hi: 5, ml: [3, 5, 7], k: 3.2, need: 'nat' },
+  ];
+  const RNAME = ['Quarter-final', 'Semi-final', 'Final'];
+  const PRIZE = [[30, 20], [50, 35], [80, 55]];            // xp, coins for winning each round (times the tier scale)
+  const CHAMP = [150, 110];                                // champion bonus; a repeat title pays 40%
+  const REPEAT = 0.4, CONSOLE = 0.15;
+  const SHORT = { 'Barista Ben': 'Ben', 'Madame Odile': 'Odile', 'Captain Reef': 'Reef', 'Sea Dog Sam': 'Sam', 'Navigator Nell': 'Nell', 'Harbour Master': 'Harbour', 'The Duchess': 'Duchess', 'Baron Lucre': 'Lucre', 'Viktor Blitz': 'Viktor', 'Sir Reginald': 'Reginald', 'Madame Zhou': 'Zhou', 'Grandmaster Aurelius': 'Aurelius', 'Little Pip': 'Pip', 'Old Marco': 'Marco', 'Lucky Lou': 'Lou', 'Sir Reginald ': 'Reginald' };
+  const short = (n) => SHORT[n] || (n.length <= 11 ? n : n.split(' ').pop());
+  const tp = () => P().tour;
+  const byId = (id) => TIERS.find(t => t.id === id) || null;
+  const isOpen = (t) => !t.need || (tp().wins[t.need] || 0) > 0 || !!(P().cheats && P().cheats.unlockStages);
+  const stage = (i) => DATA.STAGES[i];
+  const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+  /* ----- run state ----- */
+  // ent: 8 seats; -1 is you, any other number is a campaign stage index. rounds[r][m] is the winning seat (0..7) or null.
+  // sc[r][m] is the final score as [seat a score, seat b score].
+  function valid(run) {
+    if (!run || typeof run !== 'object' || !byId(run.tier) || !Array.isArray(run.ent) || run.ent.length !== 8) return false;
+    if (run.ent.filter(x => x === -1).length !== 1) return false;
+    const seen = new Set();
+    for (const x of run.ent) { if (x === -1) continue; if (!Number.isInteger(x) || x < 0 || x >= DATA.STAGES.length || seen.has(x)) return false; seen.add(x); }
+    if (!Array.isArray(run.rounds) || run.rounds.length !== 3 || !Array.isArray(run.sc) || run.sc.length !== 3) return false;
+    const sizes = [4, 2, 1];
+    for (let r = 0; r < 3; r++) {
+      if (!Array.isArray(run.rounds[r]) || run.rounds[r].length !== sizes[r] || !Array.isArray(run.sc[r]) || run.sc[r].length !== sizes[r]) return false;
+      for (const w of run.rounds[r]) if (w !== null && !(Number.isInteger(w) && w >= 0 && w < 8)) return false;
+    }
+    return Number.isInteger(run.round) && run.round >= 0 && run.round <= 2 && ['active', 'out', 'champ'].includes(run.status);
+  }
+  function cur() { const r = tp().run; if (r && !valid(r)) { tp().run = null; Store.save(); return null; } return r || null; }
+  const who = (run, r, k) => r === 0 ? k : run.rounds[r - 1][k];          // the seat that plays in slot k of round r
+  const pair = (run, r, m) => [who(run, r, 2 * m), who(run, r, 2 * m + 1)];
+  const you = (run) => run.ent.indexOf(-1);
+  function yourMatch(run) { const y = you(run), r = run.round; for (let m = 0; m < run.rounds[r].length; m++) if (pair(run, r, m).includes(y)) return m; return -1; }
+  const level = (run, seat) => run.ent[seat] === -1 ? 0 : stage(run.ent[seat]).level;
+
+  function start(tierId) {
+    const t = byId(tierId); if (!t || !isOpen(t)) return null;
+    const pool = DATA.STAGES.filter(s => s.level >= t.lo && s.level <= t.hi).map(s => s.n);
+    if (pool.length < 7) return null;
+    const field = shuffle(pool).slice(0, 7);
+    field.splice(Math.floor(Math.random() * 8), 0, -1);
+    const run = { tier: t.id, ent: field, rounds: [[null, null, null, null], [null, null], [null]], sc: [[null, null, null, null], [null, null], [null]], round: 0, status: 'active', t: Date.now() };
+    tp().run = run; tp().played++; Store.save();
+    return run;
+  }
+
+  /* ----- simulation of the matches you are not in ----- */
+  const strength = (run, seat) => level(run, seat) * 100 + (run.ent[seat] % 7) * 6;      // a little spread inside one level
+  function simMatch(run, a, b, n) {
+    const p = 1 / (1 + Math.exp(-(strength(run, a) - strength(run, b)) / 190));          // chance to win one game
+    let sa = 0, sb = 0;
+    while (sa < n && sb < n) { if (Math.random() < p) sa++; else sb++; }
+    return { w: sa > sb ? a : b, s: [sa, sb] };
+  }
+  function simRound(run, r) {
+    const n = byId(run.tier).ml[r];
+    for (let m = 0; m < run.rounds[r].length; m++) {
+      if (run.rounds[r][m] !== null) continue;
+      const [a, b] = pair(run, r, m); if (a === null || b === null) continue;
+      if (a === you(run) || b === you(run)) continue;
+      const o = simMatch(run, a, b, n); run.rounds[r][m] = o.w; run.sc[r][m] = o.s;
+    }
+  }
+  function simRest(run) { for (let r = run.round; r < 3; r++) simRound(run, r); }
+
+  /* ----- results ----- */
+  const scaled = (t, v) => Math.round(v * t.k);
+  function prizeOf(t, r) { return [scaled(t, PRIZE[r][0]), scaled(t, PRIZE[r][1])]; }
+  function championPrize(t, first) { const f = first ? 1 : REPEAT; return [Math.round(CHAMP[0] * t.k * f), Math.round(CHAMP[1] * t.k * f)]; }
+  function topPrize(t, first) { let x = 0, c = 0; for (let r = 0; r < 3; r++) { const p = prizeOf(t, r); x += p[0]; c += p[1]; } const ch = championPrize(t, first); return [x + ch[0], c + ch[1]]; }
+  // Called when the match you played ends. Returns what to show: the new state, the winnings and who is next.
+  function finish(cfg, won, score, cheated) {
+    const run = cur(); if (!run || run.status !== 'active') return null;
+    const t = byId(run.tier), r = run.round, m = yourMatch(run), y = you(run);
+    if (m < 0) return null;
+    const pr = pair(run, r, m), foe = pr[0] === y ? pr[1] : pr[0], yourSide = pr[0] === y ? 0 : 1;
+    run.rounds[r][m] = won ? y : foe;
+    run.sc[r][m] = yourSide === 0 ? [score[0], score[1]] : [score[1], score[0]];
+    simRound(run, r);
+    const lines = []; let status = 'next';
+    if (won) {
+      const pz = prizeOf(t, r); if (!cheated) lines.push([RNAME[r] + ' won', pz[0], pz[1]]);
+      if (r === 2) {
+        status = 'champ'; run.status = 'champ';
+        if (!cheated) {
+          const first = !((tp().wins[t.id] || 0) > 0), ch = championPrize(t, first);
+          lines.push([first ? 'Champion bonus (first title)' : 'Champion bonus (repeat title)', ch[0], ch[1]]);
+          tp().wins[t.id] = (tp().wins[t.id] || 0) + 1; tp().titles++;
+        }
+      } else run.round = r + 1;
+    } else {
+      status = 'out'; run.status = 'out'; run.out = r;
+      const pz = prizeOf(t, r), x = Math.round(pz[0] * CONSOLE), c = Math.round(pz[1] * CONSOLE);
+      if (!cheated && (x || c)) lines.push(['Knocked out in the ' + RNAME[r].toLowerCase(), x, c]);
+    }
+    if (status !== 'next') simRest(run);
+    Store.save();
+    const xp = lines.reduce((a, l) => a + l[1], 0), coins = lines.reduce((a, l) => a + l[2], 0);
+    const nextFoe = status === 'next' ? (() => { const mm = yourMatch(run), p2 = pair(run, run.round, mm), s2 = p2[0] === y ? p2[1] : p2[0]; return s2 === null ? null : s2; })() : null;
+    return { status, round: r, run, rw: { xp, coins, lines: lines.length ? lines : [['No prize this time', 0, 0]] }, nextFoe, foe };
+  }
+  function forfeit() {
+    const run = cur(); if (!run || run.status !== 'active') return;
+    const r = run.round, m = yourMatch(run), y = you(run), pr = pair(run, r, m), foe = pr[0] === y ? pr[1] : pr[0];
+    run.rounds[r][m] = foe; run.sc[r][m] = null; run.status = 'out'; run.out = r;
+    simRest(run); Store.save();
+  }
+
+  /* ----- playing your match ----- */
+  function play() {
+    const run = cur(); if (!run || run.status !== 'active') return;
+    const t = byId(run.tier), r = run.round, m = yourMatch(run), y = you(run), pr = pair(run, r, m), foe = pr[0] === y ? pr[1] : pr[0];
+    if (foe === null || foe === undefined) return;
+    const s = stage(run.ent[foe]);
+    Game.start({
+      mode: 'ai', tour: { r, m, tier: t.id }, level: s.level, style: s.style, variant: 'classic', matchLen: t.ml[r], cube: true, gammons: true,
+      names: ['You', s.name], avs: ['🎲', s.av], subs: ['', t.name + ' · ' + RNAME[r]], faces: ['player', 's' + s.num], scene: 4,
+    });
+  }
+
+  /* ----- screen ----- */
+  const av = (run, seat) => run.ent[seat] === -1 ? Portraits.svg('player', { crop: true, label: 'You' }) : Portraits.svg('s' + stage(run.ent[seat]).num, { crop: true, label: stage(run.ent[seat]).name });
+  const nm = (run, seat) => seat === null ? '?' : run.ent[seat] === -1 ? 'You' : short(stage(run.ent[seat]).name);
+  function matchBox(run, r, m) {
+    const pr = pair(run, r, m), w = run.rounds[r][m], sc = run.sc[r][m], y = you(run);
+    const mine = pr.includes(y), nextUp = run.status === 'active' && r === run.round && m === yourMatch(run);
+    const row = (seat, i) => {
+      const cls = seat === null ? 'tbd' : w === null ? '' : (w === seat ? 'win' : 'lose');
+      const score = sc ? sc[i] : null;
+      return `<div class="tk-p ${cls} ${seat === y ? 'me' : ''}"><span class="tk-av">${seat === null ? '' : av(run, seat)}</span><span class="tk-n">${esc(nm(run, seat))}</span><span class="tk-s">${score === null || score === undefined ? '' : score}</span></div>`;
+    };
+    return `<div class="tk-m ${mine ? 'mine' : ''} ${nextUp ? 'next' : ''}">${row(pr[0], 0)}${row(pr[1], 1)}</div>`;
+  }
+  function bracketHTML(run) {
+    const t = byId(run.tier);
+    let h = '<div class="tk-wrap"><div class="tk-bracket">';
+    for (let r = 0; r < 3; r++) {
+      h += `<div class="tk-col"><h4>${RNAME[r]}<small>First to ${t.ml[r]}</small></h4><div class="tk-ms">`;
+      for (let m = 0; m < run.rounds[r].length; m++) h += matchBox(run, r, m);
+      h += '</div></div>';
+    }
+    return h + '</div></div>';
+  }
+  const levelName = (lv) => AI.LEVELS[lv].name;
+  function rangeText(t) { return t.lo === t.hi ? levelName(t.lo) : levelName(t.lo) + ' to ' + levelName(t.hi); }
+  function tierCard(t) {
+    const open = isOpen(t), wins = tp().wins[t.id] || 0, first = wins === 0, top = topPrize(t, first), need = t.need && byId(t.need);
+    return `<div class="tk-tier ${open ? '' : 'lock'}"><div class="tk-ti"><span class="tk-ico">${t.ico}</span><div class="tk-tt"><b>${esc(t.name)}</b><small>${esc(t.blurb)}</small></div>${wins ? `<span class="tk-titles" title="Titles won">👑 ${wins}</span>` : ''}</div>
+      <div class="tk-facts"><span>Field: ${esc(rangeText(t))}</span><span>Matches to ${t.ml.join(' · ')}</span><span>Winner: <b>${fmt(top[0])}</b> XP + <b>${fmt(top[1])}</b> coins${first ? '' : ' <i>(repeat title)</i>'}</span></div>
+      ${open ? `<button class="btn ${wins ? '' : 'primary'}" data-tk="enter" data-tier="${t.id}">Enter</button>` : `<div class="tk-lock">Win the ${esc(need.name)} to unlock</div>`}</div>`;
+  }
+  function render() {
+    const body = $('#tour-body'); if (!body) return;
+    const run = cur(); let h = '';
+    if (!run) {
+      h += `<div class="tk-hero"><div class="tk-big">🏆</div><div><h3>Knockout tournaments</h3><p>Eight players. Win three matches in a row to take the title. Your matches are played on the real board against the characters you meet in the campaign; the others are settled behind the scenes. Leave and come back any time: your tournament is saved.</p></div></div>`;
+      h += `<div class="tk-tiers">${TIERS.map(tierCard).join('')}</div>`;
+      h += `<div class="st-note tn-note">Prizes come from winning rounds, with a bonus for the title. A repeat title pays less than the first. Playing offline for now.</div>`;
+    } else {
+      const t = byId(run.tier), y = you(run);
+      h += `<div class="tk-head"><span class="tk-ico">${t.ico}</span><div><h3>${esc(t.name)}</h3><small>${run.status === 'active' ? RNAME[run.round] + ' · first to ' + t.ml[run.round] : run.status === 'champ' ? 'You are the champion' : 'You were knocked out in the ' + RNAME[run.out].toLowerCase()}</small></div></div>`;
+      h += bracketHTML(run);
+      if (run.status === 'active') {
+        const m = yourMatch(run), pr = pair(run, run.round, m), foe = pr[0] === y ? pr[1] : pr[0], s = stage(run.ent[foe]), pz = prizeOf(t, run.round);
+        h += `<div class="tk-next"><div class="tk-nf"><span class="tk-bigav">${Portraits.svg('s' + s.num, { crop: true, label: s.name })}</span><div><div class="tag">${RNAME[run.round]}</div><b>You vs ${esc(s.name)}</b><small>${esc(s.title)} · ${levelName(s.level)}, ${AI.STYLES[s.style].name}</small></div></div>
+          <div class="tk-win">Win: <b>${pz[0]}</b> XP + <b>${pz[1]}</b> coins${run.round === 2 ? ' + the title bonus' : ''}</div>
+          <div class="tk-go"><button class="btn primary" data-tk="play">Play ${RNAME[run.round].toLowerCase()}</button><button class="btn" data-tk="abandon">Leave tournament</button></div></div>`;
+      } else {
+        const champ = run.status === 'champ';
+        h += `<div class="tk-next ${champ ? 'champ' : ''}"><b>${champ ? 'Champion of the ' + esc(t.name) + '!' : 'Out in the ' + RNAME[run.out].toLowerCase()}</b><small>${champ ? 'The title is in your trophy count.' : 'The rest of the bracket was played without you. Try again with a new draw.'}</small>
+          <div class="tk-go"><button class="btn primary" data-tk="new">New tournament</button></div></div>`;
+      }
+    }
+    const st = body.scrollTop; body.innerHTML = h; body.scrollTop = st;
+  }
+  function wire() {
+    const body = $('#tour-body');
+    body.addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b || !b.dataset.tk) return;
+      SFX.click();
+      const k = b.dataset.tk;
+      if (k === 'enter') { const t = byId(b.dataset.tier); if (!t || !isOpen(t)) return; if (!start(t.id)) { toast('Could not set up the draw'); return; } render(); return; }
+      if (k === 'play') return play();
+      if (k === 'new') { tp().run = null; Store.save(); render(); return; }
+      if (k === 'abandon') {
+        modal({ html: `<h2>Leave this tournament?</h2><p class="lead">Your place in the bracket is lost and you earn no more prizes from it.</p><div class="btns"><button class="btn danger" data-act="yes">Leave it</button><button class="btn primary" data-act="no">Keep playing</button></div>`, actions: { no: () => { }, yes: () => { tp().run = null; Store.save(); render(); } } });
+      }
+    });
+  }
+  Nav.onShow.tour = render;
+  return { render, wire, play, finish, forfeit, cur, start, TIERS, RNAME, PRIZE, prizeOf, championPrize, topPrize, simMatch, valid, byId, isOpen, pair, you, yourMatch, bracketHTML, short };
+})();
 
 /* ============================================================
    Screens: setup, campaign, shop, previews, boot
@@ -10922,6 +12275,7 @@ function renderSetup() {
   }
   h += `<div class="field"><div class="lbl">Starting position</div>${seg('variant', Object.keys(BG.VARIANTS).map(k => [k, BG.VARIANTS[k].name, BG.VARIANTS[k].tag + ' · pays x' + DATA.vf(k).toFixed(2)]), q.variant)}</div>`;
   h += `<div class="field"><div class="lbl">Match length</div>${seg('matchLen', [[1, 'Single game', 'One game, winner takes it'], [3, 'First to 3', 'Short match'], [5, 'First to 5', 'Standard match'], [7, 'First to 7', 'Long match']], q.matchLen)}</div>`;
+  if (Setup.mode !== 'wild') h += `<div class="field"><div class="lbl">Clock</div>${seg('clock', [['off', 'No clock', 'Take your time'], ...DATA.CLOCKS.map(c => [c.id, c.name, DATA.clockText(c)])], DATA.clockOf(q.clock) ? q.clock : 'off')}<div class="clk-note">Speed mode: a time bank for each game, and a short delay at the start of every turn. Run out and you lose the game at the stake. ${two ? 'Both players are on the clock.' : 'The computer is never on the clock.'}</div></div>`;
   h += `<div class="field" style="display:grid;gap:8px">${tog('cube', 'Doubling cube', 'Raise the stakes before you roll. The Crawford rule applies in matches.')}${tog('gammons', 'Gammons and backgammons', 'Count double and triple wins when the loser has borne off nothing')}</div>`;
   const rmode = two ? '2p' : 'ai', gr = DATA.gameReward({ mode: rmode, level: q.level, variant: q.variant, won: true }), mb = DATA.matchBase({ mode: rmode, level: q.level, variant: q.variant });
   h += `<div class="reward-note"><span>${two ? 'Rewards' : 'Win rewards'}</span><span class="chip"><i>PER GAME</i><b>${fmt(gr.xp)}</b> XP</span><span class="coin">${fmt(gr.coins)}</span><span class="chip"><i>${two ? 'MATCH' : 'MATCH WIN'}</i><b>+${fmt(mb.xp)}</b> XP</span><span class="coin">+${fmt(mb.coins)}</span><span>${two ? 'Longer matches add 25% of the match reward per extra game.' : 'Each extra game adds 25% of the match win reward, and a clean sweep adds 35%. Rewards are scaled to how long the starting position takes to play.'}</span></div>`;
@@ -10945,9 +12299,9 @@ function startFromSetup() {
   const q = P().quick;
   if (Setup.mode === 'quick' || Setup.mode === 'wild') {
     const pers = LEVEL_INFO[q.level].pers, wild = Setup.mode === 'wild';
-    Game.start({ wild, mode: 'ai', level: q.level, style: q.style, variant: q.variant, matchLen: q.matchLen, cube: q.cube, gammons: q.gammons, names: ['You', pers[0]], avs: ['🎲', pers[1]], subs: ['', AI.LEVELS[q.level].name + ' · ' + AI.STYLES[q.style].name + (wild ? ' · Wild' : '')] });
+    Game.start({ wild, mode: 'ai', level: q.level, style: q.style, variant: q.variant, matchLen: q.matchLen, cube: q.cube, gammons: q.gammons, clock: wild ? null : DATA.clockOf(q.clock), names: ['You', pers[0]], avs: ['🎲', pers[1]], subs: ['', AI.LEVELS[q.level].name + ' · ' + AI.STYLES[q.style].name + (wild ? ' · Wild' : '')] });
   } else {
-    Game.start({ mode: '2p', level: 3, style: 'balanced', variant: q.variant, matchLen: q.matchLen, cube: q.cube, gammons: q.gammons, names: [Setup.names[0].trim() || 'Player 1', Setup.names[1].trim() || 'Player 2'], avs: ['⚪', '⚫'], subs: ['', ''] });
+    Game.start({ mode: '2p', level: 3, style: 'balanced', variant: q.variant, matchLen: q.matchLen, cube: q.cube, gammons: q.gammons, clock: DATA.clockOf(q.clock), names: [Setup.names[0].trim() || 'Player 1', Setup.names[1].trim() || 'Player 2'], avs: ['⚪', '⚫'], subs: ['', ''] });
   }
 }
 
@@ -11319,14 +12673,14 @@ async function openOnline() {
   const body = () => { stopBrowse(); return $('#on-body', api.el); };   // every screen starts here, so the public list only runs on the join screen
   const begin = (info) => {
     api.close();
-    Game.start({ mode: 'online', variant: info.cfg.variant, matchLen: info.cfg.matchLen, cube: info.cfg.cube, gammons: true, cos: info.cfg.cos, watch: !!(info.cfg.pub && info.cfg.watch), names: [info.me.name, info.opp.name], avs: ['🎲', info.opp.av || '🎲'], subs: ['', 'Online'] });
+    Game.start({ mode: 'online', variant: info.cfg.variant, matchLen: info.cfg.matchLen, cube: info.cfg.cube, gammons: true, clock: DATA.clockOf(info.cfg.clock), cos: info.cfg.cos, watch: !!(info.cfg.pub && info.cfg.watch), names: [info.me.name, info.opp.name], avs: ['🎲', info.opp.av || '🎲'], subs: ['', 'Online'] });
   };
   const chip = (id, label, on) => `<button class="${on ? 'on' : ''}" data-v="${id}">${label}</button>`;
   const status = (t, bad) => { const e = $('#on-status', api.el); if (e) { e.textContent = t; e.style.color = bad ? '#ff8a8a' : ''; } };
   const failCb = (er) => { status(viaPub && /No game found/.test(er.message) ? 'That game is no longer available. Pick another from the list.' : er.message, true); busy = false; viaPub = false; if ($('#pub-list', api.el)) startBrowse(); };
   /* public games: a live list of open games others have listed, shown on the join screen */
   const variantName = (v) => (BG.VARIANTS[v] && BG.VARIANTS[v].name) || v;
-  const gameLine = (g) => (g.len === 1 ? 'Single game' : 'First to ' + g.len) + ' · cube ' + (g.cube ? 'on' : 'off') + ' · ' + esc(variantName(g.variant));
+  const gameLine = (g) => (g.len === 1 ? 'Single game' : 'First to ' + g.len) + ' · cube ' + (g.cube ? 'on' : 'off') + (DATA.clockOf(g.clock) ? ' · ' + esc(DATA.clockOf(g.clock).name) + ' clock' : '') + ' · ' + esc(variantName(g.variant));
   const renderPub = (list, stt) => {
     const box = $('#pub-list', api.el); if (!box) return;
     const ok = list.filter(g => g.build === Net.build && !g.finished), other = list.filter(g => g.build !== Net.build).length;
@@ -11417,6 +12771,7 @@ async function openOnline() {
   const create = () => {
     body().innerHTML = `<div class="on-name"><b>Match length</b><span class="seg" id="on-len">${[1, 3, 5, 7].map(n => chip(n, n === 1 ? 'Single game' : 'First to ' + n, cfg.matchLen === n)).join('')}</span></div>
       <div class="on-name"><b>Doubling cube</b><span class="seg" id="on-cube">${chip('1', 'On', cfg.cube)}${chip('0', 'Off', !cfg.cube)}</span></div>
+      <div class="on-name"><b>Clock</b><span class="seg" id="on-clock">${chip('off', 'Off', !DATA.clockOf(cfg.clock))}${DATA.CLOCKS.map(c => chip(c.id, c.name, cfg.clock === c.id)).join('')}</span></div>
       <div class="on-name"><b>Starting position</b><select id="on-var">${Object.keys(BG.VARIANTS).map(k => `<option value="${k}" ${k === cfg.variant ? 'selected' : ''}>${esc(BG.VARIANTS[k].name)} · ${esc(BG.VARIANTS[k].tag)}</option>`).join('')}</select></div>
       ${brokered() ? `<div class="on-name"><b>Who can join</b><span class="seg" id="on-pub">${chip('0', 'Friends with the code', !cfg.pub)}${chip('1', 'Public list', !!cfg.pub)}</span></div>
       <div class="on-name" id="on-watchrow" style="display:${cfg.pub ? '' : 'none'}"><b>Let others watch</b><span class="seg" id="on-watch">${chip('1', 'Yes', cfg.watch !== false)}${chip('0', 'No', cfg.watch === false)}</span></div>
@@ -11499,7 +12854,7 @@ async function openOnline() {
         const g = e.target.closest('[data-go]'), v = e.target.closest('[data-v]');
         if (v) {
           const grp = v.parentNode.id; $$('button', v.parentNode).forEach(x => x.classList.toggle('on', x === v));
-          if (grp === 'on-len') cfg.matchLen = +v.dataset.v; if (grp === 'on-cube') cfg.cube = v.dataset.v === '1';
+          if (grp === 'on-len') cfg.matchLen = +v.dataset.v; if (grp === 'on-cube') cfg.cube = v.dataset.v === '1'; if (grp === 'on-clock') cfg.clock = DATA.clockOf(v.dataset.v) ? v.dataset.v : '';
           if (grp === 'on-watch') { cfg.watch = v.dataset.v === '1'; const n = $('#on-pubnote', api.el); if (n) n.textContent = pubNote(); }
           if (grp === 'on-pub') {
             cfg.pub = v.dataset.v === '1'; const n = $('#on-pubnote', api.el); if (n) { n.textContent = pubNote(); n.style.display = cfg.pub ? '' : 'none'; }
@@ -11577,6 +12932,10 @@ async function openOnline() {
   $('#m-wild').addEventListener('click', () => { SFX.click(); openSetup('wild'); });
   $('#m-shop').addEventListener('click', () => { SFX.click(); show('shop'); });
   $('#m-stats').addEventListener('click', () => { SFX.click(); show('stats'); });
+  $('#m-train').addEventListener('click', () => { SFX.click(); show('train'); });
+  Train.wire();
+  $('#m-tour').addEventListener('click', () => { SFX.click(); show('tour'); });
+  Tour.wire();
   $('#m-trophy').addEventListener('click', () => { SFX.click(); show('trophy'); });
   Trophy.wire();
   $('#m-settings').addEventListener('click', () => { SFX.click(); openSettings(); });
