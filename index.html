@@ -751,6 +751,14 @@ body.compact .shop-filters { padding-top: 4px; padding-bottom: 4px; }
 .fair { white-space: nowrap; }
 @media (max-width: 480px) { .hud.top:has(.clk:not([hidden])) .fair { font-size: 11px; padding: 2px 8px; } }
 
+/* ---------- Tavli and Tawle ---------- */
+.tb-note { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.tb-note > span:first-child { flex: 1 1 260px; }
+.tb-meta { display: grid; gap: 6px; justify-items: start; }
+.tb-meta small { color: var(--brass); font-weight: 700; font-size: 12px; }
+.tb-rules { margin: 6px 0 4px; padding-left: 20px; display: grid; gap: 8px; text-align: left; font-size: 14px; line-height: 1.45; }
+.tb-rules li::marker { color: var(--brass); }
+
 </style>
 </head>
 <body>
@@ -816,6 +824,8 @@ body.compact .shop-filters { padding-top: 4px; padding-bottom: 4px; }
     <div class="scroll pad" id="train-body"></div>
   </section>
 
+  <!-- TAVLI / TAWLE -->
+
   <!-- TOURNAMENT -->
   <section id="screen-tour" class="screen">
     <div class="back-row"><button class="icon-btn" data-back title="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h2>Tournament</h2><span class="coin" data-coins></span></div>
@@ -867,7 +877,8 @@ const BG = (() => {
   // shield[p] (Wild mode, Safe Harbor): while set, player p's lone checkers cannot be hit. The array is replaced, never mutated.
   // walls (Wild, Wall): { [point]: { by, left } } stops the other side landing on a point; pins (Wild, Lock): { pt, victim, by } stops that player's checkers on pt moving.
   // Both are replaced, never mutated, like shield.
-  const clone = (p) => ({ pts: p.pts.slice(), bar: p.bar.slice(), off: p.off.slice(), shield: p.shield, walls: p.walls, pins: p.pins });
+  // rs is the rule set of the Tavli/Tawle games (see tables.js); pn marks the points of a pin game where one checker lies pinned under the other colour's stack. Both are replaced, never mutated.
+  const clone = (p) => ({ pts: p.pts.slice(), bar: p.bar.slice(), off: p.off.slice(), shield: p.shield, walls: p.walls, pins: p.pins, rs: p.rs, pn: p.pn });
 
   // spec: { pointNumber(own perspective): count, bar: n }
   function placeSide(pos, p, spec) {
@@ -904,6 +915,7 @@ const BG = (() => {
   };
 
   function startPos(variantId, rng) {
+    if (typeof TB !== 'undefined' && TB.isGame(variantId)) return TB.startPos(variantId, rng);
     const v = VARIANTS[variantId] || VARIANTS.classic;
     const b = v.build(rng || Math.random);
     const pos = emptyPos();
@@ -916,7 +928,10 @@ const BG = (() => {
   const total = (pos) => pos.total || 15;
   const cnt = (pos, p, i) => { const v = pos.pts[i]; return p === 0 ? (v > 0 ? v : 0) : (v < 0 ? -v : 0); };
 
+  const other = (pos) => !!(pos.rs && TB.alt(pos.rs));          // a Plakoto or Fevga style position: tables.js does the moving
+
   function allHome(pos, p) {
+    if (other(pos)) return TB.allHome(pos, p);
     if (pos.bar[p] > 0) return false;
     if (p === 0) { for (let i = 6; i < 24; i++) if (pos.pts[i] > 0) return false; }
     else { for (let i = 0; i < 18; i++) if (pos.pts[i] < 0) return false; }
@@ -924,6 +939,7 @@ const BG = (() => {
   }
 
   function movesFor(pos, p, d) {
+    if (other(pos)) return TB.movesFor(pos, p, d);
     const out = [];
     const opp = 1 - p, sh = !!(pos.shield && pos.shield[opp]), wl = pos.walls, pin = pos.pins && pos.pins.victim === p ? pos.pins.pt : -1;
     const open = (to, oc) => oc < 2 && !(oc === 1 && sh) && !(wl && wl[to] && wl[to].by !== p);
@@ -1010,6 +1026,7 @@ const BG = (() => {
   }
 
   function applyMove(pos, p, m) {
+    if (other(pos)) return TB.applyMove(pos, p, m);
     const n = clone(pos);
     n.total = pos.total;
     const s = p === 0 ? 1 : -1;
@@ -1025,7 +1042,9 @@ const BG = (() => {
   function key(pos) {
     let s = '';
     for (let i = 0; i < 24; i++) s += String.fromCharCode(pos.pts[i] + 20);
-    return s + String.fromCharCode(pos.bar[0] + 20, pos.bar[1] + 20, pos.off[0] + 20, pos.off[1] + 20);
+    s += String.fromCharCode(pos.bar[0] + 20, pos.bar[1] + 20, pos.off[0] + 20, pos.off[1] + 20);
+    if (pos.pn) for (let i = 0; i < 24; i++) s += pos.pn[i] ? '1' : '0';
+    return s;
   }
 
   const diceToList = (d1, d2) => (d1 === d2 ? [d1, d1, d1, d1] : [d1, d2]);
@@ -1116,10 +1135,12 @@ const BG = (() => {
     return res;
   }
 
-  const winnerOf = (pos) => (pos.off[0] >= total(pos) ? 0 : pos.off[1] >= total(pos) ? 1 : -1);
+  // -1 = going on, 0/1 = that player won, 2 = a tie (Plakoto, both mother checkers pinned)
+  const winnerOf = (pos) => (pos.rs ? TB.winner(pos) : pos.off[0] >= total(pos) ? 0 : pos.off[1] >= total(pos) ? 1 : -1);
 
   // 1 = single, 2 = gammon, 3 = backgammon
   function gameValue(pos, w) {
+    if (pos.rs) return TB.value(pos, w);
     const l = 1 - w;
     if (pos.off[l] > 0) return 1;
     let bg = pos.bar[l] > 0;
@@ -1131,6 +1152,7 @@ const BG = (() => {
   }
 
   function pips(pos, p) {
+    if (other(pos)) return TB.pips(pos, p);
     let s = pos.bar[p] * 25;
     for (let i = 0; i < 24; i++) {
       const c = cnt(pos, p, i);
@@ -1139,9 +1161,10 @@ const BG = (() => {
     return s;
   }
 
-  const onBoard = (pos, p) => { let s = pos.bar[p]; for (let i = 0; i < 24; i++) s += cnt(pos, p, i); return s; };
+  const onBoard = (pos, p) => { if (other(pos)) return TB.onBoard(pos, p); let s = pos.bar[p]; for (let i = 0; i < 24; i++) s += cnt(pos, p, i); return s; };
 
   function inContact(pos) {
+    if (other(pos)) return true;
     // player 0 checker at index i is in contact with a player 1 checker at index j if i > j (or bars)
     let max0 = pos.bar[0] > 0 ? 99 : -1, min1 = pos.bar[1] > 0 ? -99 : 99;
     for (let i = 0; i < 24; i++) {
@@ -1165,6 +1188,283 @@ const BG = (() => {
     freeMove, dashTargets, sanctuaryTargets, exchangePairs, exchange, wallTargets, lockTargets, setWall, setPin, tickTurn, canLand, isPinned,
     genTurns, maxPlay, legalNext, winnerOf, gameValue, pips, onBoard, inContact, rollDie, total,
   };
+})();
+
+/* ============================================================
+   Tavli and Tawle: the other backgammon games.
+   Everything here plugs into BG through pos.rs, the id of the rule set a position belongs to.
+   Portes and 'Aada are ordinary backgammon (BG does the moving), only the scoring and the missing cube differ.
+   Plakoto and Mahbousa pin a lone checker instead of hitting it; Fevga, 31 and Gulbehar are no-hit races where both
+   sides run the same way round the board. Both families run on the same 24 points the 2D and 3D boards already draw.
+   ============================================================ */
+const TB = (() => {
+  const BAR = 25, OFF = 26;
+
+  /* ----- the rule sets ----- */
+  // kind: hit = backgammon moves, pin = Plakoto style, par = parallel no-hit race. score: std = 1 point, 2 when the loser has borne off nothing; left = one point per checker the loser still has.
+  const GAMES = {
+    portes:   { id: 'portes',   fam: 'tavli', kind: 'hit', score: 'std',  name: 'Portes',   tag: 'Backgammon without the cube',                       sets: [3, 5, 7], set: 5 },
+    plakoto:  { id: 'plakoto',  fam: 'tavli', kind: 'pin', score: 'std',  name: 'Plakoto',  tag: 'Pin a lone checker instead of hitting it',          sets: [3, 5, 7], set: 5, mother: true },
+    fevga:    { id: 'fevga',    fam: 'tavli', kind: 'par', score: 'std',  name: 'Fevga',    tag: 'No hitting: a blocking race, both sides run the same way', sets: [3, 5, 7], set: 5 },
+    aada:     { id: 'aada',     fam: 'tawle', kind: 'hit', score: 'std',  name: '‘Aada', tag: 'The everyday game: backgammon, first to the set score', sets: [1, 3, 5], set: 3 },
+    mahbousa: { id: 'mahbousa', fam: 'tawle', kind: 'pin', score: 'std',  name: 'Mahbousa', tag: 'Trap a lone checker; no mother checker rule',       sets: [1, 3, 5], set: 3 },
+    t31:      { id: 't31',      fam: 'tawle', kind: 'par', score: 'left', name: '31',       tag: 'No hitting; every checker left behind scores for the winner', sets: [11, 21, 31], set: 31 },
+    gulbehar: { id: 'gulbehar', fam: 'tawle', kind: 'par', score: 'std',  name: 'Gulbehar', tag: 'No hitting, and doubles chain up to 6-6',           sets: [1, 3, 5], set: 3, chain: true },
+  };
+  const FAMS = {
+    tavli: { id: 'tavli', name: 'Tavli', sub: 'Greek tables', games: ['portes', 'plakoto', 'fevga'] },
+    tawle: { id: 'tawle', name: 'Tawle', sub: 'Middle Eastern tables', games: ['aada', 'mahbousa', 't31', 'gulbehar'] },
+  };
+  // 'tavli' as a game choice means the traditional match: Portes, Plakoto and Fevga one after another, round and round
+  const CYCLES = { tavli: ['portes', 'plakoto', 'fevga'] };
+  const CHOICES = { tavli: ['tavli', 'portes', 'plakoto', 'fevga'], tawle: ['aada', 'mahbousa', 't31', 'gulbehar'] };
+  const own = (o, k) => typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k);       // ids can arrive from another player, so 'constructor' must not count
+  const isChoice = (v) => own(GAMES, v) || own(CYCLES, v);
+  const gameFor = (v, n) => (own(CYCLES, v) ? CYCLES[v][((n || 1) - 1) % CYCLES[v].length] : v);   // the rule set of game number n of a match
+  const famOf = (v) => (own(CYCLES, v) ? 'tavli' : own(GAMES, v) ? GAMES[v].fam : '');
+  const nameOf = (v) => (own(CYCLES, v) ? 'Tavli (all three)' : own(GAMES, v) ? GAMES[v].name : v);
+  const setsOf = (v) => (own(CYCLES, v) ? GAMES.portes.sets : own(GAMES, v) ? GAMES[v].sets : [1]);
+  const gOf = (rs) => GAMES[rs];
+  const isGame = (rs) => !!GAMES[rs];
+  const kindOf = (rs) => (GAMES[rs] ? GAMES[rs].kind : '');
+  const alt = (rs) => !!GAMES[rs] && GAMES[rs].kind !== 'hit';      // true when BG's own backgammon moving does not apply
+
+  /* ----- tracks: the route each side takes, point by point ----- */
+  // s = how far along the route (0 = where the checkers start, 18..23 = home); idx = which of the 24 drawn points
+  const mk = (f0, f1) => { const idx = [[], []], s = [new Array(24), new Array(24)]; for (let k = 0; k < 24; k++) { idx[0].push(f0(k)); idx[1].push(f1(k)); s[0][idx[0][k]] = k; s[1][idx[1][k]] = k; } return { idx, s }; };
+  const TO = mk(k => 23 - k, k => k);                      // opposite directions, like backgammon
+  const TP = mk(k => 23 - k, k => (35 - k) % 24);          // parallel: both run the same way round; player 1 starts on point 11
+  const trk = (rs) => (GAMES[rs].kind === 'par' ? TP : TO);
+
+  /* ----- counting ----- */
+  const sgn = (p) => (p === 0 ? 1 : -1);
+  const top = (pos, p, i) => { const v = pos.pts[i]; return p === 0 ? (v > 0 ? v : 0) : (v < 0 ? -v : 0); };   // checkers p has in control of the point
+  const have = (pos, p, i) => { let n = top(pos, p, i); if (pos.pn && pos.pn[i] && top(pos, 1 - p, i) > 0) n++; return n; };   // ...plus one of p's own pinned underneath the other colour
+  const pinnedAt = (pos, i) => !!(pos.pn && pos.pn[i]);
+
+  function startPos(id, rng) {
+    const g = GAMES[id], pos = { pts: new Array(24).fill(0), bar: [0, 0], off: [0, 0], total: 15, rs: id };
+    if (g.kind === 'hit') { const c = BG.startPos('classic', rng); c.rs = id; return c; }
+    const T = trk(id);
+    pos.pts[T.idx[0][0]] = 15; pos.pts[T.idx[1][0]] = -15;
+    if (g.kind === 'pin') pos.pn = new Array(24).fill(0);
+    return pos;
+  }
+
+  function allHome(pos, p) {
+    const T = trk(pos.rs);
+    for (let k = 0; k < 18; k++) if (have(pos, p, T.idx[p][k]) > 0) return false;
+    return true;
+  }
+
+  /* ----- the first checker rule (no-hit races): only the first checker out may move until it is past the other side's start ----- */
+  function firstLimit(pos, p, T) {
+    let n = 0, at = -1;
+    for (let k = 1; k < 24; k++) { const i = T.idx[p][k], c = top(pos, p, i); if (c) { n += c; at = i; if (n > 1) return -1; } }
+    return n === 1 && T.s[p][at] <= 12 ? at : -1;
+  }
+
+  /* ----- the six-point wall rule: you may not close six points in a row unless an opposing checker has already got past ----- */
+  function wallBad(pos, p, from, to, T) {
+    if (have(pos, p, to) > 0) return false;                  // landing on a point you already hold builds nothing new
+    const opp = 1 - p;
+    for (let t = 0; t < 6; t++) {
+      const a = (to + t) % 24;                                // a window of six neighbouring points, a, a-1 .. a-5, that contains `to`
+      let full = true, lo = 99, hi = -1;
+      for (let u = 0; u < 6; u++) {
+        const k = (a - u + 24) % 24;
+        if (k !== to && top(pos, p, k) - (k === from ? 1 : 0) <= 0) { full = false; break; }
+        const so = T.s[opp][k]; if (so < lo) lo = so; if (so > hi) hi = so;
+      }
+      if (!full || hi - lo !== 5) continue;                   // not all held, or the wall bends round the end of the other side's route
+      let ahead = false;
+      for (let k = hi + 1; k < 24 && !ahead; k++) if (top(pos, opp, T.idx[opp][k]) > 0) ahead = true;
+      if (!ahead) return true;
+    }
+    return false;
+  }
+
+  /* ----- moves ----- */
+  function movesFor(pos, p, d) {
+    const g = GAMES[pos.rs], T = trk(pos.rs), opp = 1 - p, out = [], par = g.kind === 'par';
+    if (g.mother && decided(pos)) return out;
+    const bo = allHome(pos, p);
+    let maxDist = 0;
+    if (bo) for (let k = 18; k < 24; k++) if (have(pos, p, T.idx[p][k]) > 0) { maxDist = 24 - k; break; }
+    const only = par ? firstLimit(pos, p, T) : -1;
+    for (let k = 0; k < 24; k++) {
+      const i = T.idx[p][k];
+      if (top(pos, p, i) === 0 || (only >= 0 && i !== only)) continue;
+      const k2 = k + d;
+      if (k2 > 23) {
+        if (!bo) continue;
+        const dist = 24 - k;
+        if (d === dist || (d > dist && dist === maxDist)) out.push({ from: i, to: OFF, die: d, hit: false });
+        continue;
+      }
+      const j = T.idx[p][k2], oc = top(pos, opp, j);
+      if (par) {
+        if (oc === 0 && !wallBad(pos, p, i, j, T)) out.push({ from: i, to: j, die: d, hit: false });
+      } else if (oc === 0) out.push({ from: i, to: j, die: d, hit: false });
+      else if (oc === 1 && !pinnedAt(pos, j)) out.push({ from: i, to: j, die: d, hit: false, pin: true });
+    }
+    return out;
+  }
+
+  function applyMove(pos, p, m) {
+    const n = BG.clone(pos); n.total = pos.total; n.rs = pos.rs;
+    let pn = pos.pn;
+    const cow = () => { if (pn === pos.pn) { pn = pos.pn.slice(); n.pn = pn; } return pn; };
+    const s = sgn(p), i = m.from;
+    n.pts[i] -= s;
+    if (pos.pn && pos.pn[i] && n.pts[i] === 0) { n.pts[i] = -s; cow()[i] = 0; }            // the pinning checker left: the prisoner walks free
+    if (m.to === OFF) n.off[p]++;
+    else if (m.pin) { n.pts[m.to] = s; cow()[m.to] = 1; }                                    // landed on a lone checker: it is now pinned under ours
+    else n.pts[m.to] += s;
+    return n;
+  }
+
+  /* ----- the mother checker (Plakoto): the last checker on your start, pinned before it ever left ----- */
+  function motherPinned(pos, x) { const i = TO.idx[x][0]; return !!(pos.pn && pos.pn[i]) && top(pos, 1 - x, i) > 0; }
+  function mothers(pos) {
+    const g = GAMES[pos.rs];
+    if (!g.mother || !pos.pn) return null;
+    const a0 = motherPinned(pos, 0), a1 = motherPinned(pos, 1);
+    if (a0 && a1) return { w: 2, how: 'tie' };
+    // the pin only counts once the pinner has no mother of its own left on its start
+    if (a0 && have(pos, 1, TO.idx[1][0]) === 0) return { w: 1, how: 'mother' };
+    if (a1 && have(pos, 0, TO.idx[0][0]) === 0) return { w: 0, how: 'mother' };
+    return null;
+  }
+  const decided = (pos) => !!(pos.pn && (pos.pn[TO.idx[0][0]] || pos.pn[TO.idx[1][0]]) && mothers(pos));
+
+  /* ----- result ----- */
+  // Neither side has any legal move at all, with any number: pinned checkers hold each other, so nothing can ever change again.
+  function frozen(pos) {
+    for (let p = 0; p < 2; p++) for (let d = 1; d <= 6; d++) if (movesFor(pos, p, d).length) return false;
+    return true;
+  }
+  // -1 = still going, 0 or 1 = that player won, 2 = a tie (both mothers pinned, or a standstill)
+  function winner(pos) {
+    if (pos.off[0] >= pos.total) return 0;
+    if (pos.off[1] >= pos.total) return 1;
+    const m = mothers(pos);
+    if (m) return m.w;
+    return GAMES[pos.rs].kind === 'pin' && pos.pn && frozen(pos) ? 2 : -1;
+  }
+  const how = (pos) => { const m = mothers(pos); if (m) return m.how; const w = winner(pos); return w === 2 ? 'frozen' : w >= 0 ? 'bear' : ''; };
+  // points won by winner w (the doubling cube does not exist in these games)
+  function value(pos, w) {
+    const g = GAMES[pos.rs];
+    if (w > 1) return 0;
+    const l = 1 - w, m = mothers(pos);
+    if (m && m.how === 'mother') return 2;
+    if (g.score === 'left') return Math.max(1, pos.total - pos.off[l]);
+    return pos.off[l] > 0 ? 1 : 2;
+  }
+
+  function pips(pos, p) {
+    const T = trk(pos.rs);
+    let s = pos.bar[p] * 25;
+    for (let k = 0; k < 24; k++) { const c = have(pos, p, T.idx[p][k]); if (c) s += c * (24 - k); }
+    return s;
+  }
+  const onBoard = (pos, p) => { let s = pos.bar[p]; for (let i = 0; i < 24; i++) s += have(pos, p, i); return s; };
+
+  /* ----- doubles: Gulbehar plays the double, then every higher one up to 6-6 (not on the first three rolls of a game) ----- */
+  function legs(rs, d1, d2, rollNo) {
+    if (d1 !== d2) return [[d1, d2]];
+    const g = GAMES[rs];
+    if (!g || !g.chain || rollNo < 3) return [[d1, d1, d1, d1]];
+    const out = [];
+    for (let v = d1; v <= 6; v++) out.push([v, v, v, v]);
+    return out;
+  }
+
+  // a mirrored point as the other player sees it: their moves arrive in their own numbering
+  const flip = (rs, i) => (i >= 24 ? i : (GAMES[rs] && GAMES[rs].kind === 'par' ? (i + 12) % 24 : 23 - i));
+
+  /* ============================================================
+     Computer play: heuristic evaluations, in pips, from p's side
+     ============================================================ */
+  // chance (out of 36) of landing exactly `dd` pips away with the two dice, ignoring blocks
+  const SH = [36, 11, 12, 13, 14, 15, 15, 6, 6, 5, 3, 2, 3];
+  const reach = (dd) => (dd >= 1 && dd <= 12 ? SH[dd] / 36 : 0);
+
+  // how likely p's lone checker on point i can be landed on by the other side next turn
+  function exposure(pos, p, i, T) {
+    const opp = 1 - p, so = T.s[opp][i];
+    let safe = 1;
+    for (let k = 0; k < so; k++) { const j = T.idx[opp][k]; if (top(pos, opp, j) > 0) safe *= 1 - reach(so - k); }
+    return 1 - safe;
+  }
+
+  const WALL = [0, 0, 1.5, 4, 8, 14, 22];
+  // how well x's checkers shut the way in front of y
+  function barrier(pos, x, T, g) {
+    const y = 1 - x;
+    let tot = 0, run = 0;
+    const behindY = new Array(25).fill(0);                                     // behindY[k] = y's checkers still behind route point k
+    let acc = 0;
+    for (let k = 0; k < 24; k++) { behindY[k] = acc; acc += have(pos, y, T.idx[y][k]); }
+    for (let k = 0; k <= 24; k++) {
+      const held = k < 24 && (top(pos, x, T.idx[y][k]) >= (g.kind === 'pin' ? 2 : 1) || (g.kind === 'pin' && pinnedAt(pos, T.idx[y][k]) && top(pos, x, T.idx[y][k]) >= 1));
+      if (held) {
+        const f = Math.min(1, 0.2 + behindY[k] * 0.12);
+        tot += (g.kind === 'pin' ? 1.4 : 1.0) * f; run++;
+      } else {
+        if (run >= 2) { const f = Math.min(1, 0.15 + behindY[k - run] * 0.1); tot += WALL[Math.min(run, 6)] * f; }
+        run = 0;
+      }
+    }
+    return tot;
+  }
+
+  function evalPin(pos, p) {
+    const g = GAMES[pos.rs], T = TO, opp = 1 - p;
+    let e = pips(pos, opp) - pips(pos, p);
+    const side = (x) => {
+      const y = 1 - x;
+      let v = barrier(pos, x, T, g);
+      for (let i = 0; i < 24; i++) {
+        if (pos.pn && pos.pn[i] && top(pos, x, i) > 0) {                       // x holds a prisoner here
+          const left = 24 - T.s[y][i];
+          v += 6 + 0.45 * left;
+          if (i === T.idx[y][0]) v += g.mother ? (have(pos, x, T.idx[x][0]) > 0 ? 22 : 90) : 8;      // pinning a start point is the big prize
+        }
+        if (top(pos, x, i) === 1 && !(pos.pn && pos.pn[i])) {                   // a lone checker the other side may pin
+          const ex = exposure(pos, x, i, T);
+          if (ex > 0) {
+            const left = 24 - T.s[x][i];
+            let cost = 6 + 0.45 * left;
+            if (i === T.idx[x][0]) cost += g.mother ? (have(pos, y, T.idx[y][0]) > 0 ? 18 : 80) : 8;
+            v -= ex * cost;
+          }
+        }
+      }
+      return v;
+    };
+    e += side(p) - 0.85 * side(opp);
+    return e;
+  }
+
+  const countMoves = (pos, p) => { let n = 0; for (let d = 1; d <= 6; d++) n += movesFor(pos, p, d).length; return n; };
+  const PW = { pip: 1, bar: 1, mob: 0.7, head: 0.5 };         // weights of the no-hit evaluation (tuned by computer-against-computer games)
+  function evalPar(pos, p, W) {
+    W = W || PW;
+    const g = GAMES[pos.rs], T = TP, opp = 1 - p;
+    let e = W.pip * (pips(pos, opp) - pips(pos, p));
+    e += W.bar * (barrier(pos, p, T, g) - barrier(pos, opp, T, g));
+    e += W.mob * (countMoves(pos, p) - countMoves(pos, opp)) * (pos.off[0] + pos.off[1] > 0 ? 0.4 : 1);
+    // checkers still on the start are slow to bring out; the bigger the gap in who has escaped, the better
+    const head = (x) => have(pos, x, T.idx[x][0]);
+    e += (head(opp) - head(p)) * W.head;
+    return e;
+  }
+
+  const evalPos = (pos, p) => (GAMES[pos.rs].kind === 'pin' ? evalPin(pos, p) : evalPar(pos, p));
+
+  return { GAMES, FAMS, CYCLES, CHOICES, own, isChoice, gameFor, famOf, nameOf, setsOf, frozen, gOf, isGame, kindOf, alt, startPos, allHome, movesFor, applyMove, winner, how, value, pips, onBoard, legs, flip, evalPos, evalPar, PW, top, have, mothers, motherPinned, trk, TO, TP, firstLimit };
 })();
 
 /* ============================================================
@@ -1327,7 +1627,7 @@ const AI = (() => {
     return e;
   }
 
-  const evalPos = (pos, p, W) => evalView(view(pos, p), W || BASE_W);
+  const evalPos = (pos, p, W) => (pos.rs && TB.alt(pos.rs) ? TB.evalPos(pos, p) : evalView(view(pos, p), W || BASE_W));   // Tavli/Tawle pin and race games have their own evaluation (tables.js)
 
   // ---- win probability estimates ----
   const erf = (x) => {
@@ -1953,6 +2253,9 @@ const DATA = (() => {
     prime: { factor: 0.80, plies: 52, mins: 3.9 },
     race: { factor: 0.65, plies: 39, mins: 3.1 },
     bearoff: { factor: 0.30, plies: 18, mins: 1.4 },
+    // Tavli and Tawle: no cube, so a game is a little shorter; 31 runs to a long target
+    portes: { factor: 0.90, plies: 56, mins: 4.2 }, plakoto: { factor: 0.90, plies: 56, mins: 4.2 }, fevga: { factor: 1.00, plies: 62, mins: 4.7 }, tavli: { factor: 0.95, plies: 58, mins: 4.4 },
+    aada: { factor: 0.90, plies: 56, mins: 4.2 }, mahbousa: { factor: 0.90, plies: 56, mins: 4.2 }, t31: { factor: 1.10, plies: 66, mins: 5.0 }, gulbehar: { factor: 0.90, plies: 50, mins: 3.8 },
   };
   const vf = (v) => (VARIANT_REWARD[v] || VARIANT_REWARD.classic).factor;
   const diffMult = (mode, level) => (mode === '2p' || mode === 'online' ? 1 : (AI.LEVELS[level] || AI.LEVELS[3]).mult);
@@ -2114,6 +2417,7 @@ const DATA = (() => {
     quick: { level: 3, style: 'balanced', matchLen: 1, cube: false, variant: 'classic', gammons: true, clock: 'off' },
     train: { solved: {}, lessons: [], tried: 0, right: 0, streak: 0, bestStreak: 0 },
     tour: { run: null, wins: {}, played: 0, titles: 0 },
+    tables: { last: {}, rec: {} },
   });
 
   return { CLOCKS, clockOf, clockText, RARITY, BOARDS, CHECKERS, DICE, MOVEFX, THROWFX, HITFX, TRIMS, INLAYS, MATS, CUBES, themeFor, BOSS_SETS, CATS, find, levelInfo, xpToNext, levelBonusCoins, rankFor, MAX_LEVEL, rewardFor, gameReward, matchBase, VARIANT_REWARD, vf, CHAPTERS, STAGES, objText, objDone, DEFAULT_PROFILE, blankCareer, mergeCareer };
@@ -4202,7 +4506,9 @@ class BoardView {
     return { x: px / this.s, y: py / this.s };
   }
   step(n) { return n <= 5 ? 62 : Math.max(13, (GEO.L - 2 * GEO.r - 8) / (n - 1)); }
-  slot(i, idx, n) {
+  // a pinned checker (Plakoto, Mahbousa) lies at the foot of its point under the stack that pins it, so everything above it sits one place higher
+  slot(i, idx, n) { if (this.pos && this.pos.pn && this.pos.pn[i]) { idx++; n++; } return this.slotRaw(i, idx, n); }
+  slotRaw(i, idx, n) {
     const off = GEO.r + 3 + idx * this.step(n);
     const x = GEO.ptX(i);
     return { x, y: GEO.ptIsTop(i) ? GEO.y0 + off : GEO.y1 - off };
@@ -4460,7 +4766,7 @@ class BoardView {
       if (s) { ctx.save(); ctx.shadowColor = '#ffd75a'; ctx.shadowBlur = 20; ctx.strokeStyle = '#ffe58a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(s.x, s.y, GEO.r + 3, 0, TAU); ctx.stroke(); ctx.restore(); }
     }
     for (const d of this.dests) {
-      const col = d.hit ? '255,110,90' : '120,255,170';
+      const col = d.hit ? '255,110,90' : d.pin ? '255,176,72' : '120,255,170';
       if (d.to === BG.OFF) {
         const p = this.turnPlayer || 0;
         const y = p === 0 ? GEO.y1 - 332 : GEO.y0;
@@ -4476,7 +4782,7 @@ class BoardView {
       ctx.strokeStyle = `rgba(${col},0.9)`; ctx.lineWidth = 2; ctx.stroke();
       // ghost checker at landing slot
       const p = this.turnPlayer || 0;
-      const own = BG.cnt(this.pos, p, i), n = d.hit ? 1 : own + 1;
+      const own = d.pin ? 1 : BG.cnt(this.pos, p, i), n = d.hit ? 1 : own + 1;
       const s = this.slot(i, d.hit ? 0 : own, n);
       ctx.beginPath(); ctx.arc(s.x, s.y, GEO.r - 4, 0, TAU);
       ctx.strokeStyle = `rgba(${col},${0.55 + 0.3 * pulse})`; ctx.lineWidth = 3; ctx.setLineDash([7, 6]); ctx.stroke(); ctx.setLineDash([]);
@@ -4503,6 +4809,7 @@ class BoardView {
       let v = pos.pts[i]; if (!v) continue;
       const p = v > 0 ? 0 : 1; let n = Math.abs(v);
       if (d && d.from === i && d.p === p) n -= 1;
+      if (pos.pn && pos.pn[i]) { const q = this.slotRaw(i, 0, n + 1); this.drawChecker(ctx, q.x, q.y, 1 - p, {}); this.drawPinMark(ctx, q.x, q.y); }
       for (let j = 0; j < n; j++) {
         const s = this.slot(i, j, n);
         this.drawChecker(ctx, s.x, s.y, p, { lift: (this.sel === i && p === this.turnPlayer && j === n - 1) ? 8 : 0 });
@@ -4519,6 +4826,15 @@ class BoardView {
       for (let j = 0; j < n; j++) { const s = this.barSlot(p, j, n); this.drawChecker(ctx, s.x, s.y, p, { lift: (this.sel === BG.BAR && p === this.turnPlayer && j === n - 1) ? 8 : 0 }); }
       for (let j = 0; j < pos.off[p]; j++) { const s = this.offSlot(p, j); this.drawSlat(ctx, s.x, s.y, p); }
     }
+  }
+
+  // a small padlock on a pinned checker
+  drawPinMark(ctx, x, y) {
+    ctx.save(); ctx.translate(x, y); if (this.rot) ctx.rotate(-Math.PI / 2);
+    ctx.fillStyle = 'rgba(20,10,5,0.78)'; ctx.beginPath(); ctx.arc(0, 0, 12.500, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#ffd75a'; ctx.lineWidth = 1.800; ctx.beginPath(); ctx.arc(0, -2.500, 3.600, Math.PI, 0); ctx.stroke();
+    ctx.fillStyle = '#ffd75a'; ctx.fillRect(-5, -2.500, 10, 7.500);
+    ctx.restore();
   }
 
   drawCube(ctx) {
@@ -4597,12 +4913,17 @@ class BoardView {
     o = o || {};
     const pos = this.pos, s = p === 0 ? 1 : -1;
     const a = o.from || this.srcXY(p, m.from);
-    if (m.from === BG.BAR) pos.bar[p]--; else pos.pts[m.from] -= s;
+    if (m.from === BG.BAR) pos.bar[p]--;
+    else {
+      pos.pts[m.from] -= s;
+      if (pos.pn && pos.pn[m.from] && pos.pts[m.from] === 0) { pos.pts[m.from] = -s; pos.pn = pos.pn.slice(); pos.pn[m.from] = 0; }   // the last pinner leaves: the pinned checker is free again
+    }
     let b, hitInfo = null;
     if (m.to === BG.OFF) b = this.offSlot(p, pos.off[p]);
     else {
       const own = BG.cnt(pos, p, m.to);
       if (m.hit) { b = this.slot(m.to, 0, 1); hitInfo = { from: this.slot(m.to, 0, 1) }; }
+      else if (m.pin) b = this.slot(m.to, 1, 2);                         // lands on top of the checker it pins
       else b = this.slot(m.to, own, own + 1);
     }
     const fl = { x: a.x, y: a.y, z: 0, p, scale: 1, sx: 1, alpha: 1, zb: a.h || 0, toOff: m.to === BG.OFF, u: 0, rot: 0 };
@@ -4613,7 +4934,8 @@ class BoardView {
     if (m.to === BG.OFF) { pos.off[p]++; this.snd('bearoff'); this.burst(b.x, b.y, 6, '#ffe9a8', 90); }
     else {
       if (m.hit) pos.pts[m.to] = 0;
-      pos.pts[m.to] += s;
+      if (m.pin) { pos.pts[m.to] = s; pos.pn = (pos.pn || new Array(24).fill(0)).slice(); pos.pn[m.to] = 1; }
+      else pos.pts[m.to] += s;
     }
     this.flights.splice(this.flights.indexOf(fl), 1);
     if (m.to !== BG.OFF) this.snd('checker');
@@ -7424,7 +7746,8 @@ class BoardView3D extends BoardView {
   moveDrag(px, py) { if (!this.drag) return; const l = this.toLogical(px, py, this.dragLift); this.drag.x = l.x; this.drag.y = l.y; }
 
   /* ----- geometry overrides (layered stacks) ----- */
-  slot(i, idx) {
+  slot(i, idx) { if (this.pos && this.pos.pn && this.pos.pn[i]) idx++; return this.slotRaw(i, idx); }      // a pinned checker lies at the foot of the stack
+  slotRaw(i, idx) {
     const k = idx % 5, layer = Math.floor(idx / 5), off = GEO.r + 3 + k * 66;
     return { x: GEO.ptX(i) + (layer ? (layer % 2 ? 7 : -7) : 0), y: GEO.ptIsTop(i) ? GEO.y0 + off : GEO.y1 - off, h: layer * A3.CH };
   }
@@ -7467,6 +7790,7 @@ class BoardView3D extends BoardView {
       const v = pos.pts[i]; if (!v) continue;
       const p = v > 0 ? 0 : 1; let n = Math.abs(v);
       if (d && d.from === i && d.p === p) n -= 1;
+      if (pos.pn && pos.pn[i]) { const q = this.slotRaw(i, 0); this.blob(items, q.x, q.y, GEO.r * 1.4, 0.55, q.h); items.push(this.checkerItem(1 - p, q.x, q.y, q.h, {})); }
       for (let j = 0; j < n; j++) {
         const s = this.slot(i, j);
         const top = j === n - 1;
@@ -7565,6 +7889,15 @@ class BoardView3D extends BoardView {
     ctx.clearRect(0, 0, this.cssW, this.cssH);
     const pulse = 0.5 + 0.5 * Math.sin(now / 260), turn = this.turnPlayer === undefined ? 0 : this.turnPlayer;
     const topOf = (from) => { if (from === BG.BAR) { const n = this.pos.bar[turn]; return n ? this.barSlot(turn, n - 1) : null; } const n = BG.cnt(this.pos, turn, from); return n ? this.slot(from, n - 1) : null; };
+    if (this.pos && this.pos.pn) for (let i = 0; i < 24; i++) {                       // a padlock on every pinned checker
+      if (!this.pos.pn[i]) continue;
+      const q = this.slotRaw(i, 0), pt = this.proj3(q.x, q.y, q.h + CH + 1.5), k = Math.max(0.4, this.pxPerUnit(q.x, q.y));
+      ctx.save(); ctx.translate(pt[0], pt[1]); ctx.scale(k, k);
+      ctx.fillStyle = 'rgba(20,10,5,0.78)'; ctx.beginPath(); ctx.arc(0, 0, 12.500, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#ffd75a'; ctx.lineWidth = 1.800; ctx.beginPath(); ctx.arc(0, -2.500, 3.600, Math.PI, 0); ctx.stroke();
+      ctx.fillStyle = '#ffd75a'; ctx.fillRect(-5, -2.500, 10, 7.500);
+      ctx.restore();
+    }
     const shd = this.pos && this.pos.shield;
     if (shd) for (const p of [0, 1]) {
       if (!shd[p]) continue;
@@ -7587,7 +7920,7 @@ class BoardView3D extends BoardView {
       if (s) { ctx.save(); ctx.shadowColor = '#ffd75a'; ctx.shadowBlur = 18; ctx.strokeStyle = '#ffe58a'; ctx.lineWidth = 4; this.ringPath(ctx, s.x, s.y, GEO.r + 3, s.h + CH + 9.5); ctx.stroke(); ctx.restore(); }
     }
     for (const dd of this.dests) {
-      const col = dd.hit ? '255,110,90' : '120,255,170';
+      const col = dd.hit ? '255,110,90' : dd.pin ? '255,176,72' : '120,255,170';
       if (dd.to === BG.OFF) {
         const y = turn === 0 ? GEO.y1 - 332 : GEO.y0, tx = GEO.trayX + (GEO.trayW - A3.SLOT_W) / 2, tw = A3.SLOT_W;
         const pts = [[tx, y], [tx + tw, y], [tx + tw, y + 332], [tx, y + 332]].map(q => this.proj3(q[0], q[1], A3.TRAY_FLOOR + 0.5));
@@ -7601,7 +7934,7 @@ class BoardView3D extends BoardView {
       const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], g = ctx.createLinearGradient(mid[0], mid[1], c[0], c[1]);
       g.addColorStop(0, `rgba(${col},${0.5 + 0.2 * pulse})`); g.addColorStop(1, `rgba(${col},0.06)`);
       ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = `rgba(${col},0.9)`; ctx.lineWidth = 2; ctx.stroke();
-      const own = BG.cnt(this.pos, turn, i), s = this.slot(i, dd.hit ? 0 : own);
+      const own = dd.pin ? 1 : BG.cnt(this.pos, turn, i), s = this.slot(i, dd.hit ? 0 : own);
       ctx.strokeStyle = `rgba(${col},${0.6 + 0.3 * pulse})`; ctx.lineWidth = 3; ctx.setLineDash([7, 6]);
       this.ringPath(ctx, s.x, s.y, GEO.r - 4, s.h + CH + 0.5); ctx.stroke(); ctx.setLineDash([]);
     }
@@ -7816,7 +8149,7 @@ const SFX = (() => {
    and rolls never need to be sent for trust, only for animation.
    ============================================================ */
 const Net = (() => {
-  const BUILD = '20261105-1034';
+  const BUILD = '20261105-2032';
   const TOPIC = 'm', ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const HEARTBEAT = 2500, RESEND = 1400, LOST_AFTER = 14000;
   let ns = null, nsTried = false, S = null;
@@ -7915,7 +8248,7 @@ const Net = (() => {
       return;
     }
     if (t === 'setup') {                                  // guest: the host's settings and commitment
-      S.cfg = d.cfg; S.peerProfile = { name: d.name, av: d.av }; S.peerCommit = d.h; S.peerCommit2 = typeof d.h2 === 'string' ? d.h2 : null;
+      S.cfg = cfgGuard(d.cfg); S.peerProfile = { name: d.name, av: d.av }; S.peerCommit = d.h; S.peerCommit2 = typeof d.h2 === 'string' ? d.h2 : null;
       send('commit', { h: commitOf(), h2: commit2() });
       return;
     }
@@ -7932,6 +8265,14 @@ const Net = (() => {
     if (t === 'rematch') { S.vote.peer = true; if (S.cb.vote) S.cb.vote(); checkVotes(); return; }
     S.inbox.push(e);                                      // roll, move, double, reply, flag: for the game loop
     wake();
+  }
+  function cfgGuard(c) {                                  // the host's settings come from another device: keep only values this game understands
+    c = c && typeof c === 'object' ? c : {};
+    if (!(TB.own(BG.VARIANTS, c.variant) || TB.isChoice(c.variant))) c.variant = 'classic';
+    c.matchLen = int(c.matchLen, 1, 31, 3);
+    if (TB.isChoice(c.variant)) { c.cube = false; if (!TB.setsOf(c.variant).includes(c.matchLen)) c.matchLen = TB.GAMES[TB.gameFor(c.variant, 1)].set; }
+    else if (c.matchLen > 9) c.matchLen = 9;
+    return c;
   }
   function commitOf() {
     if (!S.seedA) { S.seedA = rand32(); S.seedB = rand32(); }
@@ -8215,7 +8556,7 @@ const Net = (() => {
     const playing = o.st === 'p', watch = !!o.sp;
     if (playing && !watch) return null;                    // a game in progress is only listed when the host lets people watch
     const sc = Array.isArray(o.sc) ? [int(o.sc[0], 0, 99, 0), int(o.sc[1], 0, 99, 0)] : [0, 0];
-    return { code: c, name: lobbyTxt(o.n, 14) || 'Player', av: lobbyTxt(o.av, 4) || '🎲', build: lobbyTxt(o.b, 24), len: Math.min(9, Math.max(1, (o.m | 0) || 1)), cube: !!o.cu, clock: lobbyTxt(o.ck || '', 8), variant: lobbyTxt(o.va, 16) || 'classic', t,
+    return { code: c, name: lobbyTxt(o.n, 14) || 'Player', av: lobbyTxt(o.av, 4) || '🎲', build: lobbyTxt(o.b, 24), len: Math.min(31, Math.max(1, (o.m | 0) || 1)), cube: !!o.cu, clock: lobbyTxt(o.ck || '', 8), variant: lobbyTxt(o.va, 16) || 'classic', t,
       playing, opp: playing ? (lobbyTxt(o.o, 14) || 'Player') : '', oppAv: playing ? (lobbyTxt(o.oa, 4) || '🎲') : '', score: sc, watchers: int(o.w, 0, 99, 0), finished: !!o.f };
   }
   /* ---------- live games ----------
@@ -8227,7 +8568,10 @@ const Net = (() => {
     if (!p || !Array.isArray(p.pts) || p.pts.length !== 24 || !Array.isArray(p.bar) || p.bar.length !== 2 || !Array.isArray(p.off) || p.off.length !== 2) return null;
     const pts = p.pts.map((x) => int(x, -15, 15, NaN)), bar = p.bar.map((x) => int(x, 0, 15, NaN)), off = p.off.map((x) => int(x, 0, 15, NaN));
     if ([...pts, ...bar, ...off].some(isNaN)) return null;
-    return { pts, bar, off, total: int(p.total, 1, 15, 15) };
+    const out = { pts, bar, off, total: int(p.total, 1, 15, 15) };
+    if (TB.own(TB.GAMES, p.rs)) out.rs = p.rs;                // Tavli and Tawle: which game, and which checkers are pinned
+    if (out.rs && Array.isArray(p.pn) && p.pn.length === 24) out.pn = p.pn.map((x) => (x ? 1 : 0));
+    return out;
   }
   const diceClean = (a, n) => Array.isArray(a) && a.length >= 1 && a.length <= n && a.every((d) => d >= 1 && d <= 6 && d === (d | 0)) ? a.slice() : null;
   function snapClean(o, variants) {
@@ -8237,13 +8581,13 @@ const Net = (() => {
     const names = pair(h.n, (x) => lobbyTxt(x, 14)) || ['Host', 'Guest'], avs = pair(h.a, (x) => lobbyTxt(x, 4)) || ['🎲', '🎲'], cos = {};
     if (h.cos && typeof h.cos === 'object') for (const k of Object.keys(h.cos).slice(0, 20)) { const v = h.cos[k]; if (/^[a-z][A-Za-z0-9]{0,15}$/.test(k) && typeof v === 'string' && /^[A-Za-z0-9_\-]{1,32}$/.test(v)) cos[k] = v; }
     const va = lobbyTxt(h.va, 16), cv = o.cube || {}, cubeV = int(cv.value, 1, 64, 1);
-    const ev = { k: e.k, p: int(e.p, 0, 1, 0), v: int(e.v, 1, 64, 1), take: !!e.take, w: int(e.w, 0, 1, 0), base: int(e.base, 1, 3, 1), pts: int(e.pts, 1, 999, 1), dice: diceClean(e.dice, 2), mv: [] };
-    if (Array.isArray(e.mv)) for (const m of e.mv.slice(0, 4)) { if (!m || typeof m !== 'object') return null; const f = int(m.from, 0, 25, -1), t = int(m.to, 0, 26, -1), d = int(m.die, 1, 6, 0); if (f < 0 || t < 0 || !d) return null; ev.mv.push({ from: f, to: t, die: d, hit: !!m.hit }); }
+    const ev = { k: e.k, p: int(e.p, 0, 1, 0), v: int(e.v, 1, 64, 1), take: !!e.take, w: int(e.w, 0, 2, 0), base: int(e.base, 0, 15, 1), pts: int(e.pts, 0, 999, 1), dice: diceClean(e.dice, 2), mv: [] };
+    if (Array.isArray(e.mv)) for (const m of e.mv.slice(0, 16)) { if (!m || typeof m !== 'object') return null; const f = int(m.from, 0, 25, -1), t = int(m.to, 0, 26, -1), d = int(m.die, 1, 6, 0); if (f < 0 || t < 0 || !d) return null; ev.mv.push({ from: f, to: t, die: d, hit: !!m.hit, pin: !!m.pin }); }
     return {
       q, t: +o.t || 0, ev, pos, gn: int(o.gn, 1, 99, 1), turn: int(o.turn, 0, 1, 0), ph: SNAP_PHASES.includes(o.ph) ? o.ph : 'preroll', rem: diceClean(o.rem, 4) || [], dice: diceClean(o.dice, 2),
       cube: { value: [1, 2, 4, 8, 16, 32, 64].includes(cubeV) ? cubeV : 1, owner: int(cv.owner, -1, 1, -1) },
       sc: pair(o.sc, (x) => int(x, 0, 99, 0)) || [0, 0],
-      h: { n: [names[0] || 'Host', names[1] || 'Guest'], a: [avs[0] || '🎲', avs[1] || '🎲'], len: int(h.len, 1, 9, 3), cu: !!h.cu, va: variants && variants.includes(va) ? va : 'classic', cos },
+      h: { n: [names[0] || 'Host', names[1] || 'Guest'], a: [avs[0] || '🎲', avs[1] || '🎲'], len: int(h.len, 1, 31, 3), cu: !!h.cu, va: variants && variants.includes(va) ? va : 'classic', cos },
     };
   }
   // a small MQTT session: optional last will, optional subscription. Resolves once it is ready to use.
@@ -8378,7 +8722,7 @@ const Net = (() => {
   // cb.snap(s) gets each checked snapshot once, in order; cb.ended(why) when the host leaves; cb.status({up, failed, total}) says how many relays answered.
   function watch(code, cb) {
     code = cleanCode(code);
-    const rels = relayList().filter(r => r.kind === 'mqtt'), conns = [], timers = [], me = rid(), liveT = LIVE + '/' + code, lobT = LOBBY + '/' + code, variants = Object.keys(BG.VARIANTS);
+    const rels = relayList().filter(r => r.kind === 'mqtt'), conns = [], timers = [], me = rid(), liveT = LIVE + '/' + code, lobT = LOBBY + '/' + code, variants = Object.keys(BG.VARIANTS).concat(Object.keys(TB.GAMES), Object.keys(TB.CYCLES));
     let stopped = false, lastQ = 0, up = 0, failed = 0, gotAny = false, goneT = null;
     const h = {
       cb: cb || {}, started: Date.now(),
@@ -8626,7 +8970,7 @@ const Net = (() => {
   function voteRematch() { if (!S) return; S.vote.me = true; send('rematch', {}); checkVotes(); }
 
   return {
-    available, host, join, leave, close, send, next, poke, voteRematch, cleanCode, p2pSupported, hostP2P, joinP2P, hostBroker, joinBroker, lobbyBrowse, watch, live, check, build: BUILD, MIN_CODE, newCode,
+    available, host, join, leave, close, send, next, poke, voteRematch, cleanCode, p2pSupported, hostP2P, joinP2P, hostBroker, joinBroker, lobbyBrowse, watch, live, check, cfgGuard, build: BUILD, MIN_CODE, newCode,
     die: () => { if (S && S.rng) { if (S.fair) S.fair.drawn++; return 1 + Math.floor(S.rng() * 6); } return 1 + Math.floor(Math.random() * 6); },
     noteChecked: (n) => { if (S && S.fair) S.fair.checked += n; },
     get fair() { return S && S.fair ? S.fair : null; },
@@ -8673,13 +9017,21 @@ const Store = (() => {
     p.refunds = Object.assign({}, src.refunds || {});
     for (const cat in REMOVED) for (const id in REMOVED[cat]) if (src.owned && Array.isArray(src.owned[cat]) && src.owned[cat].includes(id) && !p.refunds[id]) { p.coins += REMOVED[cat][id]; p.refunds[id] = true; }
     p.campaign = (src.campaign && typeof src.campaign === 'object') ? src.campaign : {};
-    Object.assign(p.stats, src.stats || {}); Object.assign(p.settings, src.settings || {}); Object.assign(p.quick, src.quick || {}); Object.assign(p.cheats, src.cheats || {});
+    Object.assign(p.stats, src.stats || {}); Object.assign(p.settings, src.settings || {}); Object.assign(p.quick, src.quick || {}); if (!(TB.own(BG.VARIANTS, p.quick.variant) || TB.isChoice(p.quick.variant))) p.quick.variant = 'classic'; Object.assign(p.cheats, src.cheats || {});
     p.career = DATA.mergeCareer(src.career);
     // training: solved puzzles, saved mistakes; tournament: the run in progress and past wins
     const tr = src.train && typeof src.train === 'object' ? src.train : {};
     for (const k of ['tried', 'right', 'streak', 'bestStreak']) p.train[k] = Math.max(0, +tr[k] || 0);
     if (tr.solved && typeof tr.solved === 'object') for (const id of Object.keys(tr.solved).slice(0, 400)) { const e = tr.solved[id]; if (e && typeof e === 'object') p.train.solved[String(id).slice(0, 24)] = { t: +e.t || 0, n: Math.max(1, +e.n || 1) }; }
     if (Array.isArray(tr.lessons)) p.train.lessons = tr.lessons.filter(l => l && Coach.unser(l.s) && Array.isArray(l.d) && l.d.length === 2).slice(-40);
+    // Tavli and Tawle: the last choices made on each screen, and the record against the computer
+    const tb = src.tables && typeof src.tables === 'object' ? src.tables : {};
+    for (const f of ['tavli', 'tawle']) {
+      const l = tb.last && tb.last[f];
+      if (!l || typeof l !== 'object' || !TB.isChoice(l.game) || TB.famOf(l.game) !== f) continue;
+      p.tables.last[f] = { game: l.game, opp: ['ai', 'two', 'online'].includes(l.opp) ? l.opp : 'ai', level: Math.min(5, Math.max(1, +l.level || 3)), set: TB.setsOf(l.game).includes(+l.set) ? +l.set : TB.GAMES[TB.CYCLES[l.game] ? TB.CYCLES[l.game][0] : l.game].set, clock: DATA.clockOf(l.clock) ? l.clock : 'off' };
+    }
+    if (tb.rec && typeof tb.rec === 'object') for (const id of Object.keys(tb.rec).slice(0, 20)) { const e = tb.rec[id]; if (TB.isChoice(id) && e && typeof e === 'object') p.tables.rec[id] = { w: Math.max(0, +e.w || 0), l: Math.max(0, +e.l || 0) }; }
     const tu = src.tour && typeof src.tour === 'object' ? src.tour : {};
     p.tour.run = (tu.run && typeof tu.run === 'object' && Array.isArray(tu.run.rounds)) ? tu.run : null;
     p.tour.played = Math.max(0, +tu.played || 0); p.tour.titles = Math.max(0, +tu.titles || 0);
@@ -9096,7 +9448,7 @@ const Stats = (() => {
       if (T.onRate) { try { T.onRate(j, loss); } catch (e) { } }
       if (loss < 0.5) s.perfect++; else if (loss >= THRESH.blun) s.blun++; else if (loss >= THRESH.mist) s.mist++; else if (loss >= THRESH.inacc) s.inacc++;
       const c = T.cfg;
-      if (j.p === 0 && loss >= LESSON_MIN && j.n > 2 && c.mode !== '2p' && c.mode !== 'online' && c.mode !== 'puzzle' && !c.wild && !j.start.walls && !j.start.pins) {
+      if (j.p === 0 && loss >= LESSON_MIN && j.n > 2 && c.mode !== '2p' && c.mode !== 'online' && c.mode !== 'puzzle' && !c.wild && !j.start.walls && !j.start.pins && !j.start.rs) {
         (j.g.lessons || (j.g.lessons = [])).push({ start: j.start, end: j.end, dice: j.dice.length === 4 ? [j.dice[0], j.dice[0]] : j.dice.slice(), loss, n: j.n });
       }
     };
@@ -10339,6 +10691,84 @@ const PUZZLES = [
 ];
 
 /* ============================================================
+   Tavli and Tawle: starting-position choices in the setup screens and the online dialog. This file holds their rules sheets, lengths and record
+   The rules themselves live in tables.js; the games are played by the ordinary game controller (game.js).
+   ============================================================ */
+const Tables = (() => {
+  const INFO = {
+    tavli: { name: 'Tavli', sub: 'Greek tables', ico: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16M5.500 4l1.500 6 1.500-6M15.500 4l1.500 6 1.500-6M5.500 20l1.500-6 1.500 6M15.500 20l1.500-6 1.500 6"/></svg>', blurb: 'Three games on one board: Portes, Plakoto and Fevga. Played one after another, the way Greeks play them.' },
+    tawle: { name: 'Tawle', sub: 'Middle Eastern tables', ico: '<svg viewBox="0 0 24 24"><path d="M12 3l4 5-4 5-4-5 4-5ZM12 11l4 5-4 5-4-5 4-5Z"/></svg>', blurb: 'The tawla games of Egypt and the Levant: the everyday ‘Aada, the pin game Mahbousa, and the no-hit races 31 and Gulbehar.' },
+  };
+
+  /* ----- plain-English rules ----- */
+  const MARS = 'A win is worth 1 point. If the loser has not borne off a single checker, it is a <b>mars</b> and scores 2. There is no cube and no backgammon bonus.';
+  const FEVGA = [
+    'Both sides start with all 15 checkers in opposite corners and run the <b>same way round</b> the board. Your home is the bottom-right quarter if you are the light checkers.',
+    'There is <b>no hitting</b>. One checker alone holds a point: the other side cannot land on it.',
+    'Your <b>first checker</b> must run past the other side’s starting point before you may move any other checker.',
+    'You may not make <b>six points in a row</b> unless one of the other side’s checkers has already got past them.',
+    'Bear off once all 15 checkers are home, as in backgammon.',
+  ];
+  const PINS = [
+    'All 15 checkers start on one point, at the far end of the board, and the two sides run in opposite directions as in backgammon.',
+    'Nothing is ever hit. Land on a point with <b>one</b> enemy checker and you <b>pin</b> it: it cannot move until your checker leaves. Only your side can add checkers to a pinned point.',
+    'Two or more checkers on a point still block it, as usual.',
+  ];
+  const RULES = {
+    tavli: { lead: 'The traditional Greek match: <b>Portes</b>, <b>Plakoto</b> and <b>Fevga</b> in turn, one game each, round and round, until someone reaches the target score.', pts: ['Each game keeps its own rules, shown under its own name. Scores add up across all three.', MARS] },
+    portes: { lead: 'Backgammon without the doubling cube.', pts: ['The same board, start and moves as backgammon: a lone checker can be hit and sent to the bar.', MARS, 'Gammon and backgammon bonuses from the normal game are replaced by the mars above.'] },
+    plakoto: { lead: 'Pin your opponent’s checkers instead of hitting them.', pts: PINS.concat(['<b>The mother checker.</b> Your last checker on your own starting point is your mother. If it gets pinned while the other side no longer has any checker on <i>its</i> starting point, you lose at once and they score 2. If both mothers are pinned, the game is a draw.', 'If neither side can move any more, the game is a draw.', 'Bear off once all 15 checkers are home. ' + MARS]) },
+    fevga: { lead: 'A blocking race with no hitting.', pts: FEVGA.concat([MARS]) },
+    aada: { lead: 'The regular game, as played in every café: backgammon without the cube.', pts: ['Hit lone checkers, enter from the bar, bear off when all your checkers are home.', 'The first to bear off all 15 wins. ' + MARS, 'A set is played to a target score, usually 3.'] },
+    mahbousa: { lead: 'The “trapped” game. Like Plakoto, pins instead of hits.', pts: PINS.concat(['There is <b>no mother checker rule</b>: a pinned last checker is simply stuck until the pinner moves away.', 'If neither side can move any more, the game is a draw.', 'Bear off once all 15 checkers are home. ' + MARS]) },
+    t31: { lead: 'The no-hit race, scored by checkers left behind.', pts: FEVGA.slice(0, 4).concat(['When someone bears off their last checker they score <b>one point for every checker their opponent still has on the board</b>. A shutout is worth 15.', 'The set is played to 31 points (you can pick a shorter one of 11 or 21).']) },
+    gulbehar: { lead: 'The no-hit race where doubles run wild.', pts: FEVGA.slice(0, 4).concat(['<b>Doubles chain.</b> Roll a double and you play it four times, then play four of each higher number up to 6-6. A 3-3 gives you four 3s, four 4s, four 5s and four 6s. If any number cannot be played in full, your turn stops there. On the first three rolls of the game, a double is played normally.', 'Bear off once all 15 checkers are home. ' + MARS]) },
+  };
+
+  const tp = () => (P().tables || (P().tables = { last: {}, rec: {} }));
+  const st = (fam) => {
+    const t = tp(); t.last = t.last || {};
+    const d = fam === 'tavli' ? { game: 'tavli', opp: 'ai', level: 3, set: 5, clock: 'off' } : { game: 'aada', opp: 'ai', level: 3, set: 3, clock: 'off' };
+    const l = t.last[fam] = Object.assign(d, t.last[fam] || {});
+    if (!TB.isChoice(l.game) || TB.famOf(l.game) !== fam) l.game = d.game;
+    if (!TB.setsOf(l.game).includes(l.set)) l.set = TB.GAMES[TB.CYCLES[l.game] ? TB.CYCLES[l.game][0] : l.game].set;
+    return l;
+  };
+  const setLabel = (game, n) => (TB.gOf(TB.gameFor(game, 1)).score === 'left' ? n + ' points' : n === 1 ? 'Single game' : 'First to ' + n);
+  const setSub = (game, n) => (TB.gOf(TB.gameFor(game, 1)).score === 'left' ? (n === 31 ? 'The full set' : n === 21 ? 'Medium' : 'Short') : n === 1 ? 'One game' : n <= 3 ? 'Short' : n <= 5 ? 'Standard' : 'Long');
+
+  function rulesSheet(id) {
+    const r = RULES[id], title = TB.nameOf(id);
+    modal({ wide: true, html: `<h2>${esc(title)}</h2><p class="lead">${r.lead}</p><ul class="tb-rules">${r.pts.map(x => `<li>${x}</li>`).join('')}</ul><div class="btns"><button class="btn primary" data-act="x">Got it</button></div>`, actions: { x: () => { } } });
+  }
+
+  const lastGame = (fam) => st(fam).game;                                       // the game last chosen inside a family
+  const remember = (id) => { const f = TB.famOf(id); if (f) st(f).game = id; };
+  const lenItems = (variant) => TB.setsOf(variant).map(n => [n, setLabel(variant, n), setSub(variant, n)]);
+  // the length that applies to a starting position: the game's own sets for Tavli and Tawle, 1/3/5/7 otherwise
+  const effLen = (variant, n) => (TB.isChoice(variant) ? (TB.setsOf(variant).includes(n) ? n : TB.gOf(TB.gameFor(variant, 1)).set) : ([1, 3, 5, 7].includes(n) ? n : 3));
+  const gameTag = (id) => (TB.own(TB.CYCLES, id) ? 'Portes, Plakoto and Fevga in turn, one game each' : TB.gOf(id).tag);
+  const LIST = { tavli: 'Portes, Plakoto, Fevga', tawle: '‘Aada, Mahbousa, 31, Gulbehar' };
+  const lead = (id) => RULES[id].lead + (/cube/i.test(RULES[id].lead) ? '' : ' No doubling cube.');
+  // the note shown under the starting-position choices once a Tavli or Tawle game is picked
+  function panel(id) {
+    const rec = (tp().rec || {})[id];
+    return `<div class="reward-note tb-note"><span>${lead(id)}</span><span class="tb-meta"><button class="btn small" data-rules="${id}">How to play</button>${rec && (rec.w || rec.l) ? `<small>Your record against the computer: ${rec.w} won, ${rec.l} lost</small>` : ''}</span></div>`;
+  }
+
+  // a finished match against the computer adds to the record shown on the game cards
+  function record(c, res) {
+    if (c.mode !== 'ai') return;
+    const t = tp(); t.rec = t.rec || {};
+    const e = t.rec[c.variant] || (t.rec[c.variant] = { w: 0, l: 0 });
+    res.won ? e.w++ : e.l++;
+    Store.save();
+  }
+
+  return { record, rulesSheet, RULES, INFO, LIST, lastGame, remember, lenItems, effLen, gameTag, panel, lead };
+})();
+
+/* ============================================================
    Game controller: matches, turns, input, cube, results, rewards
    ============================================================ */
 const Game = (() => {
@@ -10351,6 +10781,10 @@ const Game = (() => {
   const watching = () => !!(G.cfg && G.cfg.mode === 'watch');
   const drilling = () => !!(G.cfg && G.cfg.mode === 'puzzle');
   const clonePos = (p) => Object.assign(BG.clone(p), { total: p.total || 15 });
+  const tables = () => !!(G.cfg && TB.isChoice(G.cfg.variant));        // a Tavli or Tawle match: no cube, the rule set can change from game to game
+  const firstTo = (c) => (TB.isChoice(c.variant) && TB.gOf(TB.gameFor(c.variant, 1)).score === 'left' ? 'Play to ' + c.matchLen : 'First to ' + c.matchLen);     // 31 is played to a points total
+  const rsNow = () => (tables() ? TB.gameFor(G.cfg.variant, G.gameNo) : '');
+  const variantLabel = (c) => (TB.isChoice(c.variant) ? TB.nameOf(TB.gameFor(c.variant, Math.max(1, G.gameNo))) : BG.VARIANTS[c.variant].name);
   const W = { q: [], busy: false, last: null, h: null, done: false };      // spectating: queued snapshots, the last one applied, the feed handle
   const liveOn = () => online() && Net.role === 'host' && !!G.cfg.watch;
   const dieRoll = () => online() ? Net.die() : BG.rollDie();
@@ -10456,9 +10890,9 @@ const Game = (() => {
     G.cfg = cfg; G.score = [0, 0]; G.gameNo = 0; G.crawfordUsed = false; G.crawford = false;
     G.stats = { hits: 0, hurt: 0, turns: 0, gammons: 0, backgammons: 0, cubeWin: 0, oppLeft: 0, games: 0, pointsWon: 0 };
     G.levelAtStart = DATA.levelInfo(P().xp).level; G.gameXP = 0; G.gameCoins = 0; G.gamesWon = 0; G.gamesLost = 0; G.cheated = false; G.cheat = { roll: null, doubles: false, aiPass: false };
-    G.waiter = null; G.busy = false; G.history = []; G.ptr = null; G.active = true; G.phase = 'idle'; G.track = Stats.newMatch(cfg); G.turnStart = null; Banter.begin(); G.track.onRate = onRated; G.clk = null; G.flagged = -1; clearInterval(G.clkTimer); G.clkTimer = cfg.clock && !cfg.wild && !cfg.drill ? setInterval(clkTick, 200) : 0;
+    G.waiter = null; G.busy = false; G.history = []; G.ptr = null; G.active = true; G.phase = 'idle'; G.rollNo = 0; G.legs = null; G.legI = 0; G.track = Stats.newMatch(cfg); G.turnStart = null; Banter.begin(); G.track.onRate = onRated; G.clk = null; G.flagged = -1; clearInterval(G.clkTimer); G.clkTimer = cfg.clock && !cfg.wild && !cfg.drill ? setInterval(clkTick, 200) : 0;
     G.perkIds = [[], []]; G.energy = [0, 0]; G.freeze = [false, false]; G.hex = [false, false]; G.peek = [null, null]; G.perkTurn = false; G.target = null;
-    G.pos = cfg.drill ? clonePos(cfg.drill.pos) : BG.startPos(cfg.variant); G.turn = 0; G.cube = { value: 1, owner: -1 }; G.rem = [];
+    G.pos = cfg.drill ? clonePos(cfg.drill.pos) : BG.startPos(TB.gameFor(cfg.variant, 1)); G.turn = 0; G.cube = { value: 1, owner: -1 }; G.rem = [];
     show('game'); $('#screen-game').classList.remove('watching');
     $('#g-emote').hidden = cfg.mode !== 'online';
     if (cfg.mode === 'online') wireOnline();
@@ -10477,7 +10911,7 @@ const Game = (() => {
     const c = G.cfg;
     if (!c || !G.active || G.phase === 'over' || j.p !== 0 || (c.mode !== 'ai' && c.mode !== 'campaign')) return;
     if (loss >= Stats.THRESH.blun) Banter.react(c, 'blunder');
-    if (P().settings.liveCoach && loss >= 8 && j.n > 2 && !c.wild && !j.start.walls && !j.start.pins) {
+    if (P().settings.liveCoach && loss >= 8 && j.n > 2 && !c.wild && !j.start.walls && !j.start.pins && !j.start.rs) {
       const an = Coach.analyse(j.start, 0, j.dice.length === 4 ? [j.dice[0], j.dice[0]] : j.dice.slice());
       const mine = an && Coach.findByKey(an, BG.key(j.end));
       if (!an || !mine || mine.key === an.best.key) return;
@@ -10580,8 +11014,8 @@ const Game = (() => {
     const c = G.cfg;
     if (c.mode === 'puzzle') $('#hud-score').innerHTML = '<span class="sc"><small>Puzzle</small>' + esc(c.drill.label || '·') + '</span>';
     else $('#hud-score').innerHTML = '<span class="sc"><small>' + esc(c.names[0]) + '</small>' + G.score[0] + '</span><span class="sep">:</span><span class="sc"><small>' + esc(c.names[1]) + '</small>' + G.score[1] + '</span>';
-    let info = c.matchLen === 1 ? 'Single game' : 'First to ' + c.matchLen + ' · Game ' + G.gameNo;
-    info += ' · ' + BG.VARIANTS[c.variant].name;
+    let info = c.matchLen === 1 ? 'Single game' : firstTo(c) + ' · Game ' + G.gameNo;
+    info += ' · ' + variantLabel(c);
     if (c.wild) info += ' · Wild';
     if (c.mode === 'puzzle') { $('#hud-info').textContent = c.drill.info; updateFair(); return; }
     if (c.mode === 'watch') info = 'Watching · ' + info;                                                                    // first, so it is not cut off on a narrow screen
@@ -10679,7 +11113,7 @@ const Game = (() => {
     G.gameNo++;
     G.crawford = false;
     if (c.cube && m > 1 && !G.crawfordUsed && (G.score[0] === m - 1 || G.score[1] === m - 1)) { G.crawford = true; G.crawfordUsed = true; }
-    G.confirming = false; G.pos = BG.startPos(c.variant, online() ? Net.rand : undefined); G.turn = 0; G.cube = { value: 1, owner: -1 }; G.rem = []; G.history = [];
+    G.confirming = false; G.rollNo = 0; G.legs = null; G.legI = 0; G.pos = BG.startPos(TB.gameFor(c.variant, G.gameNo), online() ? Net.rand : undefined); G.turn = 0; G.cube = { value: 1, owner: -1 }; G.rem = []; G.history = [];
     G.track.newGame(); G.shieldNow = undefined; clkReset();
     G.energy = [Wild.ENERGY.start, Wild.ENERGY.start]; G.freeze = [false, false]; G.hex = [false, false]; G.peek = [null, null]; G.perkTurn = false; G.target = null; renderPerks();
     resetBoardView(); view.setPos(G.pos);
@@ -10705,15 +11139,17 @@ const Game = (() => {
     } while (a === b);
     G.busy = false; G.phase = 'settling';
     G.turn = a > b ? 0 : 1; view.turnPlayer = G.turn; updateHUD(); updateActions();
-    G.rem = [a, b];
-    liveSnap({ k: 'open' }, { dice: [a, b], ph: 'moving' });
+    const tb = tables();                              // in Tavli and Tawle the higher die only decides who starts: that player then rolls afresh
+    G.rem = tb ? [] : [a, b];
+    liveSnap({ k: 'open' }, { dice: [a, b], rem: G.rem.slice(), ph: tb ? 'preroll' : 'moving' });
     view.setDiceRemaining(G.rem);
     banner(G.cfg.names[G.turn] + ' ' + (isHuman(G.turn) && G.cfg.mode !== '2p' ? 'start' : 'starts'));
-    say(esc(G.cfg.names[G.turn]) + ' ' + (G.cfg.mode !== '2p' && G.turn === 0 ? 'open' : 'opens') + ' with ' + a + ' and ' + b + '.');
+    if (tb) say(esc(G.cfg.names[G.turn]) + ' ' + (G.cfg.mode !== '2p' && G.turn === 0 ? 'win' : 'wins') + ' the opening roll and ' + (G.cfg.mode !== '2p' && G.turn === 0 ? 'roll' : 'rolls') + ' again to begin.');
+    else say(esc(G.cfg.names[G.turn]) + ' ' + (G.cfg.mode !== '2p' && G.turn === 0 ? 'open' : 'opens') + ' with ' + a + ' and ' + b + '.');
     await view.wait(900);
     if (!alive(id)) return;
 
-    let skipRoll = true;
+    let skipRoll = !tb;
     while (alive(id)) {
       if (G.flagged >= 0) return finishGame(id, 1 - G.flagged, 'time');
       clkTurn(G.turn);
@@ -10777,13 +11213,15 @@ const Game = (() => {
           else if (G.remoteDice && (G.remoteDice[0] !== d1 || G.remoteDice[1] !== d2)) { desync(); return oppGone(id); }
           else if (G.remoteDice) Net.noteChecked(2);
         }
-        liveSnap({ k: 'roll' }, { dice: [d1, d2], rem: BG.diceToList(d1, d2), ph: 'moving' });
+        G.rollNo++;
+        G.legs = tb ? TB.legs(G.pos.rs, d1, d2, G.rollNo) : [BG.diceToList(d1, d2)]; G.legI = 0;       // Gulbehar: a double is followed by every higher double
+        liveSnap({ k: 'roll' }, { dice: [d1, d2], rem: G.legs[0].slice(), ph: 'moving' });
         await view.throwDice([{ value: d1, side: G.turn }, { value: d2, side: G.turn }]);
         if (!alive(id)) return;
         G.busy = false;
         G.track.roll(G.turn, d1, d2);
         if (d1 === d2) Banter.react(G.cfg, G.turn === 0 ? 'yourDoubles' : 'theirDoubles');
-        G.rem = BG.diceToList(d1, d2);
+        G.rem = G.legs[0].slice();
         if (G.freeze[G.turn]) { G.freeze[G.turn] = false; G.rem = freezeRoll(G.rem); banner('Frozen: lower die lost'); renderPerks(); }
         view.setDiceRemaining(G.rem);
       }
@@ -10804,11 +11242,23 @@ const Game = (() => {
       }
       if (!alive(id)) return;
       if (G.flagged >= 0) return finishGame(id, 1 - G.flagged, 'time');
-      liveSnap({ k: 'moves', p: G.turn, mv: G.history.map(h => h.mv).filter(Boolean) }, { turn: 1 - G.turn, rem: [], ph: 'preroll' });
+      const chainOn = !!(tb && G.legs && G.legI + 1 < G.legs.length && G.rem.length === 0 && BG.winnerOf(G.pos) < 0);   // Gulbehar: the same player throws the next double
+      liveSnap({ k: 'moves', p: G.turn, mv: G.history.map(h => h.mv).filter(Boolean) }, { turn: chainOn ? G.turn : 1 - G.turn, rem: [], ph: 'preroll' });
       if (G.cfg.mode !== '2p' && G.turn === 0) G.stats.turns++;
       if (G.turnStart) { G.track.turn(G.turnStart.p, G.turnStart.pos, G.turnStart.dice, G.pos); G.turnStart = null; }
       const w = BG.winnerOf(G.pos);
       if (w >= 0) return finishGame(id, w, 'normal');
+      if (chainOn) {          // that number was played in full: on to the next double in the chain
+        G.legI++; G.rem = G.legs[G.legI].slice();
+        const nv = G.rem[0];
+        banner('Next: ' + nv + '-' + nv);
+        liveSnap({ k: 'roll' }, { dice: [nv, nv], rem: G.rem.slice(), ph: 'moving' });
+        G.phase = 'rolling'; G.busy = true; updateActions();
+        await view.throwDice([{ value: nv, side: G.turn }, { value: nv, side: G.turn }]);
+        if (!alive(id)) return;
+        G.busy = false; view.setDiceRemaining(G.rem);
+        skipRoll = true; continue;
+      }
       if (G.pos.walls || G.pos.pins) { G.pos = BG.tickTurn(G.pos, G.turn); view.setPos(G.pos); }
       G.turn = 1 - G.turn; clkTurn(G.turn);                // the new player starts with a fresh delay, so the short pause below costs nothing
       if (G.pos.shield && G.pos.shield[G.turn]) { setShield(G.turn, false); }
@@ -10919,7 +11369,7 @@ const Game = (() => {
   // the other player's moves arrive as messages, in their own point numbering (they are 'player 0' on their screen): mirror them
   async function remotePlay(id) {
     say(esc(G.cfg.names[G.turn]) + ' is playing…');
-    const flip = (i) => (i >= 24 ? i : 23 - i);
+    const flip = (i) => (G.pos.rs ? TB.flip(G.pos.rs, i) : (i >= 24 ? i : 23 - i));
     while (alive(id) && G.rem.length && BG.legalNext(G.pos, G.turn, G.rem).length) {
       const msg = await Net.next(['move', 'flag']);
       if (!alive(id)) return;
@@ -11062,7 +11512,7 @@ const Game = (() => {
       say('Rolling to see who starts…');
       await view.throwDice([{ value: s.dice[0], side: 0 }, { value: s.dice[1], side: 1 }]); if (!alive(id)) return;
       G.turn = s.turn; G.rem = s.rem.slice(); view.turnPlayer = G.turn; updateHUD(); view.setDiceRemaining(G.rem);
-      banner(nm[G.turn] + ' starts'); say(esc(nm[G.turn]) + ' opens with ' + s.dice[0] + ' and ' + s.dice[1] + '.');
+      banner(nm[G.turn] + ' starts'); say(esc(nm[G.turn]) + (s.rem.length ? ' opens with ' + s.dice[0] + ' and ' + s.dice[1] + '.' : ' wins the opening roll and rolls again.'));
       return;
     }
     if (k === 'roll') {
@@ -11106,7 +11556,8 @@ const Game = (() => {
     if (k === 'end') {
       G.score = s.sc.slice(); G.phase = 'over'; updateHUD();
       const w = s.ev.w;
-      banner(s.ev.base === 3 ? 'Backgammon!' : s.ev.base === 2 ? 'Gammon!' : nm[w] + ' wins');
+      if (w > 1) { banner('Draw'); say('That game was a draw.'); await view.wait(1200); return; }
+      banner(TB.isChoice(G.cfg.variant) ? nm[w] + ' wins' : s.ev.base === 3 ? 'Backgammon!' : s.ev.base === 2 ? 'Gammon!' : nm[w] + ' wins');
       say(esc(nm[w]) + ' wins the game for ' + s.ev.pts + ' point' + (s.ev.pts > 1 ? 's' : '') + '.');
       await view.wait(1200);
       return;
@@ -11137,7 +11588,7 @@ const Game = (() => {
     const id = G.runId;
     G.busy = true;
     // online moves are kept here (so they can be undone) and sent together when the player presses End turn
-    G.history.push({ pos: G.pos, rem: G.rem.slice(), stats: Object.assign({}, G.stats), mv: { from: m.from, to: m.to, die: m.die, hit: !!m.hit } });
+    G.history.push({ pos: G.pos, rem: G.rem.slice(), stats: Object.assign({}, G.stats), mv: { from: m.from, to: m.to, die: m.die, hit: !!m.hit, pin: !!m.pin } });
     G.pos = BG.applyMove(G.pos, G.turn, m);
     G.rem.splice(G.rem.indexOf(m.die), 1);
     if (m.hit && G.cfg.mode !== '2p') { if (G.turn === 0) G.stats.hits++; else G.stats.hurt++; }
@@ -11182,7 +11633,7 @@ const Game = (() => {
         const path2 = path.concat([m]);
         const hitMid = path2.slice(0, -1).some(x => x.hit);
         const ex = out.get(m.to);
-        if (!ex || path2.length < ex.path.length || (path2.length === ex.path.length && ex.hitMid && !hitMid)) out.set(m.to, { to: m.to, hit: path2.some(x => x.hit), path: path2, hitMid });
+        if (!ex || path2.length < ex.path.length || (path2.length === ex.path.length && ex.hitMid && !hitMid)) out.set(m.to, { to: m.to, hit: path2.some(x => x.hit), pin: path2.some(x => x.pin), path: path2, hitMid });
         if (m.to !== BG.OFF && r2.length) rec(np, r2, m.to, path2);
       }
     };
@@ -11193,7 +11644,7 @@ const Game = (() => {
     view.sel = from;
     if (from === null) { G.dests = []; view.dests = []; return; }
     G.dests = computeDests(from);
-    view.dests = G.dests.map(d => ({ to: d.to, hit: d.hit }));
+    view.dests = G.dests.map(d => ({ to: d.to, hit: d.hit, pin: d.pin }));
     if (!silent) SFX.select();
   }
   function destAt(h) {
@@ -11244,7 +11695,7 @@ const Game = (() => {
   function hint() {
     if (G.busy || G.phase !== 'moving' || !isHuman(G.turn)) return;
     if (drilling()) { say('<b>Hint:</b> ' + esc(G.cfg.drill.hint || 'Check for a hit, a point to make, and the shots you leave.')); SFX.select(); return; }
-    const h = G.cfg.wild ? null : Coach.hint(G.pos, G.turn, G.rem.slice());
+    const h = G.cfg.wild || (G.pos.rs && TB.alt(G.pos.rs)) ? null : Coach.hint(G.pos, G.turn, G.rem.slice());
     const r = h ? { moves: h.best.moves } : AI.chooseTurn(G.pos, G.turn, G.rem.slice(), { level: 5, exact: true });
     if (r.moves.length) { view.hint = r.moves[0]; SFX.select(); if (h) say('<b>Hint:</b> ' + h.text); }
   }
@@ -11556,18 +12007,47 @@ const Game = (() => {
   }
 
   /* ---------- game end ---------- */
+  // Plakoto/Mahbousa: both sides are stuck for good (or both mother checkers are pinned). Nobody scores, and play goes on to the next game.
+  async function drawGame(id) {
+    const c = G.cfg;
+    G.track.endGame({ winner: -1, base: 1, pts: 0, cv: 1, how: 'draw' });
+    updateHUD(); updateActions();
+    liveSnap({ k: 'end', w: 2, base: 0, pts: 0 }, { ph: 'over' });
+    banner('Draw'); say('Nobody can move, so this game is a draw.');
+    await view.wait(1500);
+    if (!alive(id)) return;
+    let gx = 0, gc = 0;
+    if (!G.cheated) {
+      const gr = DATA.gameReward({ mode: c.mode, level: c.level, variant: c.variant, won: false });
+      gx = gr.xp; gc = gr.coins;
+      P().xp += gx; P().coins += gc; P().stats.coinsEarned += gc; G.gameXP += gx; G.gameCoins += gc; Store.save(); refreshCoins();
+    }
+    await new Promise((res) => modal({
+      dismiss: false,
+      html: `<h2>A draw</h2><p class="lead">Neither side can move any more, so nobody scores. Score: ${esc(c.names[0])} ${G.score[0]}, ${esc(c.names[1])} ${G.score[1]}. ${firstTo(c)}.</p>
+        <div class="reward-note"><span>Game reward</span><span class="chip"><b>+${gx}</b> XP</span><span class="coin">+${gc}</span></div>
+        <div class="btns"><button class="btn primary" data-act="next">Next game</button></div>`,
+      actions: { next: () => { res(1); } },
+    }));
+    return 'next';
+  }
+
   async function finishGame(id, w, how) {
     const c = G.cfg;
     if (G.flagged >= 0) how = 'time';
     if (online() && G.flagged === 1 && G.clk && G.clk.claimed) Net.send('flag', { claim: 1 });   // I claimed it: make sure they agree
     G.phase = 'over'; view.sel = null; view.dests = []; view.movable = []; view.hint = null; if (G.clk) G.clk.over = true;
+    if (w === 2) return drawGame(id);
+    const tbg = tables(), tg = tbg ? TB.gOf(G.pos.rs) : null;
+    if (tbg && how === 'normal' && TB.how(G.pos) === 'mother') how = 'mother';
     const base = how === 'pass' || how === 'time' ? 1 : (c.gammons ? BG.gameValue(G.pos, w) : 1);
     const cv = G.cube.value, pts = base * cv;
+    const mars = tbg ? tg.score === 'std' && base === 2 && how !== 'mother' : base === 2;
     G.score[w] += pts; G.stats.games++;
     const gs = G.track.endGame({ winner: w, base, pts, cv, how });
     if (c.mode !== '2p' && w === 0) {
-      if (base === 2) G.stats.gammons++;
-      if (base === 3) G.stats.backgammons++;
+      if (mars) G.stats.gammons++;
+      if (!tbg && base === 3) G.stats.backgammons++;
       G.stats.cubeWin = Math.max(G.stats.cubeWin, cv);
       G.stats.pointsWon += pts;
       G.stats.oppLeft = how === 'pass' || how === 'time' ? BG.total(G.pos) : BG.total(G.pos) - G.pos.off[1];
@@ -11577,7 +12057,8 @@ const Game = (() => {
     const humanWon = c.mode === '2p' ? true : w === 0;
     humanWon ? SFX.win() : SFX.lose();
     if (humanWon) view.celebrate();
-    banner(base === 3 ? 'Backgammon!' : base === 2 ? 'Gammon!' : how === 'time' ? 'Out of time' : how === 'pass' ? 'Double declined' : (humanWon && c.mode !== '2p' ? 'You win!' : c.mode === '2p' ? c.names[w] + ' wins' : c.names[1] + ' wins'));
+    const plain = how === 'time' ? 'Out of time' : how === 'pass' ? 'Double declined' : (humanWon && c.mode !== '2p' ? 'You win!' : c.mode === '2p' ? c.names[w] + ' wins' : c.names[1] + ' wins');
+    banner(tbg ? (how === 'mother' ? 'Mother pinned!' : how === 'time' ? plain : tg.score === 'left' ? base + (base > 1 ? ' points' : ' point') : mars ? 'Mars!' : plain) : base === 3 ? 'Backgammon!' : base === 2 ? 'Gammon!' : plain);
     Banter.react(c, w === 1 ? 'win' : 'lose');
     await view.wait(1500);
     if (!alive(id)) return;
@@ -11590,12 +12071,12 @@ const Game = (() => {
     }
     const matchOver = G.score[w] >= c.matchLen;
     if (matchOver) return 'match';
-    const kind = base === 3 ? 'a backgammon' : base === 2 ? 'a gammon' : 'the game';
+    const kind = tbg ? (how === 'mother' ? 'by pinning the mother checker' : mars ? 'a mars (double game)' : 'the game') : base === 3 ? 'a backgammon' : base === 2 ? 'a gammon' : 'the game';
     const rwNote = G.cheated ? '<div class="reward-note">Cheats are active, so this match pays no rewards.</div>' : '<div class="reward-note"><span>Game reward</span><span class="chip"><b>+' + gx + '</b> XP</span><span class="coin">+' + gc + '</span><span>Win the match for a bonus, plus extra for a long match or a clean sweep.</span></div>';
     await new Promise((res) => modal({
       dismiss: false, wide: true,
       html: `<h2>${esc(c.names[w])}${c.mode !== '2p' && w === 0 ? ' win ' : ' wins '}${kind}</h2>
-        <p class="lead">${pts} point${pts > 1 ? 's' : ''}${cv > 1 ? ' (cube ' + cv + ')' : ''}. Score: ${esc(c.names[0])} ${G.score[0]}, ${esc(c.names[1])} ${G.score[1]}. First to ${c.matchLen}.</p>
+        <p class="lead">${pts} point${pts > 1 ? 's' : ''}${cv > 1 ? ' (cube ' + cv + ')' : ''}. Score: ${esc(c.names[0])} ${G.score[0]}, ${esc(c.names[1])} ${G.score[1]}. ${firstTo(c)}.</p>
         ${Stats.tabsHTML(['Result', 'Game stats'])}
         <div class="st-pane" data-pane="0">${rwNote}</div><div class="st-pane" data-pane="1" hidden>${Stats.gamePanel(G.track, gs)}</div>
         <div class="btns"><button class="btn primary" data-act="next">Next game</button></div>`,
@@ -11638,7 +12119,8 @@ const Game = (() => {
       for (const slot in slotCat) { const cat = slotCat[slot]; if (!p.owned[cat].includes(bs[slot])) { p.owned[cat].push(bs[slot]); fresh = true; } }
       if (fresh) res.bossSet = bs;
     }
-    if (!G.cheated && c.mode !== '2p' && c.mode !== 'online') Stats.record(G.track, res);
+    if (tables()) { if (!G.cheated) Tables.record(c, res, G.score); }
+    else if (!G.cheated && c.mode !== '2p' && c.mode !== 'online') Stats.record(G.track, res);
     if (c.tour) res.tour = Tour.finish(c, res.won, G.score, G.cheated);
     res.rw = G.cheated ? { xp: 0, coins: 0, lines: [['Cheats used: no match rewards', 0, 0]] } : c.tour ? (res.tour ? res.tour.rw : { xp: 0, coins: 0, lines: [['This tournament is no longer active', 0, 0]] }) : DATA.rewardFor(input);
     if (c.mode === 'campaign' && G.cheated) { res.done = c.stage.objectives.map(() => false); }
@@ -12262,22 +12744,27 @@ function openSetup(mode) {
   renderSetup(); show('setup');
 }
 function renderSetup() {
-  const q = P().quick, two = Setup.mode === 'two';
+  const q = P().quick, two = Setup.mode === 'two', wild = Setup.mode === 'wild';
+  const tbv = TB.isChoice(q.variant) && !wild;                                // a Tavli or Tawle game is the starting position
+  const vv = wild && TB.isChoice(q.variant) ? 'classic' : q.variant;          // Wild Mode is played on backgammon only
+  const mlen = Tables.effLen(vv, q.matchLen);
   const seg = (key, items, cur) => `<div class="seg">${items.map(([v, l, s]) => `<button data-k="${key}" data-v="${v}" class="${String(cur) === String(v) ? 'on' : ''}">${l}${s ? `<small>${s}</small>` : ''}</button>`).join('')}</div>`;
   const tog = (key, t, s) => `<div class="toggle ${q[key] ? 'on' : ''}" data-tk="${key}" role="switch" aria-checked="${!!q[key]}" tabindex="0"><span class="sw"></span><span><b>${t}</b><small>${s}</small></span></div>`;
   let h = '<div class="setup-grid">';
   if (Setup.mode === 'wild') h += `<div class="reward-note" style="border-style:solid"><span><b>How it works</b></span><span>Before the match you pick four powers from eight. You gain 1 energy at the start of each of your turns and 2 more when one of your checkers is hit, and each power costs energy. Play one power per turn: bend the dice, build a wall, lock down a point, dash or swap checkers, freeze or hex your opponent, or shield your blots. The computer drafts its own, hidden until used. Pays the same as a quick match.</span></div>`;
   if (!two) {
     h += `<div class="field"><div class="lbl">Opponent strength</div>${seg('level', [1, 2, 3, 4, 5].map(i => [i, AI.LEVELS[i].name, LEVEL_INFO[i].blurb]), q.level)}</div>`;
-    h += `<div class="field"><div class="lbl">Play style</div>${seg('style', Object.keys(AI.STYLES).map(k => [k, AI.STYLES[k].name, STYLE_INFO[k]]), q.style)}</div>`;
+    if (!tbv) h += `<div class="field"><div class="lbl">Play style</div>${seg('style', Object.keys(AI.STYLES).map(k => [k, AI.STYLES[k].name, STYLE_INFO[k]]), q.style)}</div>`;
   } else {
     h += `<div class="field"><div class="lbl">Players</div><div style="display:flex;gap:10px;flex-wrap:wrap"><input id="nm0" class="btn" style="flex:1;min-width:160px;text-align:left;user-select:text" maxlength="14" placeholder="Player 1 (bottom, light)" value="${esc(Setup.names[0])}"><input id="nm1" class="btn" style="flex:1;min-width:160px;text-align:left;user-select:text" maxlength="14" placeholder="Player 2 (top, dark)" value="${esc(Setup.names[1])}"></div></div>`;
   }
-  h += `<div class="field"><div class="lbl">Starting position</div>${seg('variant', Object.keys(BG.VARIANTS).map(k => [k, BG.VARIANTS[k].name, BG.VARIANTS[k].tag + ' · pays x' + DATA.vf(k).toFixed(2)]), q.variant)}</div>`;
-  h += `<div class="field"><div class="lbl">Match length</div>${seg('matchLen', [[1, 'Single game', 'One game, winner takes it'], [3, 'First to 3', 'Short match'], [5, 'First to 5', 'Standard match'], [7, 'First to 7', 'Long match']], q.matchLen)}</div>`;
-  if (Setup.mode !== 'wild') h += `<div class="field"><div class="lbl">Clock</div>${seg('clock', [['off', 'No clock', 'Take your time'], ...DATA.CLOCKS.map(c => [c.id, c.name, DATA.clockText(c)])], DATA.clockOf(q.clock) ? q.clock : 'off')}<div class="clk-note">Speed mode: a time bank for each game, and a short delay at the start of every turn. Run out and you lose the game at the stake. ${two ? 'Both players are on the clock.' : 'The computer is never on the clock.'}</div></div>`;
-  h += `<div class="field" style="display:grid;gap:8px">${tog('cube', 'Doubling cube', 'Raise the stakes before you roll. The Crawford rule applies in matches.')}${tog('gammons', 'Gammons and backgammons', 'Count double and triple wins when the loser has borne off nothing')}</div>`;
-  const rmode = two ? '2p' : 'ai', gr = DATA.gameReward({ mode: rmode, level: q.level, variant: q.variant, won: true }), mb = DATA.matchBase({ mode: rmode, level: q.level, variant: q.variant });
+  const fams = wild ? [] : ['tavli', 'tawle'].map(f => ['fam:' + f, Tables.INFO[f].name, Tables.INFO[f].sub + ' · ' + Tables.LIST[f]]);
+  h += `<div class="field"><div class="lbl">Starting position</div>${seg('variant', Object.keys(BG.VARIANTS).map(k => [k, BG.VARIANTS[k].name, BG.VARIANTS[k].tag + ' · pays x' + DATA.vf(k).toFixed(2)]).concat(fams), tbv ? 'fam:' + TB.famOf(q.variant) : vv)}</div>`;
+  if (tbv) { const fam = TB.famOf(q.variant); h += `<div class="field"><div class="lbl">${Tables.INFO[fam].name} game</div>${seg('variant', TB.CHOICES[fam].map(id => [id, TB.nameOf(id), Tables.gameTag(id) + ' · pays x' + DATA.vf(id).toFixed(2)]), q.variant)}</div>${Tables.panel(q.variant)}`; }
+  h += `<div class="field"><div class="lbl">Match length</div>${seg('matchLen', tbv ? Tables.lenItems(q.variant) : [[1, 'Single game', 'One game, winner takes it'], [3, 'First to 3', 'Short match'], [5, 'First to 5', 'Standard match'], [7, 'First to 7', 'Long match']], mlen)}</div>`;
+  if (!wild) h += `<div class="field"><div class="lbl">Clock</div>${seg('clock', [['off', 'No clock', 'Take your time'], ...DATA.CLOCKS.map(c => [c.id, c.name, DATA.clockText(c)])], DATA.clockOf(q.clock) ? q.clock : 'off')}<div class="clk-note">Speed mode: a time bank for each game, and a short delay at the start of every turn. Run out and you lose the game at the stake. ${two ? 'Both players are on the clock.' : 'The computer is never on the clock.'}</div></div>`;
+  if (!tbv) h += `<div class="field" style="display:grid;gap:8px">${tog('cube', 'Doubling cube', 'Raise the stakes before you roll. The Crawford rule applies in matches.')}${tog('gammons', 'Gammons and backgammons', 'Count double and triple wins when the loser has borne off nothing')}</div>`;
+  const rmode = two ? '2p' : 'ai', gr = DATA.gameReward({ mode: rmode, level: q.level, variant: vv, won: true }), mb = DATA.matchBase({ mode: rmode, level: q.level, variant: vv });
   h += `<div class="reward-note"><span>${two ? 'Rewards' : 'Win rewards'}</span><span class="chip"><i>PER GAME</i><b>${fmt(gr.xp)}</b> XP</span><span class="coin">${fmt(gr.coins)}</span><span class="chip"><i>${two ? 'MATCH' : 'MATCH WIN'}</i><b>+${fmt(mb.xp)}</b> XP</span><span class="coin">+${fmt(mb.coins)}</span><span>${two ? 'Longer matches add 25% of the match reward per extra game.' : 'Each extra game adds 25% of the match win reward, and a clean sweep adds 35%. Rewards are scaled to how long the starting position takes to play.'}</span></div>`;
   h += `<div><button class="btn primary big" id="setup-go" style="width:100%">Start ${two ? 'game' : 'match'}</button></div></div>`;
   const body = $('#setup-body'), st = body.scrollTop;
@@ -12286,8 +12773,16 @@ function renderSetup() {
 function wireSetup() {
   const body = $('#setup-body');
   body.addEventListener('click', (e) => {
+    const r = e.target.closest('[data-rules]');
+    if (r) { SFX.click(); Tables.rulesSheet(r.dataset.rules); return; }
     const b = e.target.closest('button[data-k]');
-    if (b) { const k = b.dataset.k, v = b.dataset.v; P().quick[k] = (k === 'level' || k === 'matchLen') ? +v : v; Store.save(); SFX.click(); renderSetup(); return; }
+    if (b) {
+      const k = b.dataset.k, v = b.dataset.v;
+      if (k === 'variant' && v.startsWith('fam:')) P().quick.variant = Tables.lastGame(v.slice(4));       // Tavli or Tawle: back to the game last played in it
+      else { P().quick[k] = (k === 'level' || k === 'matchLen') ? +v : v; if (k === 'variant') Tables.remember(v); }
+      if (k === 'variant') P().quick.matchLen = Tables.effLen(P().quick.variant, P().quick.matchLen);
+      Store.save(); SFX.click(); renderSetup(); return;
+    }
     const t = e.target.closest('.toggle[data-tk]');
     if (t) { const k = t.dataset.tk; P().quick[k] = !P().quick[k]; Store.save(); SFX.click(); renderSetup(); return; }
     if (e.target.closest('#setup-go')) startFromSetup();
@@ -12296,12 +12791,14 @@ function wireSetup() {
   body.addEventListener('keydown', (e) => { if ((e.key === ' ' || e.key === 'Enter') && e.target.classList.contains('toggle')) { e.preventDefault(); e.target.click(); } });
 }
 function startFromSetup() {
-  const q = P().quick;
+  const q = P().quick, wild = Setup.mode === 'wild', tbv = TB.isChoice(q.variant) && !wild;
+  const variant = wild && TB.isChoice(q.variant) ? 'classic' : q.variant, matchLen = Tables.effLen(variant, q.matchLen);
+  const cube = tbv ? false : q.cube, gammons = tbv ? true : q.gammons;                       // Tavli and Tawle have no cube, and their own scoring
   if (Setup.mode === 'quick' || Setup.mode === 'wild') {
-    const pers = LEVEL_INFO[q.level].pers, wild = Setup.mode === 'wild';
-    Game.start({ wild, mode: 'ai', level: q.level, style: q.style, variant: q.variant, matchLen: q.matchLen, cube: q.cube, gammons: q.gammons, clock: wild ? null : DATA.clockOf(q.clock), names: ['You', pers[0]], avs: ['🎲', pers[1]], subs: ['', AI.LEVELS[q.level].name + ' · ' + AI.STYLES[q.style].name + (wild ? ' · Wild' : '')] });
+    const pers = LEVEL_INFO[q.level].pers;
+    Game.start({ wild, mode: 'ai', level: q.level, style: q.style, variant: variant, matchLen: matchLen, cube: cube, gammons: gammons, clock: wild ? null : DATA.clockOf(q.clock), names: ['You', pers[0]], avs: ['🎲', pers[1]], subs: ['', AI.LEVELS[q.level].name + (tbv ? ' · ' + TB.nameOf(variant) : ' · ' + AI.STYLES[q.style].name) + (wild ? ' · Wild' : '')] });
   } else {
-    Game.start({ mode: '2p', level: 3, style: 'balanced', variant: q.variant, matchLen: q.matchLen, cube: q.cube, gammons: q.gammons, clock: DATA.clockOf(q.clock), names: [Setup.names[0].trim() || 'Player 1', Setup.names[1].trim() || 'Player 2'], avs: ['⚪', '⚫'], subs: ['', ''] });
+    Game.start({ mode: '2p', level: 3, style: 'balanced', variant: variant, matchLen: matchLen, cube: cube, gammons: gammons, clock: DATA.clockOf(q.clock), names: [Setup.names[0].trim() || 'Player 1', Setup.names[1].trim() || 'Player 2'], avs: ['⚪', '⚫'], subs: ['', ''] });
   }
 }
 
@@ -12679,8 +13176,12 @@ async function openOnline() {
   const status = (t, bad) => { const e = $('#on-status', api.el); if (e) { e.textContent = t; e.style.color = bad ? '#ff8a8a' : ''; } };
   const failCb = (er) => { status(viaPub && /No game found/.test(er.message) ? 'That game is no longer available. Pick another from the list.' : er.message, true); busy = false; viaPub = false; if ($('#pub-list', api.el)) startBrowse(); };
   /* public games: a live list of open games others have listed, shown on the join screen */
-  const variantName = (v) => (BG.VARIANTS[v] && BG.VARIANTS[v].name) || v;
-  const gameLine = (g) => (g.len === 1 ? 'Single game' : 'First to ' + g.len) + ' · cube ' + (g.cube ? 'on' : 'off') + (DATA.clockOf(g.clock) ? ' · ' + esc(DATA.clockOf(g.clock).name) + ' clock' : '') + ' · ' + esc(variantName(g.variant));
+  const isTB = (v) => TB.isChoice(v);
+  const variantName = (v) => (isTB(v) ? TB.nameOf(v) : TB.own(BG.VARIANTS, v) ? BG.VARIANTS[v].name : v);
+  const isLeft = (v) => isTB(v) && TB.gOf(TB.gameFor(v, 1)).score === 'left';           // 21 and 31 are played to points, not games
+  const lenText = (v, n) => (isLeft(v) ? n + ' points' : n === 1 ? 'Single game' : 'First to ' + n);
+  const gameLine = (g) => lenText(g.variant, g.len) + (isTB(g.variant) ? '' : ' · cube ' + (g.cube ? 'on' : 'off')) + (DATA.clockOf(g.clock) ? ' · ' + esc(DATA.clockOf(g.clock).name) + ' clock' : '') + ' · ' + esc(variantName(g.variant));
+  const quickOk = (g) => !isTB(g.variant);                                            // Quick game never drops you into a Tavli or Tawle game
   const renderPub = (list, stt) => {
     const box = $('#pub-list', api.el); if (!box) return;
     const ok = list.filter(g => g.build === Net.build && !g.finished), other = list.filter(g => g.build !== Net.build).length;
@@ -12703,7 +13204,7 @@ async function openOnline() {
     b = Net.lobbyBrowse((list, stt) => { latest = { list, stt }; });
     iv = setInterval(() => {
       const age = Date.now() - t0; if (!latest) { if (age > 9000) done({ open: [], unreachable: true }); return; }
-      const open = latest.list.filter(g => g.build === Net.build && !g.playing && !g.finished);
+      const open = latest.list.filter(g => g.build === Net.build && !g.playing && !g.finished && quickOk(g));
       if (open.length && age > 1100) done({ open });
       else if (!latest.stt.up && latest.stt.failed >= latest.stt.total) done({ open: [], unreachable: true });
       else if (age > 6500) done({ open, unreachable: !latest.stt.up });
@@ -12768,11 +13269,18 @@ async function openOnline() {
     const box = $('.chk', api.el); if (box) box.insertAdjacentHTML('beforeend', `<div class="msg-line" style="text-align:left">${esc(sum)}</div>`);
   };
   const pubNote = () => cfg.watch !== false ? 'Your game shows in everyone\'s list and stays there as a live game people can watch. Spectators see only the board, dice and names. They cannot play or chat.' : 'Your game shows in everyone\'s list until someone joins it.';
+  const tbv = () => TB.isChoice(cfg.variant);
+  const lenChips = () => (tbv() ? TB.setsOf(cfg.variant) : [1, 3, 5, 7]).map(n => chip(n, lenText(cfg.variant, n), cfg.matchLen === n)).join('');
+  const clockChip = (id, name, sub, on) => `<button class="${on ? 'on' : ''}" data-v="${id}">${name}<small>${sub}</small></button>`;
+  const varSelect = () => `<select id="on-var"><optgroup label="Backgammon">${Object.keys(BG.VARIANTS).map(k => `<option value="${k}" ${k === cfg.variant ? 'selected' : ''}>${esc(BG.VARIANTS[k].name)} · ${esc(BG.VARIANTS[k].tag)}</option>`).join('')}</optgroup>${['tavli', 'tawle'].map(f => `<optgroup label="${esc(Tables.INFO[f].name)} · ${esc(Tables.INFO[f].sub)}">${TB.CHOICES[f].map(id => `<option value="${id}" ${id === cfg.variant ? 'selected' : ''}>${esc(TB.nameOf(id))} · ${esc(Tables.gameTag(id))}</option>`).join('')}</optgroup>`).join('')}</select>`;
+  const tbNote = () => (tbv() ? `<span>${Tables.lead(cfg.variant)}</span><button class="btn small" data-go="rules">How to play</button>` : '');
   const create = () => {
-    body().innerHTML = `<div class="on-name"><b>Match length</b><span class="seg" id="on-len">${[1, 3, 5, 7].map(n => chip(n, n === 1 ? 'Single game' : 'First to ' + n, cfg.matchLen === n)).join('')}</span></div>
-      <div class="on-name"><b>Doubling cube</b><span class="seg" id="on-cube">${chip('1', 'On', cfg.cube)}${chip('0', 'Off', !cfg.cube)}</span></div>
-      <div class="on-name"><b>Clock</b><span class="seg" id="on-clock">${chip('off', 'Off', !DATA.clockOf(cfg.clock))}${DATA.CLOCKS.map(c => chip(c.id, c.name, cfg.clock === c.id)).join('')}</span></div>
-      <div class="on-name"><b>Starting position</b><select id="on-var">${Object.keys(BG.VARIANTS).map(k => `<option value="${k}" ${k === cfg.variant ? 'selected' : ''}>${esc(BG.VARIANTS[k].name)} · ${esc(BG.VARIANTS[k].tag)}</option>`).join('')}</select></div>
+    body().innerHTML = `<div class="on-name"><b>Starting position</b>${varSelect()}</div>
+      <div class="reward-note" id="on-tbnote" style="margin:0 0 8px;display:${tbv() ? 'flex' : 'none'};gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between">${tbNote()}</div>
+      <div class="on-name"><b>Match length</b><span class="seg" id="on-len">${lenChips()}</span></div>
+      <div class="on-name" id="on-cuberow" style="display:${tbv() ? 'none' : ''}"><b>Doubling cube</b><span class="seg" id="on-cube">${chip('1', 'On', cfg.cube)}${chip('0', 'Off', !cfg.cube)}</span></div>
+      <div class="on-name"><b>Clock</b><span class="seg" id="on-clock">${clockChip('off', 'Off', 'Take your time', !DATA.clockOf(cfg.clock))}${DATA.CLOCKS.map(c => clockChip(c.id, c.name, DATA.clockText(c), cfg.clock === c.id)).join('')}</span></div>
+      <div class="clk-note" style="margin:-6px 0 8px">A time bank for each game, and a short delay at the start of every turn. Run out and you lose the game. Both players are on the clock.</div>
       ${brokered() ? `<div class="on-name"><b>Who can join</b><span class="seg" id="on-pub">${chip('0', 'Friends with the code', !cfg.pub)}${chip('1', 'Public list', !!cfg.pub)}</span></div>
       <div class="on-name" id="on-watchrow" style="display:${cfg.pub ? '' : 'none'}"><b>Let others watch</b><span class="seg" id="on-watch">${chip('1', 'Yes', cfg.watch !== false)}${chip('0', 'No', cfg.watch === false)}</span></div>
       <div class="reward-note" id="on-pubnote" style="margin:0 0 8px;display:${cfg.pub ? '' : 'none'}">${pubNote()}</div>` : ''}
@@ -12828,6 +13336,7 @@ async function openOnline() {
   };
   const hostNow = async () => {
     busy = true; cfg.pub = !!cfg.pub && brokered(); cfg.watch = cfg.pub && cfg.watch !== false;
+    Net.cfgGuard(cfg);                                     // the same check the guest applies, so both sides always agree on the game and its length
     cfg.cos = Object.assign({}, P().equipped);        // the host's equipped items dress the board for both players, this match only
     try {
       if (brokered()) {
@@ -12850,11 +13359,20 @@ async function openOnline() {
     onClose: () => { stopBrowse(); if (!Net.ready) Net.close(); },
     actions: {},
     after: (a) => {
+      a.el.addEventListener('change', (e) => {                                  // a new starting position: Tavli and Tawle have their own lengths and no cube
+        if (e.target.id !== 'on-var') return;
+        cfg.variant = e.target.value; cfg.matchLen = Tables.effLen(cfg.variant, cfg.matchLen);
+        if (tbv()) { cfg.cube = false; Tables.remember(cfg.variant); } else cfg.cube = cfg.cubePref !== false;
+        const l = $('#on-len', a.el), cr = $('#on-cuberow', a.el), n = $('#on-tbnote', a.el), cb = $('#on-cube', a.el);
+        if (l) l.innerHTML = lenChips(); if (cr) cr.style.display = tbv() ? 'none' : '';
+        if (n) { n.innerHTML = tbNote(); n.style.display = tbv() ? 'flex' : 'none'; }
+        if (cb) $$('button', cb).forEach(x => x.classList.toggle('on', (x.dataset.v === '1') === cfg.cube));
+      });
       a.el.addEventListener('click', async (e) => {
         const g = e.target.closest('[data-go]'), v = e.target.closest('[data-v]');
         if (v) {
           const grp = v.parentNode.id; $$('button', v.parentNode).forEach(x => x.classList.toggle('on', x === v));
-          if (grp === 'on-len') cfg.matchLen = +v.dataset.v; if (grp === 'on-cube') cfg.cube = v.dataset.v === '1'; if (grp === 'on-clock') cfg.clock = DATA.clockOf(v.dataset.v) ? v.dataset.v : '';
+          if (grp === 'on-len') cfg.matchLen = +v.dataset.v; if (grp === 'on-cube') { cfg.cube = v.dataset.v === '1'; cfg.cubePref = cfg.cube; } if (grp === 'on-clock') cfg.clock = DATA.clockOf(v.dataset.v) ? v.dataset.v : '';
           if (grp === 'on-watch') { cfg.watch = v.dataset.v === '1'; const n = $('#on-pubnote', api.el); if (n) n.textContent = pubNote(); }
           if (grp === 'on-pub') {
             cfg.pub = v.dataset.v === '1'; const n = $('#on-pubnote', api.el); if (n) { n.textContent = pubNote(); n.style.display = cfg.pub ? '' : 'none'; }
@@ -12868,6 +13386,7 @@ async function openOnline() {
         if (go === 'close') { api.close(); return; }
         if (go === 'home' || go === 'cancel') { Net.close(); hostH = null; home(); return; }
         if (go === 'create') { create(); return; }
+        if (go === 'rules') { Tables.rulesSheet(cfg.variant); return; }
         if (go === 'check') { Net.close(); checkView(); return; }
         if (go === 'copyreport') { try { await navigator.clipboard.writeText('Backgammon Legacy connection check\nBuild ' + Net.build + ' on ' + ((location && location.host) || 'local file') + '\n' + checkReport); toast('Copied'); } catch (err) { toast('Could not copy. A screenshot works too.'); } return; }
         if (go === 'join') { (mode === 'p2p' && manual) ? joinP2PView() : joinRoomView(); return; }
@@ -12884,7 +13403,7 @@ async function openOnline() {
           return;
         }
         if (go === 'host') {
-          cfg.variant = $('#on-var', api.el).value;
+          { const sel = $('#on-var', api.el); if (sel) cfg.variant = sel.value; }
           const ci = $('#on-codein', api.el); if (ci) { wantCode = Net.cleanCode(ci.value); if (wantCode.length < Net.MIN_CODE) { status('Use at least 5 letters or numbers for the code.', true); return; } }
           await hostNow(); return;
         }
