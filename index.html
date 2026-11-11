@@ -2489,7 +2489,7 @@ const DATA = (() => {
     equipped: { board: 'club', checkers: 'classic', dice: 'ivory', moveFx: 'glide', throwFx: 'toss', hitFx: 'knock', trim: 'none', inlay: 'none', mat: 'none', cube: 'ivory' },
     campaign: {}, cheats: { unlockStages: false }, career: blankCareer(),
     stats: { played: 0, won: 0, gammons: 0, hits: 0, coinsEarned: 0, bestStreak: 0, streak: 0 },
-    settings: { sound: true, volume: 0.7, autoRoll: false, assist: true, legal: true, numbers: true, fast: false, pipDisplay: true, haptics: true, wakeLock: true, compact: 'auto', landscapeLock: false, quality: 'auto', board3d: true, fps: 'max', powerSaver: false, banter: true, liveCoach: false },
+    settings: { sound: true, volume: 0.7, autoRoll: false, handThrow: true, shake: true, throwHints: 0, assist: true, legal: true, numbers: true, fast: false, pipDisplay: true, haptics: true, wakeLock: true, compact: 'auto', landscapeLock: false, quality: 'auto', board3d: true, fps: 'max', powerSaver: false, banter: true, liveCoach: false },
     quick: { level: 3, style: 'balanced', matchLen: 1, cube: false, variant: 'classic', gammons: true, clock: 'off' },
     train: { solved: {}, lessons: [], tried: 0, right: 0, streak: 0, bestStreak: 0 },
     tour: { run: null, wins: {}, played: 0, titles: 0 },
@@ -5031,8 +5031,32 @@ class BoardView {
   moveDrag(px, py) { if (!this.drag) return; const l = this.toLogical(px, py); this.drag.x = l.x; this.drag.y = l.y; }
   endDrag() { const d = this.drag; this.drag = null; if (d) d.lift = this.dragLift || 0; return d; }
 
+  /* ----- dice held in the hand: pressed, carried under the finger, then thrown ----- */
+  // The faces shown while the dice are held mean nothing: the real roll is made afterwards, as always.
+  holdDice(sides, lx, ly) {
+    if (!this.held) this.held = { prev: this.dice, prevDbl: this.dblLeft };
+    this.cup = null; this.dblLeft = 0;
+    this.dice = sides.map((side, i) => {
+      const v = 1 + Math.floor(Math.random() * 6), yaw = rnd(0, TAU);
+      return { value: v, side, x: lx, y: ly, z: 0, size: 60, scale: 1, alpha: 1, visible: true, used: false, end: { x: lx, y: ly }, Rf: GFX.rotFinal(v, yaw), R: GFX.rotFinal(v, yaw), _hi: 0, inCup: false, trails: [], held: true };
+    });
+    this.moveHeld(lx, ly, 0, 0);
+    this.snd('diceHit', 0.35);
+  }
+  moveHeld(lx, ly, vx, vy) {
+    const N = this.dice.length, t = performance.now() / 1000;
+    this.dice.forEach((d, i) => {
+      const k = i - (N - 1) / 2;
+      d.x = lx + k * 40 + Math.sin(t * 9 + i * 2) * 1.5; d.y = ly + Math.cos(t * 7 + i) * 1.5; d.z = 66 + 4 * Math.sin(t * 6 + i); d.scale = 1.14;
+      const sp = Math.hypot(vx, vy), tilt = Math.min(0.5, sp / 3600), ax = sp > 1 ? [vy / sp, -vx / sp, 0] : [0, 0, 1];
+      d.R = GFX.matmul(GFX.rotAxis(ax, tilt + 0.08 * Math.sin(t * 5 + i)), d.Rf);
+    });
+  }
+  // put the dice that were on the board back: the throw was cancelled
+  dropHeld() { if (!this.held) return; const h = this.held; this.held = null; this.dice = h.prev || []; this.dblLeft = h.prevDbl || 0; }
+
   /* ----- dice ----- */
-  clearDice() { this.dice = []; this.dblLeft = 0; this.cup = null; }
+  clearDice() { this.dice = []; this.dblLeft = 0; this.cup = null; this.held = null; this.launch = null; }
   // change a resting die to a new face in place (Wild mode: Nudge, Twin)
   setDieValue(idx, v) {
     const d = this.dice[idx]; if (!d) return;
@@ -5055,6 +5079,8 @@ class BoardView {
   }
 
   throwDice(specs, fxId) {
+    // thrown by hand: the dice leave the player's fingers (this.launch) and still land on the roll that was already made
+    const L = fxId ? null : this.launch; this.launch = null; this.held = null;
     const fx = fxId || this.cos.throwFx;
     this.cup = null;
     const bySide = [specs.filter(s => s.side === 0).length, specs.filter(s => s.side === 1).length];
@@ -5066,12 +5092,12 @@ class BoardView {
       return { value: sp.value, side: sp.side, x: end.x, y: end.y, z: 0, size: 60, scale: 1, alpha: 0, visible: false, used: false, end, Rf: GFX.rotFinal(sp.value, yaw), R: GFX.rotFinal(sp.value, yaw), _hi: 0, inCup: false, trails: [] };
     });
     this.dice = dice; this.dblLeft = 0;
-    const cupP = fx === 'cup' ? this.planCup(dice) : null;
-    const plans = cupP ? cupP.dicePlans : dice.map((d, i) => this.planDie(fx, d, i, dice.length));
+    const cupP = fx === 'cup' && !L ? this.planCup(dice) : null;
+    const plans = cupP ? cupP.dicePlans : dice.map((d, i) => this.planDie(L ? 'hand' : fx, d, i, dice.length, L));
     const T = cupP ? cupP.T : Math.max(...plans.map(p => p.T));
     const sts = dice.map(() => ({}));
     this.snd('whoosh');
-    if (fx !== 'cup') this.snd('rattle', 0.35);
+    if (fx !== 'cup' || L) this.snd('rattle', 0.35);
     return this.tween(T, (u) => {
       for (let i = 0; i < dice.length; i++) {
         const pl = plans[i], up = clamp01(u * T / pl.T);
@@ -5085,13 +5111,28 @@ class BoardView {
     });
   }
 
-  planDie(fx, d, i, N) {
+  planDie(fx, d, i, N, L) {
     const axis = [rnd(-1, 1), rnd(-1, 1), rnd(-0.6, 0.6)];
     const end = d.end, side = d.side;
     const setR = (th) => { d.R = GFX.matmul(GFX.rotAxis(axis, th), d.Rf); };
     const hitSnd = (prof, u, k0) => { while (d._hi < prof.hits.length && u >= prof.hits[d._hi]) { this.snd('diceHit', Math.max(0.35, 1 - d._hi * 0.3) * (k0 || 1)); this.dieLand(d, Math.max(0.3, 1 - d._hi * 0.35)); d._hi++; } };
     const dir = side === 0 ? 1 : -1;
     switch (fx) {
+      case 'hand': {
+        // from the fingers: a short lob towards the table, a few bounces, and a spin that grows with the flick
+        const pw = L.pw, k = i - (N - 1) / 2, sx = L.x + k * 40, sy = L.y;
+        const z0 = 66, arc = 30 + 130 * pw, prof = bounceProfile(z0, [14 + 40 * pw, 7 + 12 * pw, 3]);
+        const th = TAU * rnd(2, 3.2) * (0.7 + 0.8 * pw), fl = 0.62 - 0.12 * pw;
+        return {
+          T: 1050 + 420 * pw + i * 90, hits: prof.hits,
+          sample: (u) => {
+            const e = E.out2(Math.min(1, u / fl));
+            d.visible = true; d.alpha = 1; d.x = sx + (end.x - sx) * e; d.y = sy + (end.y - sy) * e;
+            d.z = prof.z(u) + (u < 0.4 ? arc * Math.sin(Math.PI * u / 0.4) : 0); d.scale = 1 + d.z / 500 * this.zScale;
+            setR(th * (1 - E.out3(u))); hitSnd(prof, u);
+          }
+        };
+      }
       case 'drop': {
         const z0 = rnd(440, 520);
         const prof = bounceProfile(z0, [z0 * 0.17, z0 * 0.06, z0 * 0.02]);
@@ -8214,6 +8255,59 @@ const SFX = (() => {
   return api;
 })();
 
+/* ---------- Shake to roll ----------
+   The phone's motion sensor, read as "a few hard back-and-forth jerks within about a second".
+   It only listens while the game is waiting for the player's roll, so it costs nothing the rest of the time.
+   iPhones deliver motion events only after the player allows them, and that prompt must come from a tap: ask() is called from taps. */
+const Shake = (() => {
+  const JERK = 7, NEED = 4, WINDOW = 1100, GAP = 70, COOL = 1500;      // size of one jerk (m/s² change per 16 ms), how many, within how long, spacing, pause after a shake
+  let handler = null, armed = false, granted = false, asked = false, live = false, last = null, lastT = 0, hits = [], cool = 0;
+  const needsAsk = () => typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function';
+  const possible = () => typeof window !== 'undefined' && 'DeviceMotionEvent' in window && ((navigator.maxTouchPoints || 0) > 0 || 'ontouchstart' in window);
+  const enabled = () => P().settings.shake !== false;
+  function onMotion(e) {
+    if (!enabled()) return;
+    const a = e.accelerationIncludingGravity;
+    if (!a || a.x === null || a.x === undefined) return;
+    live = true;
+    const now = performance.now();
+    if (last) {
+      const dt = Math.min(60, Math.max(8, now - lastT));
+      const d = (Math.abs(a.x - last.x) + Math.abs(a.y - last.y) + Math.abs(a.z - last.z)) * 16 / dt;
+      if (d > JERK && now - (hits.length ? hits[hits.length - 1] : -1e9) > GAP) {
+        hits.push(now);
+        while (hits.length && now - hits[0] > WINDOW) hits.shift();
+        if (hits.length >= NEED && now > cool) { hits = []; cool = now + COOL; if (handler) handler(); }
+      }
+    }
+    last = { x: a.x, y: a.y, z: a.z }; lastT = now;
+  }
+  function sync() {
+    const want = armed && enabled() && !!handler;      // on an iPhone the events simply do not come until the player has allowed them
+    if (want === sync.on) return;
+    sync.on = want; last = null; hits = [];
+    if (want) window.addEventListener('devicemotion', onMotion); else window.removeEventListener('devicemotion', onMotion);
+  }
+  return {
+    possible, needsAsk, enabled,
+    get live() { return live; },
+    on(fn) { handler = fn; sync(); },
+    refresh: sync,                                       // the setting changed
+    arm(on) { armed = !!on; sync(); },                   // on while the game waits for this player's roll
+    // from a tap: on iPhones this shows the "allow motion" prompt (once); elsewhere there is nothing to ask
+    async ask() {
+      if (!enabled() || granted) return granted;
+      if (!needsAsk()) { granted = true; sync(); return true; }
+      if (asked) return false;
+      asked = true;
+      try { granted = (await DeviceMotionEvent.requestPermission()) === 'granted'; } catch (e) { granted = false; }
+      sync(); return granted;
+    },
+    // for tests: pretend the motion sensor can be used
+    _force() { granted = true; sync(); },
+  };
+})();
+
 /* ============================================================
    Online play: room codes, a reliable ordered link between two players, and a shared dice stream.
 
@@ -8226,7 +8320,7 @@ const SFX = (() => {
    and rolls never need to be sent for trust, only for animation.
    ============================================================ */
 const Net = (() => {
-  const BUILD = '20261108-1204';
+  const BUILD = '20261111-0922';
   const TOPIC = 'm', ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const HEARTBEAT = 2500, RESEND = 1400, LOST_AFTER = 14000;
   let ns = null, nsTried = false, S = null;
@@ -9216,7 +9310,7 @@ const Device = (() => {
       else if (!on && wake) { await wake.release(); wake = null; }
     } catch (e) { wake = null; }
   }
-  const PAT = { checker: 8, hit: [30, 30, 40], slam: 45, bearoff: 14, cube: 16, diceHit: 6, select: 5, win: [40, 50, 40, 50, 90], lose: 90, levelUp: [30, 40, 30, 40, 60], error: 20 };
+  const PAT = { checker: 8, hit: [30, 30, 40], slam: 45, bearoff: 14, cube: 16, diceHit: 6, select: 5, win: [40, 50, 40, 50, 90], lose: 90, levelUp: [30, 40, 30, 40, 60], error: 20, shake: 24 };
   function haptic(name) {
     if (!P().settings.haptics || !navigator.vibrate || !PAT[name]) return;
     const now = performance.now(); if (now - lastBuzz < 45) return; lastBuzz = now;
@@ -9375,6 +9469,7 @@ function onGlRestored(n) {
 }
 function applySettings() {
   const s = P().settings;
+  Shake.refresh();
   if (Game.syncViewMode) Game.syncViewMode();
   applyPerf();
   if (GFX.quality.level !== effQuality()) applyQuality();
@@ -9398,6 +9493,8 @@ function openSettings() {
         ${row('banter', 'Opponent chatter', 'Computer opponents react with lines and faces to hits, doubles and your mistakes')}
         ${row('liveCoach', 'Live coach', 'Tells you in plain English when you make a big mistake in a game against the computer')}
         ${row('autoRoll', 'Auto-roll dice', 'Rolls for you at the start of your turn, unless you can double')}
+        ${row('handThrow', 'Throw dice by hand', 'Press the board, drag the dice and flick them to throw. A plain tap still rolls')}
+        ${Shake.possible() ? row('shake', 'Shake to roll', 'Shake your phone to roll when it is your turn') : ''}
         ${row('board3d', '3D board', 'Turn off for the flat 2D board: lighter on older phones')}
         ${row('numbers', 'Point numbers', 'Numbers along the board edge, from your side')}
         ${row('pipDisplay', 'Pip counts', 'Show how far each side has left to travel')}
@@ -9427,6 +9524,7 @@ function openSettings() {
         const k = t.dataset.key; s[k] = !s[k]; t.classList.toggle('on', s[k]); t.setAttribute('aria-checked', s[k]);
         if (k === 'powerSaver') $$('.ps-note', api.el).forEach(n => { n.style.display = s.powerSaver ? 'block' : 'none'; });
         Store.save(); applySettings(); SFX.click();
+        if (k === 'shake' && s.shake) Shake.ask();
       });
       api.el.addEventListener('keydown', (e) => { if ((e.key === ' ' || e.key === 'Enter') && e.target.classList.contains('toggle')) { e.preventDefault(); e.target.click(); } });
       api.el.addEventListener('click', (e) => { const b = e.target.closest('button[data-cv]'); if (!b) return; s.compact = b.dataset.cv; $$('#seg-compact button', api.el).forEach(x => x.classList.toggle('on', x === b)); Store.save(); applySettings(); SFX.click(); });
@@ -9444,6 +9542,8 @@ function openHowTo() {
     <div class="howto">
       <h4>Moving</h4>
       <p>Roll two dice and move checkers by those numbers, counterclockwise. You are the light side at the bottom: your checkers travel from the top right, around the top, and down to the bottom right home board. Tap a checker to see where it can go, then tap a destination, or drag it there. Rolling doubles lets you play each number four times.</p>
+      <h4>Rolling the dice</h4>
+      <p>Tap the board or the Roll dice button. Or press the board, drag the two dice and flick them to throw them yourself. On a phone you can also shake it to roll. The numbers are always the game's fair roll; your hand only changes how the throw looks. Both gestures can be switched off in Settings.</p>
       <h4>Blocking and hitting</h4>
       <ul><li>You cannot land on a point holding two or more enemy checkers.</li><li>A lone checker is a blot. Land on it and it goes to the bar.</li><li>A checker on the bar must re-enter in the enemy home board before you move anything else.</li></ul>
       <h4>Forced moves</h4>
@@ -10913,10 +11013,12 @@ const Game = (() => {
     cv.addEventListener('pointerdown', onDown);
     cv.addEventListener('pointermove', onMove);
     cv.addEventListener('pointerup', onUp);
-    cv.addEventListener('pointercancel', () => { if (G.ptr && G.ptr.dragging) view.endDrag(); G.ptr = null; });
+    cv.addEventListener('pointercancel', () => { if (G.ptr && G.ptr.dragging) view.endDrag(); if (G.ptr && G.ptr.held) view.dropHeld(); G.ptr = null; });
     new ResizeObserver(fit).observe(wrap());
     window.addEventListener('resize', fit);
     window.addEventListener('keydown', onKey);
+    Shake.on(onShake);
+    document.addEventListener('pointerup', askMotion, true);       // iPhones want a tap before they share the motion sensor
     $('#g-roll').addEventListener('click', () => { SFX.resume(); if (G.phase === 'preroll' || G.phase === 'opening') signal('preroll', 'roll'); else if (G.confirming) endTurn(); });
     $('#g-double').addEventListener('click', () => { if (canDouble(G.turn) && G.phase === 'preroll') signal('preroll', 'double'); });
     $('#g-undo').addEventListener('click', undo);
@@ -10996,7 +11098,7 @@ const Game = (() => {
   }
 
   function start(cfg) {
-    initView();
+    initView(); Shake.arm(true);
     G.runId++;
     const id = G.runId;
     cfg.names = cfg.names || ['You', 'Computer'];
@@ -11032,7 +11134,7 @@ const Game = (() => {
       toast('Coach: ' + rv.best + ' was stronger than ' + rv.yours + '. ' + (rv.why[0] || rv.whyBest[0] || ''), 6500);
     }
   }
-  function leaveBoard() { clearInterval(G.clkTimer); G.clkTimer = 0; if (!G.active) return; if (online()) Net.leave(); if (watching() && W.h) { W.h.stop(); W.h = null; } $('#screen-game').classList.remove('watching'); clearTimeout(G.lostTimer); G.active = false; G.runId++; G.waiter = null; if (view) view.stop(); }
+  function leaveBoard() { clearInterval(G.clkTimer); G.clkTimer = 0; Shake.arm(false); if (!G.active) return; if (online()) Net.leave(); if (watching() && W.h) { W.h.stop(); W.h = null; } $('#screen-game').classList.remove('watching'); clearTimeout(G.lostTimer); G.active = false; G.runId++; G.waiter = null; if (view) view.stop(); }
 
   /* ---------- waiting for the player ---------- */
   function waitFor(kind) { return new Promise((res) => { G.waiter = { kind, res }; }); }
@@ -11281,7 +11383,7 @@ const Game = (() => {
           let rolled = false;
           while (!rolled) {
             updateActions();
-            say(esc(G.cfg.names[G.turn]) + (G.cfg.mode === '2p' ? ', roll the dice.' : ': roll the dice.') + (canDouble(G.turn) ? ' <small>You may double first.</small>' : ''));
+            say(esc(G.cfg.names[G.turn]) + (G.cfg.mode === '2p' ? ', roll the dice.' : ': roll the dice.') + (canDouble(G.turn) ? ' <small>You may double first.</small>' : '') + rollHint());
             let act;
             if (P().settings.autoRoll && !canDouble(G.turn)) { await view.wait(450); act = 'roll'; }
             else act = await waitFor('preroll');
@@ -11518,6 +11620,9 @@ const Game = (() => {
         if (!G.active || !online()) return;
         clearTimeout(G.lostTimer);
         if (G.phase === 'over' && G.matchDone) { toast(G.cfg.names[1] + ' has left'); const b = document.querySelector('#modal-root [data-act="again"]'); if (b) { b.disabled = true; b.textContent = 'Opponent left'; } return; }
+        // The winner often leaves the moment the game ends, so "I left" can arrive while the last move is still playing out or the result is still being counted.
+        // That is not an abandoned match: note it, and let the result finish (finishGame / showMatchResult act on G.byeLate).
+        if (G.deciding || (G.phase !== 'over' && G.pos && BG.winnerOf(G.pos) >= 0)) { G.byeLate = true; return; }
         G.runId++; G.waiter = null; oppGone(G.runId);
       },
       emo: (d) => { if (online() && EMOTES[d.k]) { banner(G.cfg.names[1] + ': ' + EMOTES[d.k]); SFX.click(); } },
@@ -11569,7 +11674,7 @@ const Game = (() => {
     const h = snap.h, cfg = { mode: 'watch', variant: h.va, matchLen: h.len, cube: h.cu, gammons: true, cos: h.cos, names: h.n, avs: h.a, subs: ['Host', 'Guest'] };
     W.q = []; W.busy = false; W.last = null; W.h = handle; W.done = false;
     G.cfg = cfg; G.score = snap.sc.slice(); G.gameNo = snap.gn; G.crawford = false; G.crawfordUsed = false;
-    G.waiter = null; G.busy = false; G.history = []; G.ptr = null; G.active = true; G.phase = 'watching'; G.turnStart = null; G.confirming = false; G.matchDone = false;
+    G.waiter = null; G.busy = false; G.history = []; G.ptr = null; G.active = true; G.phase = 'watching'; G.turnStart = null; G.confirming = false; G.matchDone = false; G.deciding = false; G.byeLate = false;
     G.perkIds = [[], []]; G.energy = [0, 0]; G.freeze = [false, false]; G.hex = [false, false]; G.peek = [null, null]; G.perkTurn = false; G.target = null; G.movable = new Set(); G.dests = []; G.legal = [];
     G.pos = snap.pos; G.turn = snap.turn; G.cube = snap.cube; G.rem = snap.rem.slice();
     show('game'); $('#screen-game').classList.add('watching');
@@ -11815,6 +11920,48 @@ const Game = (() => {
 
   /* ---------- input ---------- */
   function ptPos(e) { const r = $('#board').getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+  /* ---------- throwing the dice yourself, and shaking the phone ---------- */
+  // The numbers are never decided here: a tap, a flick and a shake all end in the same roll as always. They only change how the throw is shown.
+  const handThrowOn = () => P().settings.handThrow !== false;
+  const waitingRoll = () => !!(G.active && !G.busy && (G.phase === 'preroll' || G.phase === 'opening') && G.waiter && G.waiter.kind === 'preroll');
+  function onShake() {
+    if (!waitingRoll() || Nav.cur !== 'game' || $('#modal-root').children.length || (G.ptr && G.ptr.held)) return;
+    Device.haptic('shake'); signal('preroll', 'roll');
+  }
+  function askMotion() { if (G.active && Nav.cur === 'game' && Shake.enabled() && Shake.needsAsk()) Shake.ask(); }
+  function rollHint() {
+    const st = P().settings; st.throwHints = st.throwHints || 0;
+    if (st.throwHints >= 6 || st.autoRoll) return '';
+    const how = [];
+    if (handThrowOn()) how.push('drag the dice and flick them');
+    if (Shake.enabled() && Shake.possible()) how.push('shake your phone');
+    if (!how.length) return '';
+    st.throwHints++; Store.save();
+    return ' <small>Tap, or ' + how.join(', or ') + '.</small>';
+  }
+  const grabVel = (g) => {
+    const t = g.trail; if (t.length < 2) return { x: 0, y: 0 };
+    const a = t[0], b = t[t.length - 1], dt = Math.max(16, b.t - a.t) / 1000;
+    return { x: (b.x - a.x) / dt, y: (b.y - a.y) / dt };
+  };
+  function moveGrab(g, x, y) {
+    if (!g.held) {
+      if (Math.hypot(x - g.x, y - g.y) < 9) return;
+      g.held = true; const l0 = view.toLogical(x, y, 66);
+      view.holdDice(G.phase === 'opening' ? [0, 1] : [G.turn, G.turn], l0.x, l0.y);
+    }
+    const l = view.toLogical(x, y, 66), now = performance.now();
+    g.last = l; g.trail.push({ t: now, x: l.x, y: l.y });
+    while (g.trail.length > 2 && now - g.trail[0].t > 110) g.trail.shift();
+    const v = grabVel(g); view.moveHeld(l.x, l.y, v.x, v.y);
+  }
+  function releaseGrab(g) {
+    if (!g.held) { signal('preroll', 'roll'); return; }                           // no drag: it was a tap
+    if (!waitingRoll()) { view.dropHeld(); return; }
+    const v = grabVel(g), sp = Math.hypot(v.x, v.y), l = g.last;
+    view.launch = { x: l.x, y: l.y, vx: v.x, vy: v.y, pw: Math.max(0, Math.min(1, (sp - 150) / 1700)) };
+    signal('preroll', 'roll');
+  }
   function onDown(e) {
     SFX.resume();
     if (!G.active || G.busy) return;
@@ -11824,6 +11971,11 @@ const Game = (() => {
     if (!isHuman(G.turn)) { G.ptr = null; return; }
     if (G.phase === 'preroll' || G.phase === 'opening') {
       if (h && h.type === 'cube') { if (canDouble(G.turn)) signal('preroll', 'double'); else SFX.error(); }
+      else if (handThrowOn() && waitingRoll()) {                                    // press: the dice are in your hand; let go without moving and it is a plain tap
+        G.ptr = { grab: true, x, y, held: false, trail: [], last: null };
+        try { e.target.setPointerCapture(e.pointerId); } catch (_) { }
+        return;
+      }
       else signal('preroll', 'roll');
       G.ptr = null; return;
     }
@@ -11851,6 +12003,7 @@ const Game = (() => {
   function onMove(e) {
     if (!G.active) return;
     const { x, y } = ptPos(e);
+    if (G.ptr && G.ptr.grab) { moveGrab(G.ptr, x, y); $('#board').style.cursor = 'grabbing'; return; }
     if (G.ptr && G.ptr.from !== null && !G.ptr.dragging && Math.hypot(x - G.ptr.x, y - G.ptr.y) > 7) {
       G.ptr.dragging = true; view.beginDrag(G.turn, G.ptr.from, 0, 0);
     }
@@ -11866,6 +12019,7 @@ const Game = (() => {
   function onUp(e) {
     const ptr = G.ptr; G.ptr = null;
     if (!ptr || !G.active) return;
+    if (ptr.grab) { releaseGrab(ptr); return; }
     const { x, y } = ptPos(e);
     if (ptr.dragging) {
       const d = view.endDrag(), h = view.hitTest(x, y), dest = destAt(h);
@@ -12151,6 +12305,7 @@ const Game = (() => {
     if (online() && G.flagged === 1 && G.clk && G.clk.claimed) Net.send('flag', { claim: 1 });   // I claimed it: make sure they agree
     G.phase = 'over'; view.sel = null; view.dests = []; view.movable = []; view.hint = null; if (G.clk) G.clk.over = true;
     if (w === 2) return drawGame(id);
+    G.deciding = true;                                   // until we know whether the match is decided (see the 'bye' handler)
     const tbg = tables(), tg = tbg ? TB.gOf(G.pos.rs) : null;
     if (tbg && how === 'normal' && TB.how(G.pos) === 'mother') how = 'mother';
     const base = how === 'pass' || how === 'time' ? 1 : (c.gammons ? BG.gameValue(G.pos, w) : 1);
@@ -12174,7 +12329,7 @@ const Game = (() => {
     banner(tbg ? (how === 'mother' ? 'Mother pinned!' : how === 'time' ? plain : tg.score === 'left' ? base + (base > 1 ? ' points' : ' point') : mars ? 'Mars!' : plain) : base === 3 ? 'Backgammon!' : base === 2 ? 'Gammon!' : plain);
     Banter.react(c, w === 1 ? 'win' : 'lose');
     await view.wait(1500);
-    if (!alive(id)) return;
+    if (!alive(id)) { G.deciding = false; return; }
     if (c.mode === '2p' || w === 0) G.gamesWon++; else G.gamesLost++;
     let gx = 0, gc = 0;
     if (!G.cheated && !c.tour) {
@@ -12183,7 +12338,9 @@ const Game = (() => {
       P().xp += gx; P().coins += gc; P().stats.coinsEarned += gc; G.gameXP += gx; G.gameCoins += gc; Store.save(); refreshCoins();
     }
     const matchOver = G.score[w] >= c.matchLen;
+    G.deciding = false;
     if (matchOver) return 'match';
+    if (G.byeLate) { G.byeLate = false; return oppGone(id); }     // they left right after the game and the match is not decided: it ends here
     const kind = tbg ? (how === 'mother' ? 'by pinning the mother checker' : mars ? 'a mars (double game)' : 'the game') : base === 3 ? 'a backgammon' : base === 2 ? 'a gammon' : 'the game';
     const rwNote = G.cheated ? '<div class="reward-note">Cheats are active, so this match pays no rewards.</div>' : '<div class="reward-note"><span>Game reward</span><span class="chip"><b>+' + gx + '</b> XP</span><span class="coin">+' + gc + '</span><span>Win the match for a bonus, plus extra for a long match or a clean sweep.</span></div>';
     await new Promise((res) => modal({
@@ -12323,6 +12480,10 @@ const Game = (() => {
         next: () => { startStage(nextStage); },
       },
     });
+    if (G.byeLate) {                                     // the other player left while the result was being counted
+      G.byeLate = false;
+      if (c.mode === 'online') { toast(c.names[1] + ' has left'); const b = document.querySelector('#modal-root [data-act="again"]'); if (b) { b.disabled = true; b.textContent = 'Opponent left'; } }
+    }
   }
 
   /* ---------- in-game menu ---------- */
